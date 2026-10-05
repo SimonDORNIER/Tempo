@@ -1,0 +1,8 @@
+{
+  "appId": "fr.tempo.sport",
+  "appName": "Tempo",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "https"
+  }
+}

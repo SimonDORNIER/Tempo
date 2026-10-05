@@ -1,11 +1,23 @@
 # Tempo
 
-Application Android Tempo — exercices, mobilité et entraînement.
+Application Android d'exercices, mobilité et entraînement.
 
-Le dépôt contient les sources de l'application, le catalogue d'exercices et le système de compilation/release Android.
+## Données utilisateur
 
-## Mises à jour
-Les versions Android seront publiées dans GitHub Releases et signées avec une clé stable afin de conserver les données locales entre les mises à jour.
+Les exercices personnalisés sont stockés dans IndexedDB (`tempo-offline`) et les réglages dans `localStorage`.
+Le package Android reste `fr.tempo.sport` et toutes les versions officielles utilisent la même clé de signature : les mises à jour s'installent donc par-dessus l'application sans supprimer les données locales.
 
-## Données locales
-Tempo conserve les exercices personnalisés et réglages dans le stockage local de l'application. Une mise à jour signée avec la même clé ne nécessite pas de désinstallation.
+## Publication d'une version
+
+1. Modifier le code.
+2. Créer un tag `vX.Y.Z`.
+3. GitHub Actions compile, signe et publie automatiquement `Tempo-X.Y.Z.apk` dans Releases.
+
+L'application consulte la dernière Release GitHub au démarrage et affiche un bouton lorsqu'une version plus récente est disponible.
+
+## Secrets requis
+
+- `TEMPO_SIGNING_KEY_B64`
+- `TEMPO_SIGNING_CERT_B64`
+
+Ne jamais ajouter la clé de signature directement au dépôt.
