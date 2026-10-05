@@ -1,0 +1,35 @@
+name: Tag Tempo Release
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'release-version.txt'
+
+permissions:
+  contents: write
+
+jobs:
+  tag:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Récupérer le dépôt
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Créer le tag de version
+        shell: bash
+        run: |
+          VERSION="$(tr -d '[:space:]' < release-version.txt)"
+          test -n "$VERSION" || (echo "Version vide" && exit 1)
+          TAG="v$VERSION"
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "$TAG existe déjà"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag "$TAG"
+          git push origin "$TAG"
