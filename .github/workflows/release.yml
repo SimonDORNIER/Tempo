@@ -81,6 +81,8 @@ jobs:
           printf '%s' "$KEY_B64" | base64 -d > tempo-signing-key.pem
           printf '%s' "$CERT_B64" | base64 -d > tempo-signing-cert.pem
           chmod 600 tempo-signing-key.pem
+          openssl pkcs8 -topk8 -nocrypt -in tempo-signing-key.pem -outform DER -out tempo-signing-key.pk8
+          chmod 600 tempo-signing-key.pk8
 
       - name: Aligner et signer l'APK
         shell: bash
@@ -90,7 +92,7 @@ jobs:
           ALIGNED="Tempo-${{ steps.version.outputs.version }}-aligned.apk"
           OUT="Tempo-${{ steps.version.outputs.version }}.apk"
           "$BT/zipalign" -p -f 4 "$IN" "$ALIGNED"
-          "$BT/apksigner" sign --key tempo-signing-key.pem --cert tempo-signing-cert.pem --out "$OUT" "$ALIGNED"
+          "$BT/apksigner" sign --key tempo-signing-key.pk8 --cert tempo-signing-cert.pem --out "$OUT" "$ALIGNED"
           "$BT/apksigner" verify --verbose --print-certs "$OUT"
           echo "APK=$OUT" >> "$GITHUB_ENV"
 
