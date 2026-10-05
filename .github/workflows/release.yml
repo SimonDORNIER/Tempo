@@ -42,7 +42,7 @@ jobs:
           if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
             VERSION="${GITHUB_REF_NAME#v}"
           else
-            VERSION="1.8.0"
+            VERSION="$(tr -d '[:space:]' < release-version.txt)"
           fi
           IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION"
           MAJOR=${MAJOR:-1}; MINOR=${MINOR:-0}; PATCH=${PATCH:-0}
@@ -58,6 +58,13 @@ jobs:
 
       - name: Générer le projet Android
         run: npx cap add android
+
+      - name: Activer le mode migration
+        if: ${{ hashFiles('migration-mode.txt') != '' }}
+        shell: bash
+        run: |
+          sed -i '/^[[:space:]]*release[[:space:]]*{/a\            debuggable true' android/app/build.gradle
+          grep -A5 -B2 "release {" android/app/build.gradle
 
       - name: Définir version Android
         shell: bash
