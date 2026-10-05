@@ -62,6 +62,9 @@ jobs:
       - name: Générer le projet Android
         run: npx cap add android
 
+      - name: Activer la mise à jour native
+        run: python3 scripts/patch-android-updater.py
+
       - name: Définir version Android
         shell: bash
         run: |
