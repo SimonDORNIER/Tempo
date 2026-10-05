@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - 'Tempo-GitHub-source.zip'
+      - '.github/workflows/bootstrap.yml'
   workflow_dispatch:
 
 permissions:
@@ -24,6 +25,7 @@ jobs:
           mkdir .tempo-bootstrap
           unzip -q -o Tempo-GitHub-source.zip -d .tempo-bootstrap
           test -d .tempo-bootstrap/Tempo-GitHub-source || (echo "Contenu ZIP invalide" && exit 1)
+          rm -f .tempo-bootstrap/Tempo-GitHub-source/.github/workflows/release.yml
           rsync -a .tempo-bootstrap/Tempo-GitHub-source/ ./
           rm -rf .tempo-bootstrap Tempo-GitHub-source.zip
 
@@ -36,4 +38,3 @@ jobs:
           git diff --cached --quiet && exit 0
           git commit -m "Bootstrap Tempo sources"
           git push
-
