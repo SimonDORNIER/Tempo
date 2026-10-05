@@ -27,3 +27,8 @@
 .exercise-search-result small{display:block;color:#8d8b85;font-size:8px}
 .exercise-search-more{display:block;text-align:center;color:var(--muted);padding:9px 3px 2px;font-size:9px}
 @media(max-width:390px){.topbar-actions{gap:4px}.topbar-actions .header-link{padding:7px 8px;font-size:10px}.brand{font-size:19px}.brand-mark{width:28px;height:28px}.exercise-search-box input{font-size:12px}}
+
+.exercise-search-result{display:grid;grid-template-columns:minmax(0,1fr) 38px;gap:10px;align-items:center}
+.exercise-search-result-main{min-width:0}
+.exercise-search-edit{width:36px;height:36px;border:0;border-radius:50%;background:#ebe7df;color:var(--ink);display:grid;place-items:center;padding:0;font-size:16px;font-weight:800}
+.exercise-search-empty{color:var(--muted);text-align:center;margin:8px 0 2px;font-size:11px}
