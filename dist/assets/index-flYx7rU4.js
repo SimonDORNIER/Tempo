@@ -10,7 +10,8 @@ Error generating stack: `+e.message+`
 /* Tempo GitHub updater + informations - version injected by GitHub Actions */
 (()=>{
   const CURRENT_VERSION="__TEMPO_VERSION__";
-  const RELEASE_API="https://api.github.com/repos/SimonDORNIER/Tempo/releases/latest";
+  const VERSION_URL="https://raw.githubusercontent.com/SimonDORNIER/Tempo/main/release-version.txt";
+  const RELEASE_BASE="https://github.com/SimonDORNIER/Tempo/releases/download/";
   const norm=v=>String(v||"").trim().replace(/^v/i,"").split("-")[0].split(".").map(x=>parseInt(x,10)||0);
   const newer=(a,b)=>{const A=norm(a),B=norm(b);for(let i=0;i<Math.max(A.length,B.length);i++){const x=A[i]||0,y=B[i]||0;if(x!==y)return x>y}return false};
 
@@ -19,7 +20,6 @@ Error generating stack: `+e.message+`
     const style=document.createElement("style");
     style.id="tempo-system-style";
     style.textContent=`
-      #tempo-info-tab{position:fixed;right:14px;top:calc(14px + env(safe-area-inset-top));z-index:2147483645;border:0;border-radius:999px;padding:9px 12px;background:#171717;color:#fff;font:800 13px system-ui,-apple-system,sans-serif;box-shadow:0 6px 20px #0003}
       #tempo-info-modal{position:fixed;inset:0;z-index:2147483647;background:#0008;display:flex;align-items:flex-end;justify-content:center;font-family:system-ui,-apple-system,sans-serif}
       .tempo-info-card{width:min(100%,520px);box-sizing:border-box;background:#f7f5f0;color:#171717;border-radius:24px 24px 0 0;padding:18px 18px calc(20px + env(safe-area-inset-bottom));box-shadow:0 -15px 50px #0005}
       .tempo-info-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px}.tempo-info-head h2{margin:0;font-size:22px}.tempo-info-close{border:0;background:#e8e5df;border-radius:50%;width:36px;height:36px;font-size:22px}
@@ -27,19 +27,48 @@ Error generating stack: `+e.message+`
       .tempo-info-status{min-height:22px;margin:8px 2px 14px;font-size:14px;line-height:1.4}
       .tempo-info-action{width:100%;border:0;border-radius:14px;padding:14px 16px;background:#171717;color:#fff;font-size:15px;font-weight:800}
       .tempo-info-action.secondary{margin-top:8px;background:#e8e5df;color:#171717}
-      #tempo-update-banner{position:fixed;left:12px;right:12px;bottom:14px;z-index:2147483646;font-family:system-ui,-apple-system,sans-serif}.tempo-update-card{position:relative;display:flex;align-items:center;gap:12px;padding:14px 44px 14px 16px;border-radius:18px;background:#171717;color:#fff;box-shadow:0 12px 38px #0005}.tempo-update-card div{display:flex;flex:1;min-width:0;flex-direction:column;gap:3px}.tempo-update-card strong{font-size:15px}.tempo-update-card span{font-size:12px;opacity:.8;line-height:1.3}.tempo-update-card button{border:0;border-radius:12px;padding:10px 12px;background:#ff7a45;color:#fff;font-weight:800}.tempo-update-card .tempo-update-close{position:absolute;right:8px;top:5px;background:transparent;padding:4px 8px;font-size:22px;font-weight:500}
+      #tempo-update-banner{position:fixed;left:12px;right:12px;bottom:14px;z-index:2147483646;font-family:system-ui,-apple-system,sans-serif}
+      .tempo-update-card{position:relative;display:flex;align-items:center;gap:12px;padding:14px 44px 14px 16px;border-radius:18px;background:#171717;color:#fff;box-shadow:0 12px 38px #0005}
+      .tempo-update-card div{display:flex;flex:1;min-width:0;flex-direction:column;gap:3px}.tempo-update-card strong{font-size:15px}.tempo-update-card span{font-size:12px;opacity:.8;line-height:1.3}
+      .tempo-update-card button{border:0;border-radius:12px;padding:10px 12px;background:#ff7a45;color:#fff;font-weight:800}.tempo-update-card .tempo-update-close{position:absolute;right:8px;top:5px;background:transparent;padding:4px 8px;font-size:22px;font-weight:500}
     `;
     document.head.appendChild(style);
   }
 
-  function showBanner(rel,asset){
+  function buildAsset(latest){
+    const version=String(latest||"").replace(/^v/i,"").trim();
+    return {
+      browser_download_url:`${RELEASE_BASE}v${version}/Tempo-${version}.apk`
+    };
+  }
+
+  async function getLatestInfo(){
+    const plugin=window.Capacitor?.Plugins?.TempoUpdater;
+    if(plugin?.checkLatest){
+      const result=await plugin.checkLatest();
+      const latest=String(result?.latest||"").trim();
+      const url=String(result?.url||"").trim();
+      if(!latest||!url)throw new Error("Version native invalide");
+      return {latest,asset:{browser_download_url:url}};
+    }
+
+    const res=await fetch(VERSION_URL+`?t=${Date.now()}`,{cache:"no-store"});
+    if(!res.ok)throw new Error("Version GitHub indisponible");
+    const latest=(await res.text()).trim();
+    if(!latest)throw new Error("Version GitHub vide");
+    return {latest,asset:buildAsset(latest)};
+  }
+
+  function showBanner(latest,asset){
     if(document.getElementById("tempo-update-banner"))return;
-    const latest=rel.tag_name||rel.name;
+    const version=String(latest).replace(/^v/i,"");
     const box=document.createElement("div");
     box.id="tempo-update-banner";
-    box.innerHTML=`<div class="tempo-update-card"><div><strong>Mise à jour Tempo ${latest.replace(/^v/i,"")} disponible</strong><span>Ta bibliothèque d’exercices et tes réglages seront conservés.</span></div><button type="button">Mettre à jour</button><button type="button" class="tempo-update-close" aria-label="Fermer">×</button></div>`;
+    box.innerHTML=`<div class="tempo-update-card"><div><strong>Mise à jour Tempo ${version} disponible</strong><span>Prête à être installée.</span></div><button type="button">Mettre à jour</button><button type="button" class="tempo-update-close" aria-label="Fermer">×</button></div>`;
     document.body.appendChild(box);
-    box.querySelector("button:not(.tempo-update-close)").addEventListener("click",()=>{location.href=asset.browser_download_url});
+    box.querySelector("button:not(.tempo-update-close)").addEventListener("click",()=>{
+      if(!startNativeUpdate(asset,latest))location.href=asset.browser_download_url;
+    });
     box.querySelector(".tempo-update-close").addEventListener("click",()=>box.remove());
   }
 
@@ -50,11 +79,11 @@ Error generating stack: `+e.message+`
 
   function prepareInfoUpdate(latest,asset){
     openInfo();
-    setInfoStatus(`Nouvelle version disponible : Tempo ${latest.replace(/^v/i,"")}.`);
+    setInfoStatus(`Nouvelle version disponible : Tempo ${String(latest).replace(/^v/i,"")}.`);
     const dl=document.getElementById("tempo-info-download");
     if(dl){
       dl.hidden=false;
-      dl.textContent=`Télécharger Tempo ${latest.replace(/^v/i,"")}`;
+      dl.textContent=`Installer Tempo ${String(latest).replace(/^v/i,"")}`;
       dl.onclick=()=>{if(!startNativeUpdate(asset,latest))location.href=asset.browser_download_url};
     }
   }
@@ -74,13 +103,12 @@ Error generating stack: `+e.message+`
     return false;
   }
 
-  function showAutomaticUpdate(rel,asset){
-    const latest=rel.tag_name||rel.name;
+  function showAutomaticUpdate(latest,asset){
     const key=`tempo-auto-update-prompt-${latest}`;
     if(sessionStorage.getItem(key)==="1")return;
     sessionStorage.setItem(key,"1");
     if(startNativeUpdate(asset,latest))return;
-    showBanner(rel,asset);
+    showBanner(latest,asset);
     prepareInfoUpdate(latest,asset);
   }
 
@@ -91,24 +119,24 @@ Error generating stack: `+e.message+`
         return null;
       }
       if(manual)setInfoStatus("Recherche d’une mise à jour…");
-      const res=await fetch(RELEASE_API+`?tempo=${Date.now()}`,{headers:{Accept:"application/vnd.github+json","Cache-Control":"no-cache"},cache:"no-store"});
-      if(!res.ok)throw new Error("GitHub indisponible");
-      const rel=await res.json();
-      const latest=rel.tag_name||rel.name;
-      const asset=(rel.assets||[]).find(a=>/\.apk$/i.test(a.name));
-      if(newer(latest,CURRENT_VERSION)&&asset){
+
+      const {latest,asset}=await getLatestInfo();
+
+      if(newer(latest,CURRENT_VERSION)){
         if(manual)prepareInfoUpdate(latest,asset);
-        else showAutomaticUpdate(rel,asset);
+        else showAutomaticUpdate(latest,asset);
         return {latest,asset};
       }
+
       if(manual){
         setInfoStatus(`Tempo est à jour · version ${CURRENT_VERSION}.`);
-        const dl=document.getElementById("tempo-info-download"); if(dl)dl.hidden=true;
+        const dl=document.getElementById("tempo-info-download");
+        if(dl)dl.hidden=true;
       }
       return null;
     }catch(e){
       console.debug("Tempo update check",e);
-      if(manual)setInfoStatus("Impossible de contacter GitHub. Vérifie ta connexion puis réessaie.");
+      if(manual)setInfoStatus("Vérification impossible. Réessaie dans quelques secondes.");
       return null;
     }
   }
@@ -121,9 +149,9 @@ Error generating stack: `+e.message+`
     modal.innerHTML=`<section class="tempo-info-card" role="dialog" aria-modal="true" aria-label="Informations Tempo">
       <div class="tempo-info-head"><h2>Informations</h2><button class="tempo-info-close" type="button" aria-label="Fermer">×</button></div>
       <div class="tempo-version-box"><small>Version installée</small><strong>Tempo ${CURRENT_VERSION}</strong></div>
-      <div id="tempo-info-status" class="tempo-info-status">Tu peux vérifier GitHub quand tu veux.</div>
+      <div id="tempo-info-status" class="tempo-info-status">Vérification automatique activée.</div>
       <button id="tempo-info-check" class="tempo-info-action" type="button">Rechercher une mise à jour</button>
-      <button id="tempo-info-download" class="tempo-info-action secondary" type="button" hidden>Télécharger la mise à jour</button>
+      <button id="tempo-info-download" class="tempo-info-action secondary" type="button" hidden>Installer la mise à jour</button>
     </section>`;
     document.body.appendChild(modal);
     modal.querySelector(".tempo-info-close").addEventListener("click",()=>modal.remove());
@@ -131,30 +159,21 @@ Error generating stack: `+e.message+`
     modal.querySelector("#tempo-info-check").addEventListener("click",()=>void check(true));
   }
 
-  function installInfoTab(){
-    ensureStyle();
-    if(document.getElementById("tempo-info-tab"))return;
-    const btn=document.createElement("button");
-    btn.id="tempo-info-tab";
-    btn.type="button";
-    btn.textContent="ⓘ Infos";
-    btn.setAttribute("aria-label","Informations et mises à jour");
-    btn.addEventListener("click",openInfo);
-    document.body.appendChild(btn);
-  }
-
   function scheduleAutomaticChecks(){
-    [900,4000,12000].forEach(delay=>window.setTimeout(()=>void check(false),delay));
+    [700,3000,9000].forEach(delay=>window.setTimeout(()=>void check(false),delay));
   }
 
   window.tempoCheckForUpdates=check;
   window.tempoShowInfo=openInfo;
+
   window.addEventListener("load",()=>{
     ensureStyle();
     scheduleAutomaticChecks();
   },{once:true});
+
   document.addEventListener("visibilitychange",()=>{
-    if(document.visibilityState==="visible")window.setTimeout(()=>void check(false),500);
+    if(document.visibilityState==="visible")window.setTimeout(()=>void check(false),400);
   });
-  window.addEventListener("online",()=>window.setTimeout(()=>void check(false),500));
+
+  window.addEventListener("online",()=>window.setTimeout(()=>void check(false),400));
 })();
