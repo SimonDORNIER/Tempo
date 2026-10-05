@@ -1,5 +1,4 @@
 from pathlib import Path
-import re
 import shutil
 
 root = Path("android/app/src/main")
@@ -17,7 +16,11 @@ text = manifest.read_text(encoding="utf-8")
 
 permission = '<uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />'
 if permission not in text:
-    text = re.sub(r'(<manifest\\b[^>]*>)', r'\\1\\n    ' + permission, text, count=1)
+    start = text.find("<manifest")
+    end = text.find(">", start)
+    if start < 0 or end < 0:
+        raise RuntimeError("Balise manifest introuvable")
+    text = text[:end + 1] + "\n    " + permission + text[end + 1:]
 
 provider = '''        <provider
             android:name="androidx.core.content.FileProvider"
@@ -31,6 +34,8 @@ provider = '''        <provider
 '''
 
 if 'androidx.core.content.FileProvider' not in text:
+    if '</application>' not in text:
+        raise RuntimeError("Balise application introuvable")
     text = text.replace('</application>', provider + '    </application>')
 
 manifest.write_text(text, encoding="utf-8")
