@@ -48,6 +48,26 @@ Error generating stack: `+e.message+`
     if(el)el.textContent=text;
   }
 
+  function prepareInfoUpdate(latest,asset){
+    openInfo();
+    setInfoStatus(`Nouvelle version disponible : Tempo ${latest.replace(/^v/i,"")}.`);
+    const dl=document.getElementById("tempo-info-download");
+    if(dl){
+      dl.hidden=false;
+      dl.textContent=`Télécharger Tempo ${latest.replace(/^v/i,"")}`;
+      dl.onclick=()=>{location.href=asset.browser_download_url};
+    }
+  }
+
+  function showAutomaticUpdate(rel,asset){
+    const latest=rel.tag_name||rel.name;
+    const key=`tempo-auto-update-prompt-${latest}`;
+    showBanner(rel,asset);
+    if(sessionStorage.getItem(key)==="1")return;
+    sessionStorage.setItem(key,"1");
+    prepareInfoUpdate(latest,asset);
+  }
+
   async function check(manual=false){
     try{
       if(!CURRENT_VERSION || CURRENT_VERSION.includes("__")){
@@ -55,18 +75,14 @@ Error generating stack: `+e.message+`
         return null;
       }
       if(manual)setInfoStatus("Recherche d’une mise à jour…");
-      const res=await fetch(RELEASE_API,{headers:{Accept:"application/vnd.github+json"},cache:"no-store"});
+      const res=await fetch(RELEASE_API+`?tempo=${Date.now()}`,{headers:{Accept:"application/vnd.github+json","Cache-Control":"no-cache"},cache:"no-store"});
       if(!res.ok)throw new Error("GitHub indisponible");
       const rel=await res.json();
       const latest=rel.tag_name||rel.name;
       const asset=(rel.assets||[]).find(a=>/\.apk$/i.test(a.name));
       if(newer(latest,CURRENT_VERSION)&&asset){
-        showBanner(rel,asset);
-        if(manual){
-          setInfoStatus(`Nouvelle version disponible : Tempo ${latest.replace(/^v/i,"")}.`);
-          const dl=document.getElementById("tempo-info-download");
-          if(dl){dl.hidden=false;dl.onclick=()=>{location.href=asset.browser_download_url}}
-        }
+        if(manual)prepareInfoUpdate(latest,asset);
+        else showAutomaticUpdate(rel,asset);
         return {latest,asset};
       }
       if(manual){
@@ -111,10 +127,18 @@ Error generating stack: `+e.message+`
     document.body.appendChild(btn);
   }
 
+  function scheduleAutomaticChecks(){
+    [900,4000,12000].forEach(delay=>window.setTimeout(()=>void check(false),delay));
+  }
+
   window.tempoCheckForUpdates=check;
   window.tempoShowInfo=openInfo;
   window.addEventListener("load",()=>{
     ensureStyle();
-    setTimeout(()=>void check(false),1400);
+    scheduleAutomaticChecks();
   },{once:true});
+  document.addEventListener("visibilitychange",()=>{
+    if(document.visibilityState==="visible")window.setTimeout(()=>void check(false),500);
+  });
+  window.addEventListener("online",()=>window.setTimeout(()=>void check(false),500));
 })();
