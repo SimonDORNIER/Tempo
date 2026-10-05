@@ -27,7 +27,7 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-            - name: Installer Android 36
+      - name: Installer Android 36
         shell: bash
         run: |
           yes | sdkmanager --licenses >/dev/null || true
