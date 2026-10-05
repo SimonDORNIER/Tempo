@@ -53,6 +53,9 @@ jobs:
       - name: Installer Capacitor
         run: npm install
 
+      - name: Vérifier le JavaScript
+        run: node --check dist/assets/index-flYx7rU4.js
+
       - name: Injecter la version dans Tempo
         run: sed -i "s/__TEMPO_VERSION__/${{ steps.version.outputs.version }}/g" dist/assets/index-flYx7rU4.js
 
