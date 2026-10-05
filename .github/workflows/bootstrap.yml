@@ -1,0 +1,39 @@
+name: Bootstrap Tempo
+
+on:
+  push:
+    paths:
+      - 'Tempo-GitHub-source.zip'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  bootstrap:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Récupérer le dépôt
+        uses: actions/checkout@v4
+
+      - name: Installer les sources Tempo
+        shell: bash
+        run: |
+          test -f Tempo-GitHub-source.zip || (echo "Tempo-GitHub-source.zip introuvable" && exit 1)
+          rm -rf .tempo-bootstrap
+          mkdir .tempo-bootstrap
+          unzip -q -o Tempo-GitHub-source.zip -d .tempo-bootstrap
+          test -d .tempo-bootstrap/Tempo-GitHub-source || (echo "Contenu ZIP invalide" && exit 1)
+          rsync -a .tempo-bootstrap/Tempo-GitHub-source/ ./
+          rm -rf .tempo-bootstrap Tempo-GitHub-source.zip
+
+      - name: Enregistrer les sources dans le dépôt
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --quiet && exit 0
+          git commit -m "Bootstrap Tempo sources"
+          git push
+
