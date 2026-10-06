@@ -1,15 +1,14 @@
-name: Tag Tempo Release
+name: Tag Tempo Health Release
 
 on:
   push:
     branches:
-      - main
+      - health/v0.1-foundation
     paths:
-      - 'release-version.txt'
+      - 'health-build.txt'
 
 permissions:
   contents: write
-  actions: write
 
 jobs:
   tag:
@@ -20,30 +19,20 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Préparer la version
-        id: version
+      - name: Créer le tag de version
         shell: bash
         run: |
           VERSION="$(tr -d '[:space:]' < release-version.txt)"
           test -n "$VERSION" || (echo "Version vide" && exit 1)
-          TAG="v$VERSION"
-          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+          TAG="health-v$VERSION"
+
           if git rev-parse "$TAG" >/dev/null 2>&1; then
             echo "$TAG existe déjà"
-          else
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git tag "$TAG"
-            git push origin "$TAG"
+            exit 0
           fi
 
-      - name: Lancer la compilation
-        shell: bash
-        run: |
-          AUTH_HEADER="$(git config --local --get http.https://github.com/.extraheader)"
-          curl -fsS -X POST \
-            -H "$AUTH_HEADER" \
-            -H "Accept: application/vnd.github+json" \
-            -H "X-GitHub-Api-Version: 2022-11-28" \
-            "https://api.github.com/repos/$GITHUB_REPOSITORY/actions/workflows/release.yml/dispatches" \
-            -d '{"ref":"main"}'
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag "$TAG"
+          git push origin "$TAG"
