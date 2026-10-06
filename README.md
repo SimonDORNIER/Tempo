@@ -2,25 +2,23 @@
 
 Application Android personnelle santé / récupération / entraînement.
 
-## Version 0.4.0
+## Version 0.5.0
 
-Cette version rend la séance recommandée réellement exécutable :
+Cette version ajoute une vraie mémoire d'entraînement au moteur local :
 
-- Santé Connect + base locale 28 jours ;
-- score de récupération local et check-in quotidien ;
-- bibliothèque native d'exercices sans matériel ;
-- génération d'une séance différente selon récupération verte / orange / rouge ;
-- écran de séance Tempo natif ;
-- 5 secondes de préparation avant chaque exercice ;
-- timer de travail et repos ;
-- signal sonore de début, mi-parcours et fin ;
-- chrono global de séance ;
-- pause / reprise ;
-- passage manuel à l'exercice suivant ;
-- volume sonore réglable et mémorisé localement ;
-- instructions et consigne courte pour chaque exercice.
+- Santé Connect + base santé locale 28 jours ;
+- score de récupération et check-in quotidien ;
+- moteur Tempo natif avec préparation, travail, repos, sons et chrono global ;
+- historique local des séances terminées **et interrompues** ;
+- durée réelle et nombre d'exercices réalisés ;
+- groupes musculaires travaillés ;
+- difficulté ressentie de 1 à 5 en fin de séance ;
+- affichage des dernières séances dans Progression ;
+- programmation qui évite si possible de retravailler les mêmes groupes dans les 48 h ;
+- modulation légère de la prochaine séance selon la difficulté ressentie ;
+- bibliothèque enrichie : haut du corps, bas du corps, gainage et mobilité.
 
-La prochaine étape ajoutera l'historique des séances réalisées, la difficulté ressentie et une programmation qui évite de retravailler aveuglément les mêmes groupes musculaires.
+La prochaine étape pourra ajouter le choix de durée disponible, matériel, exercices préférés/à éviter et des graphiques de progression plus visuels.
 
 Package Android : `fr.tempo.health`.
 TempoSave reste indépendant sous `fr.tempo.sport`.
