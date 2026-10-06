@@ -56,6 +56,8 @@ import fr.tempo.health.BuildConfig
 import fr.tempo.health.data.DailyCheckInEntity
 import fr.tempo.health.data.DailyHealthEntity
 import fr.tempo.health.data.HealthConnectAvailability
+import fr.tempo.health.data.WorkoutHistoryEntity
+import fr.tempo.health.domain.WorkoutPlan
 import fr.tempo.health.domain.RecoveryLevel
 import fr.tempo.health.domain.RecoveryResult
 import java.text.DecimalFormat
@@ -94,6 +96,7 @@ fun TempoHealthApp(
     val message by healthViewModel.message.collectAsStateWithLifecycle()
     val workoutState by workoutViewModel.state.collectAsStateWithLifecycle()
     val soundVolume by workoutViewModel.soundVolume.collectAsStateWithLifecycle()
+    val workoutHistory by workoutViewModel.history.collectAsStateWithLifecycle()
 
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = PermissionController.createRequestPermissionResultContract()
@@ -210,6 +213,8 @@ fun TempoHealthApp(
             composable("training") {
                 TrainingScreen(
                     recovery = recovery,
+                    plan = workoutViewModel.previewPlan(recovery),
+                    history = workoutHistory,
                     onStart = {
                         workoutViewModel.prepare(recovery)
                         navController.navigate("workout")
@@ -223,6 +228,7 @@ fun TempoHealthApp(
                     onStart = workoutViewModel::start,
                     onPause = workoutViewModel::togglePause,
                     onSkip = workoutViewModel::skip,
+                    onDifficulty = workoutViewModel::rateDifficulty,
                     onExit = {
                         workoutViewModel.stop()
                         navController.popBackStack()
@@ -231,7 +237,10 @@ fun TempoHealthApp(
             }
 
             composable("progress") {
-                ProgressScreen(recentDays)
+                ProgressScreen(
+                    days = recentDays,
+                    history = workoutHistory
+                )
             }
 
             composable("coach") {
@@ -516,7 +525,7 @@ private fun SessionRecommendationCard(recovery: RecoveryResult) {
             Spacer(Modifier.height(10.dp))
 
             Text(
-                "Le moteur Tempo sera connecté à cette recommandation dans la prochaine étape.",
+                "Le moteur Tempo adapte maintenant le contenu selon ta récupération et ton historique récent.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onPrimaryContainer
             )
@@ -625,23 +634,31 @@ private fun HealthScreen(
 @Composable
 private fun TrainingScreen(
     recovery: RecoveryResult,
+    plan: WorkoutPlan,
+    history: List<WorkoutHistoryEntity>,
     onStart: () -> Unit
 ) {
-    val plan = fr.tempo.health.domain.WorkoutPlanner.build(recovery)
+    val last = history.firstOrNull()
 
     Screen(
         title = "Entraînement",
-        subtitle = "La séance du jour est prête à démarrer."
+        subtitle = "La séance tient compte de ta récupération et des groupes récemment travaillés."
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            SessionRecommendationCard(recovery)
+            StatusCard(
+                recoveryEmoji(recovery),
+                "Séance conseillée",
+                plan.title,
+                "⏱ " + plan.estimatedMinutes + " min • ⚡ Intensité " +
+                    plan.intensity + "/10"
+            )
 
             StatusCard(
                 "📋",
                 "Programme",
                 plan.items.size.toString() + " exercices",
-                plan.items.take(4).joinToString(" • ") { it.exercise.name } +
-                    if (plan.items.size > 4) "…" else ""
+                plan.items.take(5).joinToString(" • ") { it.exercise.name } +
+                    if (plan.items.size > 5) "…" else ""
             )
 
             Button(
@@ -653,24 +670,49 @@ private fun TrainingScreen(
                 Text("COMMENCER")
             }
 
+            if (last != null) {
+                StatusCard(
+                    if (last.completed) "✅" else "⏹️",
+                    "Dernière séance",
+                    last.title,
+                    formatClock(last.durationSeconds) +
+                        " • " + last.completedExercises + "/" +
+                        last.plannedExercises + " exercices" +
+                        (last.perceivedDifficulty?.let { " • difficulté " + it + "/5" } ?: "")
+                )
+            } else {
+                StatusCard(
+                    "🆕",
+                    "Historique",
+                    "Première séance",
+                    "Après ta séance, sa durée, les groupes travaillés et ton ressenti seront mémorisés."
+                )
+            }
+
             StatusCard(
-                "⏱️",
-                "Moteur Tempo natif",
-                "Prêt",
-                "Préparation 5 s • travail • repos • son mi-parcours • chrono global"
+                "🧠",
+                "Programmation locale",
+                "Historique actif",
+                "Le moteur évite si possible les groupes sollicités dans les dernières 48 h."
             )
         }
     }
 }
 
 @Composable
-private fun ProgressScreen(days: List<DailyHealthEntity>) {
+private fun ProgressScreen(
+    days: List<DailyHealthEntity>,
+    history: List<WorkoutHistoryEntity>
+) {
     val week = days.take(7)
     val month = days.take(28)
+    val weekCutoff = System.currentTimeMillis() - 7L * 24L * 60L * 60L * 1000L
+    val recentWorkouts = history.filter { it.startedAtEpochMs >= weekCutoff }
+    val completedWorkouts = recentWorkouts.filter { it.completed }
 
     Screen(
         title = "Progression",
-        subtitle = "Tes références 7 et 28 jours servent maintenant au score."
+        subtitle = "Santé et entraînement sont maintenant suivis ensemble."
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             StatusCard(
@@ -694,6 +736,29 @@ private fun ProgressScreen(days: List<DailyHealthEntity>) {
                 averageLong(week.mapNotNull { it.steps }) + " pas/j",
                 "Ces références sont personnelles, pas des normes de population."
             )
+
+            StatusCard(
+                "🏋️",
+                "Séances 7 jours",
+                completedWorkouts.size.toString() + " terminée(s)",
+                "Temps cumulé " + formatClock(
+                    completedWorkouts.sumOf { it.durationSeconds }
+                )
+            )
+
+            history.take(4).forEach { workout ->
+                StatusCard(
+                    if (workout.completed) "✅" else "⏹️",
+                    workout.title,
+                    formatClock(workout.durationSeconds),
+                    workout.completedExercises.toString() + "/" +
+                        workout.plannedExercises + " exercices • " +
+                        muscleGroupsLabel(workout.muscleGroupsCsv) +
+                        (workout.perceivedDifficulty?.let {
+                            " • difficulté " + it + "/5"
+                        } ?: "")
+                )
+            }
         }
     }
 }
@@ -795,6 +860,7 @@ private fun WorkoutSessionScreen(
     onStart: () -> Unit,
     onPause: () -> Unit,
     onSkip: () -> Unit,
+    onDifficulty: (Int) -> Unit,
     onExit: () -> Unit
 ) {
     val plan = state.plan
@@ -856,8 +922,60 @@ private fun WorkoutSessionScreen(
                         "✅",
                         "Séance terminée",
                         formatClock(state.elapsedSeconds),
-                        "Bien joué. L'historique détaillé arrivera à l'étape suivante."
+                        state.completedExercises.toString() + "/" +
+                            plan.items.size + " exercices enregistrés localement."
                     )
+
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(24.dp)
+                    ) {
+                        Column(Modifier.padding(18.dp)) {
+                            Text(
+                                "Difficulté ressentie",
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                "Ce retour ajustera légèrement la prochaine séance.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+
+                            Spacer(Modifier.height(10.dp))
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                (1..5).forEach { value ->
+                                    AssistChip(
+                                        onClick = { onDifficulty(value) },
+                                        label = {
+                                            Text(
+                                                if (state.perceivedDifficulty == value) {
+                                                    "• " + value
+                                                } else {
+                                                    value.toString()
+                                                }
+                                            )
+                                        }
+                                    )
+                                }
+                            }
+
+                            Text(
+                                when (state.perceivedDifficulty) {
+                                    1 -> "Très facile"
+                                    2 -> "Facile"
+                                    3 -> "Bien dosée"
+                                    4 -> "Difficile"
+                                    5 -> "Très difficile"
+                                    else -> "Choisis de 1 à 5."
+                                },
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
 
                     Button(
                         onClick = onExit,
@@ -987,6 +1105,29 @@ private fun WorkoutSessionScreen(
             }
         }
     }
+}
+
+private fun recoveryEmoji(recovery: RecoveryResult): String =
+    when (recovery.level) {
+        RecoveryLevel.GREEN -> "🟢"
+        RecoveryLevel.ORANGE -> "🟠"
+        RecoveryLevel.RED -> "🔴"
+        RecoveryLevel.UNKNOWN -> "⚪"
+    }
+
+private fun muscleGroupsLabel(csv: String): String {
+    if (csv.isBlank()) return "Mobilité"
+
+    return csv.split(",")
+        .map { group ->
+            when (group) {
+                "UPPER_BODY" -> "haut"
+                "LOWER_BODY" -> "bas"
+                "CORE" -> "gainage"
+                else -> group.lowercase()
+            }
+        }
+        .joinToString(" + ")
 }
 
 private fun formatClock(seconds: Int): String {
