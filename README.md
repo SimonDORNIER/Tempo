@@ -2,21 +2,20 @@
 
 Application Android personnelle santé / récupération / entraînement.
 
-## Version 0.2.0
+## Version 0.3.0
 
-Cette version ajoute le premier vrai socle Santé Connect :
+Cette version ajoute le premier moteur de récupération local :
 
-- intégration native Health Connect en lecture ;
-- permissions sommeil, cœur, HRV, respiration, pas, distance, calories, entraînements, poids et VO₂ max ;
-- synchronisation des 28 derniers jours ;
-- stockage local Room / SQLite ;
-- agrégation des pas, distance, calories et FC repos pour limiter les doubles comptages ;
-- récupération de la nuit principale et de ses stades ;
-- FC moyenne pendant le sommeil ;
-- premiers écrans Santé / Aujourd'hui alimentés par les données réelles ;
-- premières références personnelles 7 et 28 jours.
+- Santé Connect + synchronisation locale 28 jours ;
+- références personnelles 7 et 28 jours ;
+- check-in quotidien énergie 1–5 et douleurs 0–3, enregistré dans Room ;
+- score de récupération local sur 100 ;
+- niveau 🟢 / 🟠 / 🔴 ;
+- prise en compte du sommeil, de la HRV, de la FC repos, de la charge sportive récente et du ressenti ;
+- recommandation automatique de séance, durée et intensité ;
+- fonctionnement du moteur sans Internet et sans IA.
 
-Les données restent locales dans cette version.
+La prochaine étape est le portage du moteur Tempo : exercices, séances, timers, repos, sons et historique d'entraînement.
 
 Package Android : `fr.tempo.health`.
 TempoSave reste indépendant sous `fr.tempo.sport`.
