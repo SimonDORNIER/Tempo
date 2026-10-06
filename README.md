@@ -1,23 +1,32 @@
-# Tempo
+# Tempo Health
 
-Application Android d'exercices, mobilité et entraînement.
+Nouvelle application santé / entraînement issue du projet Tempo.
 
-## Données utilisateur
+## Version actuelle
 
-Les exercices personnalisés sont stockés dans IndexedDB (`tempo-offline`) et les réglages dans `localStorage`.
-Le package Android reste `fr.tempo.sport` et toutes les versions officielles utilisent la même clé de signature : les mises à jour s'installent donc par-dessus l'application sans supprimer les données locales.
+Fondation native Android **0.1.0**.
 
-## Publication d'une version
+- Kotlin + Jetpack Compose
+- package Android : `fr.tempo.health`
+- nom affiché : **Tempo Health**
+- Android SDK 36
+- fonctionnement hors ligne pour le socle
+- navigation : Aujourd'hui, Santé, Entraînement, Progression, Coach, Paramètres
 
-1. Modifier le code.
-2. Créer un tag `vX.Y.Z`.
-3. GitHub Actions compile, signe et publie automatiquement `Tempo-X.Y.Z.apk` dans Releases.
+Cette application peut être installée en parallèle de **TempoSave**, qui conserve le package historique `fr.tempo.sport`.
 
-L'application consulte la dernière Release GitHub au démarrage et affiche un bouton lorsqu'une version plus récente est disponible.
+## Architecture cible
 
-## Secrets requis
+Santé Connect → base locale → références personnelles → récupération → moteur de décision → séance → moteur Tempo → historique.
 
-- `TEMPO_SIGNING_KEY_B64`
-- `TEMPO_SIGNING_CERT_B64`
+La couche ChatGPT restera optionnelle et ne sera jamais requise pour le fonctionnement principal.
 
-Ne jamais ajouter la clé de signature directement au dépôt.
+## Ancien Tempo
+
+Les anciens fichiers Capacitor / `dist` sont temporairement conservés sur cette branche comme référence pendant le portage du moteur Tempo et de la bibliothèque d'exercices.
+
+## Build
+
+Le workflow GitHub Actions compile une application Android native, la signe avec les secrets existants et publie un APK dans les Releases.
+
+Tag de cette version : `health-v0.1.0`.
