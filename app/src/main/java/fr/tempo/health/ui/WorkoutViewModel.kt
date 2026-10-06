@@ -76,16 +76,19 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
         rebuildToneGenerator()
     }
 
+    fun previewPlan(recovery: RecoveryResult): WorkoutPlan =
+        WorkoutPlanner.build(
+            recovery = recovery,
+            history = history.value.map { it.toHint() }
+        )
+
     fun prepare(recovery: RecoveryResult) {
         timerJob?.cancel()
         sessionStartedAtEpochMs = null
         sessionRecorded = false
 
         _state.value = WorkoutUiState(
-            plan = WorkoutPlanner.build(
-                recovery = recovery,
-                history = history.value.map { it.toHint() }
-            ),
+            plan = previewPlan(recovery),
             exerciseIndex = 0,
             phase = WorkoutPhase.READY,
             remainingSeconds = 0
