@@ -1,9 +1,9 @@
-name: Build & Release Tempo
+name: Build & Release Tempo Health
 
 on:
   push:
     tags:
-      - 'v*'
+      - 'health-v*'
   workflow_dispatch:
 
 permissions:
@@ -12,20 +12,21 @@ permissions:
 jobs:
   android:
     runs-on: ubuntu-latest
+
     steps:
       - name: Récupérer le dépôt
         uses: actions/checkout@v4
 
-      - name: Node 22
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-
-      - name: Java 21
+      - name: Java 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '21'
+          java-version: '17'
+
+      - name: Gradle 8.13
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.13'
 
       - name: Installer Android 36
         shell: bash
@@ -40,41 +41,23 @@ jobs:
         shell: bash
         run: |
           if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
-            VERSION="${GITHUB_REF_NAME#v}"
+            VERSION="${GITHUB_REF_NAME#health-v}"
           else
             VERSION="$(tr -d '[:space:]' < release-version.txt)"
           fi
+
           IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION"
-          MAJOR=${MAJOR:-1}; MINOR=${MINOR:-0}; PATCH=${PATCH:-0}
+          MAJOR=${MAJOR:-0}
+          MINOR=${MINOR:-1}
+          PATCH=${PATCH:-0}
           CODE=$((10#$MAJOR * 10000 + 10#$MINOR * 100 + 10#$PATCH))
+
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "code=$CODE" >> "$GITHUB_OUTPUT"
 
-      - name: Installer Capacitor
-        run: npm install
-
-      - name: Vérifier le JavaScript
-        run: node --check dist/assets/index-flYx7rU4.js
-
-      - name: Injecter la version dans Tempo
-        run: sed -i "s/__TEMPO_VERSION__/${{ steps.version.outputs.version }}/g" dist/assets/index-flYx7rU4.js
-
-      - name: Générer le projet Android
-        run: npx cap add android
-
-      - name: Activer la mise à jour native
-        run: python3 scripts/patch-android-updater.py
-
-      - name: Définir version Android
-        shell: bash
+      - name: Compiler l'APK release
         run: |
-          FILE="android/app/build.gradle"
-          sed -i -E "s/versionCode[[:space:]]*=?[[:space:]]*[0-9]+/versionCode ${{ steps.version.outputs.code }}/" "$FILE"
-          sed -i -E "s/versionName[[:space:]]*=?[[:space:]]*\"[^\"]+\"/versionName \"${{ steps.version.outputs.version }}\"/" "$FILE"
-
-      - name: Compiler
-        working-directory: android
-        run: ./gradlew assembleRelease
+          gradle --no-daemon :app:assembleRelease             -PVERSION_NAME="${{ steps.version.outputs.version }}"             -PVERSION_CODE="${{ steps.version.outputs.code }}"
 
       - name: Restaurer la clé de signature
         shell: bash
@@ -87,33 +70,35 @@ jobs:
           printf '%s' "$KEY_B64" | base64 -d > tempo-signing-key.pem
           printf '%s' "$CERT_B64" | base64 -d > tempo-signing-cert.pem
           chmod 600 tempo-signing-key.pem
-          openssl pkcs8 -topk8 -nocrypt -in tempo-signing-key.pem -outform DER -out tempo-signing-key.pk8
+          openssl pkcs8 -topk8 -nocrypt             -in tempo-signing-key.pem             -outform DER             -out tempo-signing-key.pk8
           chmod 600 tempo-signing-key.pk8
 
       - name: Aligner et signer l'APK
         shell: bash
         run: |
           BT="$ANDROID_HOME/build-tools/36.0.0"
-          IN="android/app/build/outputs/apk/release/app-release-unsigned.apk"
-          ALIGNED="Tempo-${{ steps.version.outputs.version }}-aligned.apk"
-          OUT="Tempo-${{ steps.version.outputs.version }}.apk"
+          IN="app/build/outputs/apk/release/app-release-unsigned.apk"
+          ALIGNED="TempoHealth-${{ steps.version.outputs.version }}-aligned.apk"
+          OUT="TempoHealth-${{ steps.version.outputs.version }}.apk"
+
           "$BT/zipalign" -p -f 4 "$IN" "$ALIGNED"
-          "$BT/apksigner" sign --key tempo-signing-key.pk8 --cert tempo-signing-cert.pem --out "$OUT" "$ALIGNED"
+          "$BT/apksigner" sign             --key tempo-signing-key.pk8             --cert tempo-signing-cert.pem             --out "$OUT"             "$ALIGNED"
+
           "$BT/apksigner" verify --verbose --print-certs "$OUT"
           echo "APK=$OUT" >> "$GITHUB_ENV"
 
       - name: Conserver l'APK dans GitHub Actions
         uses: actions/upload-artifact@v4
         with:
-          name: Tempo-${{ steps.version.outputs.version }}
+          name: TempoHealth-${{ steps.version.outputs.version }}
           path: ${{ env.APK }}
 
       - name: Publier la Release
         if: github.ref_type == 'tag' || github.event_name == 'workflow_dispatch'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ steps.version.outputs.version }}
-          target_commitish: main
-          name: Tempo ${{ steps.version.outputs.version }}
+          tag_name: health-v${{ steps.version.outputs.version }}
+          target_commitish: health/v0.1-foundation
+          name: Tempo Health ${{ steps.version.outputs.version }}
           files: ${{ env.APK }}
           generate_release_notes: true
