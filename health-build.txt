@@ -1,1 +1,1 @@
-Tempo Health 0.1.0 foundation build - Compose 1.11 compatibility\n
+Tempo Health 0.1.0 foundation build - RowScope fix\n
