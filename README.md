@@ -1,23 +1,23 @@
-# Tempo
+# TempoSave 1.10.1
 
-Application Android d'exercices, mobilité et entraînement.
+Sauvegarde stable de Tempo avant la refonte santé / entraînement.
+
+## Identité Android
+
+- Nom affiché : `TempoSave`
+- Package conservé : `fr.tempo.sport`
+- Signature conservée : secrets GitHub `TEMPO_SIGNING_KEY_B64` / `TEMPO_SIGNING_CERT_B64`
+- Version figée : `1.10.1`
+
+Le package est volontairement conservé pour qu'une installation de TempoSave remplace l'ancien Tempo sans perdre ses données locales. La future application utilisera un nouvel applicationId et pourra donc être installée en parallèle.
 
 ## Données utilisateur
 
-Les exercices personnalisés sont stockés dans IndexedDB (`tempo-offline`) et les réglages dans `localStorage`.
-Le package Android reste `fr.tempo.sport` et toutes les versions officielles utilisent la même clé de signature : les mises à jour s'installent donc par-dessus l'application sans supprimer les données locales.
+Les exercices personnalisés restent dans IndexedDB (`tempo-offline`) et les réglages dans `localStorage`.
 
-## Publication d'une version
+## Build de sauvegarde
 
-1. Modifier le code.
-2. Créer un tag `vX.Y.Z`.
-3. GitHub Actions compile, signe et publie automatiquement `Tempo-X.Y.Z.apk` dans Releases.
+Le workflow `.github/workflows/release.yml` de cette branche produit et signe `TempoSave-1.10.1.apk`.
+Le tag dédié est `temposave-v1.10.1`.
 
-L'application consulte la dernière Release GitHub au démarrage et affiche un bouton lorsqu'une version plus récente est disponible.
-
-## Secrets requis
-
-- `TEMPO_SIGNING_KEY_B64`
-- `TEMPO_SIGNING_CERT_B64`
-
-Ne jamais ajouter la clé de signature directement au dépôt.
+Le mécanisme de mise à jour natif est figé sur ce tag TempoSave afin que cette sauvegarde ne suive pas les futures versions de la nouvelle application.
