@@ -45,6 +45,21 @@ data class DailyCheckInEntity(
     val updatedAtEpochMs: Long
 )
 
+@Entity(tableName = "workout_history")
+data class WorkoutHistoryEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val startedAtEpochMs: Long,
+    val endedAtEpochMs: Long,
+    val title: String,
+    val intensity: Int,
+    val durationSeconds: Int,
+    val plannedExercises: Int,
+    val completedExercises: Int,
+    val completed: Boolean,
+    val perceivedDifficulty: Int? = null,
+    val muscleGroupsCsv: String
+)
+
 @Dao
 interface DailyHealthDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
@@ -63,14 +78,31 @@ interface DailyCheckInDao {
     fun observeByDate(date: String): Flow<DailyCheckInEntity?>
 }
 
+@Dao
+interface WorkoutHistoryDao {
+    @Insert
+    suspend fun insert(history: WorkoutHistoryEntity): Long
+
+    @Query("UPDATE workout_history SET perceivedDifficulty = :difficulty WHERE id = :id")
+    suspend fun updateDifficulty(id: Long, difficulty: Int)
+
+    @Query("SELECT * FROM workout_history ORDER BY startedAtEpochMs DESC LIMIT :limit")
+    fun observeRecent(limit: Int = 30): Flow<List<WorkoutHistoryEntity>>
+}
+
 @Database(
-    entities = [DailyHealthEntity::class, DailyCheckInEntity::class],
-    version = 2,
+    entities = [
+        DailyHealthEntity::class,
+        DailyCheckInEntity::class,
+        WorkoutHistoryEntity::class
+    ],
+    version = 3,
     exportSchema = false
 )
 abstract class TempoHealthDatabase : RoomDatabase() {
     abstract fun dailyHealthDao(): DailyHealthDao
     abstract fun dailyCheckInDao(): DailyCheckInDao
+    abstract fun workoutHistoryDao(): WorkoutHistoryDao
 
     companion object {
         @Volatile private var INSTANCE: TempoHealthDatabase? = null
@@ -91,6 +123,28 @@ abstract class TempoHealthDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS workout_history (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        startedAtEpochMs INTEGER NOT NULL,
+                        endedAtEpochMs INTEGER NOT NULL,
+                        title TEXT NOT NULL,
+                        intensity INTEGER NOT NULL,
+                        durationSeconds INTEGER NOT NULL,
+                        plannedExercises INTEGER NOT NULL,
+                        completedExercises INTEGER NOT NULL,
+                        completed INTEGER NOT NULL,
+                        perceivedDifficulty INTEGER,
+                        muscleGroupsCsv TEXT NOT NULL
+                    )
+                    """.trimIndent()
+                )
+            }
+        }
+
         fun get(context: Context): TempoHealthDatabase =
             INSTANCE ?: synchronized(this) {
                 INSTANCE ?: Room.databaseBuilder(
@@ -98,7 +152,7 @@ abstract class TempoHealthDatabase : RoomDatabase() {
                     TempoHealthDatabase::class.java,
                     "tempo-health.db"
                 )
-                    .addMigrations(MIGRATION_1_2)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
                     .build()
                     .also { INSTANCE = it }
             }
