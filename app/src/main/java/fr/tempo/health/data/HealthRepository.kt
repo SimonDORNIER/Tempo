@@ -203,8 +203,8 @@ class HealthRepository(
                 SleepSessionRecord.STAGE_TYPE_AWAKE_IN_BED,
                 SleepSessionRecord.STAGE_TYPE_OUT_OF_BED
             ),
-            overnightHeartRate = overnightHeartRate,
-            restingHeartRate = aggregate[RestingHeartRateRecord.BPM_AVG],
+            overnightHeartRate = overnightHeartRate?.toDouble(),
+            restingHeartRate = aggregate[RestingHeartRateRecord.BPM_AVG]?.toDouble(),
             hrvRmssdMs = hrv,
             respiratoryRate = respiratoryRate,
             steps = aggregate[StepsRecord.COUNT_TOTAL],
