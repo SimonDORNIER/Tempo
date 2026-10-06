@@ -1,9 +1,9 @@
-name: Build & Release Tempo
+name: Build & Release TempoSave
 
 on:
   push:
     tags:
-      - 'v*'
+      - 'temposave-v*'
   workflow_dispatch:
 
 permissions:
@@ -40,7 +40,7 @@ jobs:
         shell: bash
         run: |
           if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
-            VERSION="${GITHUB_REF_NAME#v}"
+            VERSION="${GITHUB_REF_NAME#temposave-v}"
           else
             VERSION="$(tr -d '[:space:]' < release-version.txt)"
           fi
@@ -56,7 +56,7 @@ jobs:
       - name: Vérifier le JavaScript
         run: node --check dist/assets/index-flYx7rU4.js
 
-      - name: Injecter la version dans Tempo
+      - name: Injecter la version dans TempoSave
         run: sed -i "s/__TEMPO_VERSION__/${{ steps.version.outputs.version }}/g" dist/assets/index-flYx7rU4.js
 
       - name: Générer le projet Android
@@ -95,8 +95,8 @@ jobs:
         run: |
           BT="$ANDROID_HOME/build-tools/36.0.0"
           IN="android/app/build/outputs/apk/release/app-release-unsigned.apk"
-          ALIGNED="Tempo-${{ steps.version.outputs.version }}-aligned.apk"
-          OUT="Tempo-${{ steps.version.outputs.version }}.apk"
+          ALIGNED="TempoSave-${{ steps.version.outputs.version }}-aligned.apk"
+          OUT="TempoSave-${{ steps.version.outputs.version }}.apk"
           "$BT/zipalign" -p -f 4 "$IN" "$ALIGNED"
           "$BT/apksigner" sign --key tempo-signing-key.pk8 --cert tempo-signing-cert.pem --out "$OUT" "$ALIGNED"
           "$BT/apksigner" verify --verbose --print-certs "$OUT"
@@ -105,15 +105,15 @@ jobs:
       - name: Conserver l'APK dans GitHub Actions
         uses: actions/upload-artifact@v4
         with:
-          name: Tempo-${{ steps.version.outputs.version }}
+          name: TempoSave-${{ steps.version.outputs.version }}
           path: ${{ env.APK }}
 
-      - name: Publier la Release
+      - name: Publier la Release TempoSave
         if: github.ref_type == 'tag' || github.event_name == 'workflow_dispatch'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ steps.version.outputs.version }}
-          target_commitish: main
-          name: Tempo ${{ steps.version.outputs.version }}
+          tag_name: temposave-v${{ steps.version.outputs.version }}
+          target_commitish: backup/temposave-1.10.1
+          name: TempoSave ${{ steps.version.outputs.version }}
           files: ${{ env.APK }}
           generate_release_notes: true
