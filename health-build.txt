@@ -1,1 +1,1 @@
-Tempo Health 0.2.0 Health Connect + Room build
+Tempo Health 0.2.0 Health Connect + Room build - heart rate type fix
