@@ -39,6 +39,12 @@ data class WorkoutPlan(
         }
 }
 
+data class WorkoutHistoryHint(
+    val startedAtEpochMs: Long,
+    val muscleGroups: Set<ExerciseCategory>,
+    val perceivedDifficulty: Int?
+)
+
 object ExerciseLibrary {
     private fun exercise(
         id: String,
@@ -75,6 +81,30 @@ object ExerciseLibrary {
             "Évite de hausser les épaules vers les oreilles."
         ),
         exercise(
+            "wall-angels",
+            "Wall angels",
+            ExerciseCategory.UPPER_BODY,
+            40,
+            "Dos contre un mur si possible, fais glisser lentement les bras de bas en haut en gardant les côtes calmes.",
+            "Ne force pas l'amplitude si les épaules décollent."
+        ),
+        exercise(
+            "prone-swimmers",
+            "Nageurs au sol",
+            ExerciseCategory.UPPER_BODY,
+            40,
+            "Allongé sur le ventre, décolle légèrement les bras et fais-les passer lentement de l'avant vers les hanches puis reviens.",
+            "Le mouvement reste petit et contrôlé, nuque longue."
+        ),
+        exercise(
+            "pike-pushups",
+            "Pompes en V",
+            ExerciseCategory.UPPER_BODY,
+            35,
+            "Depuis une position en V inversé, plie les coudes pour rapprocher le haut de la tête du sol puis repousse.",
+            "Réduis l'amplitude si les épaules fatiguent."
+        ),
+        exercise(
             "squats",
             "Squats",
             ExerciseCategory.LOWER_BODY,
@@ -89,6 +119,22 @@ object ExerciseLibrary {
             45,
             "Recule un pied, descends verticalement sans forcer l'amplitude, puis pousse dans le pied avant pour revenir.",
             "Le genou avant reste orienté dans l'axe du pied."
+        ),
+        exercise(
+            "side-lunges",
+            "Fentes latérales",
+            ExerciseCategory.LOWER_BODY,
+            45,
+            "Fais un pas latéral, recule les hanches sur la jambe qui plie puis reviens au centre et alterne.",
+            "Garde l'autre jambe longue sans verrouiller le genou."
+        ),
+        exercise(
+            "good-mornings",
+            "Good mornings",
+            ExerciseCategory.LOWER_BODY,
+            45,
+            "Debout, mains sur les hanches ou la poitrine. Recule les hanches en gardant le dos long puis serre les fessiers pour revenir.",
+            "Le mouvement vient des hanches, pas d'un dos qui s'arrondit."
         ),
         exercise(
             "glute-bridge",
@@ -155,6 +201,22 @@ object ExerciseLibrary {
             "Arrête la série avant de perdre la position."
         ),
         exercise(
+            "side-plank",
+            "Planche latérale",
+            ExerciseCategory.CORE,
+            35,
+            "Sur un avant-bras et les pieds ou les genoux, soulève le bassin et garde le corps aligné. Change de côté à mi-parcours.",
+            "Épaule loin de l'oreille et bassin haut sans douleur."
+        ),
+        exercise(
+            "mountain-climbers",
+            "Mountain climbers contrôlés",
+            ExerciseCategory.CORE,
+            40,
+            "Depuis une planche haute, ramène alternativement un genou vers le buste sans laisser le bassin rebondir.",
+            "Privilégie le contrôle à la vitesse."
+        ),
+        exercise(
             "cat-cow",
             "Dos rond / dos creux",
             ExerciseCategory.MOBILITY,
@@ -185,6 +247,22 @@ object ExerciseLibrary {
             40,
             "En fente courte face à un mur, avance doucement le genou au-dessus des orteils sans décoller le talon. Alterne les côtés.",
             "Le talon reste lourd au sol."
+        ),
+        exercise(
+            "world-stretch",
+            "Fente + rotation",
+            ExerciseCategory.MOBILITY,
+            45,
+            "Depuis une fente longue, pose une main au sol ou sur la cuisse et ouvre l'autre bras vers le plafond. Alterne les côtés.",
+            "Respire lentement et garde une amplitude confortable."
+        ),
+        exercise(
+            "single-leg-balance",
+            "Équilibre sur une jambe",
+            ExerciseCategory.MOBILITY,
+            40,
+            "Tiens-toi sur une jambe, genou souple, puis change de côté à mi-parcours. Utilise un support si besoin.",
+            "Regarde un point fixe et garde le pied actif."
         ),
         exercise(
             "hip-flexor-stretch",
@@ -225,48 +303,62 @@ object ExerciseLibrary {
 }
 
 object WorkoutPlanner {
-    fun build(recovery: RecoveryResult): WorkoutPlan =
-        when (recovery.level) {
-            RecoveryLevel.GREEN -> WorkoutPlan(
-                title = "Full body + mobilité",
-                intensity = recovery.intensity,
-                items = listOf(
-                    item("march-place", 45, 10),
-                    item("squats", 45, 15),
-                    item("reverse-lunges", 45, 15),
-                    item("pushups", 40, 20),
-                    item("dead-bug", 45, 15),
-                    item("glute-bridge", 45, 15),
-                    item("bird-dog", 45, 15),
-                    item("thoracic-rotation", 45, 10),
-                    item("hip-flexor-stretch", 40, 0)
-                )
+    fun build(
+        recovery: RecoveryResult,
+        history: List<WorkoutHistoryHint> = emptyList()
+    ): WorkoutPlan {
+        val recentGroups = recentGroups(history)
+        val focus = chooseFocus(history, recentGroups)
+        val lastDifficulty = history.firstOrNull()?.perceivedDifficulty
+
+        val difficultyScale = when {
+            lastDifficulty != null && lastDifficulty >= 5 -> 0.85
+            lastDifficulty == 4 -> 0.92
+            lastDifficulty != null && lastDifficulty <= 2 -> 1.05
+            else -> 1.0
+        }
+
+        val adjustedIntensity = (
+            recovery.intensity +
+                when {
+                    lastDifficulty != null && lastDifficulty >= 4 -> -1
+                    lastDifficulty != null && lastDifficulty <= 2 &&
+                        recovery.level == RecoveryLevel.GREEN -> 1
+                    else -> 0
+                }
+            ).coerceIn(1, 10)
+
+        return when (recovery.level) {
+            RecoveryLevel.GREEN -> buildGreen(
+                focus = focus,
+                intensity = adjustedIntensity,
+                scale = difficultyScale
             )
 
             RecoveryLevel.ORANGE -> WorkoutPlan(
                 title = "Activation + mobilité",
-                intensity = recovery.intensity,
+                intensity = adjustedIntensity.coerceAtMost(5),
                 items = listOf(
-                    item("march-place", 45, 10),
-                    item("squats", 40, 20),
-                    item("wall-pushups", 40, 15),
-                    item("glute-bridge", 40, 15),
-                    item("dead-bug", 40, 15),
-                    item("cat-cow", 45, 10),
-                    item("hip-90-90", 45, 0)
+                    item("march-place", 45, 10, difficultyScale),
+                    item("squats", 40, 20, difficultyScale),
+                    item("wall-pushups", 40, 15, difficultyScale),
+                    item("glute-bridge", 40, 15, difficultyScale),
+                    item("dead-bug", 40, 15, difficultyScale),
+                    item("cat-cow", 45, 10, 1.0),
+                    item("hip-90-90", 45, 0, 1.0)
                 )
             )
 
             RecoveryLevel.RED -> WorkoutPlan(
                 title = "Mobilité + récupération",
-                intensity = recovery.intensity,
+                intensity = adjustedIntensity.coerceAtMost(3),
                 items = listOf(
-                    item("cat-cow", 45, 10),
-                    item("thoracic-rotation", 45, 10),
-                    item("hip-90-90", 45, 10),
-                    item("ankle-rocks", 40, 10),
-                    item("hip-flexor-stretch", 40, 10),
-                    item("child-pose-reach", 45, 0)
+                    item("cat-cow", 45, 10, 1.0),
+                    item("thoracic-rotation", 45, 10, 1.0),
+                    item("hip-90-90", 45, 10, 1.0),
+                    item("ankle-rocks", 40, 10, 1.0),
+                    item("world-stretch", 45, 10, 1.0),
+                    item("child-pose-reach", 45, 0, 1.0)
                 )
             )
 
@@ -274,22 +366,110 @@ object WorkoutPlanner {
                 title = "Mobilité douce",
                 intensity = 2,
                 items = listOf(
-                    item("march-place", 40, 10),
-                    item("cat-cow", 40, 10),
-                    item("thoracic-rotation", 40, 10),
-                    item("hip-90-90", 40, 0)
+                    item("march-place", 40, 10, 1.0),
+                    item("cat-cow", 40, 10, 1.0),
+                    item("thoracic-rotation", 40, 10, 1.0),
+                    item("hip-90-90", 40, 0, 1.0)
                 )
             )
         }
+    }
+
+    private fun buildGreen(
+        focus: ExerciseCategory,
+        intensity: Int,
+        scale: Double
+    ): WorkoutPlan {
+        val coreFinish = listOf(
+            item("dead-bug", 45, 15, scale),
+            item("bird-dog", 45, 15, scale)
+        )
+
+        val focusItems = when (focus) {
+            ExerciseCategory.UPPER_BODY -> listOf(
+                item("pushups", 40, 20, scale),
+                item("scapular-pushups", 40, 15, scale),
+                item("prone-swimmers", 40, 15, scale),
+                item("wall-angels", 40, 15, scale)
+            )
+
+            ExerciseCategory.CORE -> listOf(
+                item("dead-bug", 45, 15, scale),
+                item("bird-dog", 45, 15, scale),
+                item("forearm-plank", 35, 20, scale),
+                item("side-plank", 35, 20, scale),
+                item("mountain-climbers", 40, 15, scale)
+            )
+
+            else -> listOf(
+                item("squats", 45, 15, scale),
+                item("reverse-lunges", 45, 15, scale),
+                item("side-lunges", 45, 15, scale),
+                item("glute-bridge", 45, 15, scale),
+                item("calf-raises", 40, 15, scale)
+            )
+        }
+
+        val title = when (focus) {
+            ExerciseCategory.UPPER_BODY -> "Haut du corps + mobilité"
+            ExerciseCategory.CORE -> "Gainage + mobilité"
+            else -> "Bas du corps + mobilité"
+        }
+
+        val items = buildList {
+            add(item("march-place", 45, 10, 1.0))
+            addAll(focusItems)
+            if (focus != ExerciseCategory.CORE) addAll(coreFinish)
+            add(item("thoracic-rotation", 45, 10, 1.0))
+            add(item("hip-flexor-stretch", 40, 0, 1.0))
+        }
+
+        return WorkoutPlan(
+            title = title,
+            intensity = intensity,
+            items = items
+        )
+    }
+
+    private fun recentGroups(
+        history: List<WorkoutHistoryHint>
+    ): Set<ExerciseCategory> {
+        val cutoff = System.currentTimeMillis() - 48L * 60L * 60L * 1000L
+        return history
+            .filter { it.startedAtEpochMs >= cutoff }
+            .flatMap { it.muscleGroups }
+            .toSet()
+    }
+
+    private fun chooseFocus(
+        history: List<WorkoutHistoryHint>,
+        recentGroups: Set<ExerciseCategory>
+    ): ExerciseCategory {
+        val strengthGroups = listOf(
+            ExerciseCategory.UPPER_BODY,
+            ExerciseCategory.LOWER_BODY,
+            ExerciseCategory.CORE
+        )
+
+        strengthGroups.firstOrNull { it !in recentGroups }?.let { return it }
+
+        return strengthGroups.maxByOrNull { group ->
+            val last = history
+                .filter { group in it.muscleGroups }
+                .maxOfOrNull { it.startedAtEpochMs } ?: 0L
+            System.currentTimeMillis() - last
+        } ?: ExerciseCategory.LOWER_BODY
+    }
 
     private fun item(
         id: String,
         workSeconds: Int,
-        restSeconds: Int
+        restSeconds: Int,
+        scale: Double
     ): WorkoutExercise =
         WorkoutExercise(
             exercise = ExerciseLibrary.byId(id),
-            workSeconds = workSeconds,
+            workSeconds = (workSeconds * scale).toInt().coerceAtLeast(20),
             restSeconds = restSeconds
         )
 }
