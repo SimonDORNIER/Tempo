@@ -5,14 +5,20 @@ import android.media.AudioManager
 import android.media.ToneGenerator
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import fr.tempo.health.TempoHealthApplication
+import fr.tempo.health.data.WorkoutHistoryEntity
+import fr.tempo.health.domain.ExerciseCategory
 import fr.tempo.health.domain.RecoveryResult
+import fr.tempo.health.domain.WorkoutHistoryHint
 import fr.tempo.health.domain.WorkoutPlan
 import fr.tempo.health.domain.WorkoutPlanner
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 enum class WorkoutPhase {
@@ -30,10 +36,16 @@ data class WorkoutUiState(
     val remainingSeconds: Int = 0,
     val elapsedSeconds: Int = 0,
     val paused: Boolean = false,
-    val midpointPlayed: Boolean = false
+    val midpointPlayed: Boolean = false,
+    val completedExercises: Int = 0,
+    val perceivedDifficulty: Int? = null,
+    val historyId: Long? = null
 )
 
 class WorkoutViewModel(application: Application) : AndroidViewModel(application) {
+    private val app = application as TempoHealthApplication
+    private val repository = app.workoutRepository
+
     private val preferences = application.getSharedPreferences(
         "tempo-health-settings",
         Application.MODE_PRIVATE
@@ -42,6 +54,14 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
     private val _state = MutableStateFlow(WorkoutUiState())
     val state: StateFlow<WorkoutUiState> = _state.asStateFlow()
 
+    val history: StateFlow<List<WorkoutHistoryEntity>> =
+        repository.observeRecent()
+            .stateIn(
+                viewModelScope,
+                SharingStarted.WhileSubscribed(5_000),
+                emptyList()
+            )
+
     private val _soundVolume = MutableStateFlow(
         preferences.getInt("sound-volume", 70).coerceIn(0, 100)
     )
@@ -49,6 +69,8 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
 
     private var timerJob: Job? = null
     private var toneGenerator: ToneGenerator? = null
+    private var sessionStartedAtEpochMs: Long? = null
+    private var sessionRecorded = false
 
     init {
         rebuildToneGenerator()
@@ -56,8 +78,14 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
 
     fun prepare(recovery: RecoveryResult) {
         timerJob?.cancel()
+        sessionStartedAtEpochMs = null
+        sessionRecorded = false
+
         _state.value = WorkoutUiState(
-            plan = WorkoutPlanner.build(recovery),
+            plan = WorkoutPlanner.build(
+                recovery = recovery,
+                history = history.value.map { it.toHint() }
+            ),
             exerciseIndex = 0,
             phase = WorkoutPhase.READY,
             remainingSeconds = 0
@@ -68,13 +96,19 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
         val plan = _state.value.plan ?: return
         if (plan.items.isEmpty()) return
 
+        sessionStartedAtEpochMs = System.currentTimeMillis()
+        sessionRecorded = false
+
         _state.value = _state.value.copy(
             exerciseIndex = 0,
             phase = WorkoutPhase.PREPARE,
             remainingSeconds = PREPARE_SECONDS,
             elapsedSeconds = 0,
             paused = false,
-            midpointPlayed = false
+            midpointPlayed = false,
+            completedExercises = 0,
+            perceivedDifficulty = null,
+            historyId = null
         )
         playStartTone()
         launchTimer()
@@ -114,7 +148,21 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
 
     fun stop() {
         timerJob?.cancel()
+        recordSessionIfNeeded(completed = false)
         _state.value = WorkoutUiState()
+        sessionStartedAtEpochMs = null
+    }
+
+    fun rateDifficulty(difficulty: Int) {
+        val safe = difficulty.coerceIn(1, 5)
+        _state.value = _state.value.copy(perceivedDifficulty = safe)
+
+        val historyId = _state.value.historyId
+        if (historyId != null) {
+            viewModelScope.launch {
+                repository.setDifficulty(historyId, safe)
+            }
+        }
     }
 
     fun setSoundVolume(volume: Int) {
@@ -186,10 +234,15 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
             WorkoutPhase.WORK -> {
                 playEndTone()
 
+                _state.value = state.copy(
+                    completedExercises = (state.completedExercises + 1)
+                        .coerceAtMost(plan.items.size)
+                )
+
                 if (current.restSeconds > 0 &&
                     state.exerciseIndex < plan.items.lastIndex
                 ) {
-                    _state.value = state.copy(
+                    _state.value = _state.value.copy(
                         phase = WorkoutPhase.REST,
                         remainingSeconds = current.restSeconds,
                         midpointPlayed = false
@@ -234,6 +287,36 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
             paused = false
         )
         playCompleteTone()
+        recordSessionIfNeeded(completed = true)
+    }
+
+    private fun recordSessionIfNeeded(completed: Boolean) {
+        if (sessionRecorded) return
+
+        val state = _state.value
+        val plan = state.plan ?: return
+        val startedAt = sessionStartedAtEpochMs ?: return
+        if (state.elapsedSeconds <= 0) return
+
+        sessionRecorded = true
+
+        viewModelScope.launch {
+            val id = repository.saveSession(
+                plan = plan,
+                startedAtEpochMs = startedAt,
+                endedAtEpochMs = System.currentTimeMillis(),
+                durationSeconds = state.elapsedSeconds,
+                completedExercises = state.completedExercises,
+                completed = completed
+            )
+
+            val difficulty = _state.value.perceivedDifficulty
+            if (difficulty != null) {
+                repository.setDifficulty(id, difficulty)
+            }
+
+            _state.value = _state.value.copy(historyId = id)
+        }
     }
 
     private fun currentItem(state: WorkoutUiState = _state.value) =
@@ -273,6 +356,18 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
         toneGenerator = null
         super.onCleared()
     }
+
+    private fun WorkoutHistoryEntity.toHint(): WorkoutHistoryHint =
+        WorkoutHistoryHint(
+            startedAtEpochMs = startedAtEpochMs,
+            muscleGroups = muscleGroupsCsv
+                .split(",")
+                .mapNotNull { raw ->
+                    runCatching { ExerciseCategory.valueOf(raw) }.getOrNull()
+                }
+                .toSet(),
+            perceivedDifficulty = perceivedDifficulty
+        )
 
     companion object {
         private const val PREPARE_SECONDS = 5
