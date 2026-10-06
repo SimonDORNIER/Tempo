@@ -1,32 +1,22 @@
 # Tempo Health
 
-Nouvelle application santé / entraînement issue du projet Tempo.
+Application Android personnelle santé / récupération / entraînement.
 
-## Version actuelle
+## Version 0.2.0
 
-Fondation native Android **0.1.0**.
+Cette version ajoute le premier vrai socle Santé Connect :
 
-- Kotlin + Jetpack Compose
-- package Android : `fr.tempo.health`
-- nom affiché : **Tempo Health**
-- Android SDK 36
-- fonctionnement hors ligne pour le socle
-- navigation : Aujourd'hui, Santé, Entraînement, Progression, Coach, Paramètres
+- intégration native Health Connect en lecture ;
+- permissions sommeil, cœur, HRV, respiration, pas, distance, calories, entraînements, poids et VO₂ max ;
+- synchronisation des 28 derniers jours ;
+- stockage local Room / SQLite ;
+- agrégation des pas, distance, calories et FC repos pour limiter les doubles comptages ;
+- récupération de la nuit principale et de ses stades ;
+- FC moyenne pendant le sommeil ;
+- premiers écrans Santé / Aujourd'hui alimentés par les données réelles ;
+- premières références personnelles 7 et 28 jours.
 
-Cette application peut être installée en parallèle de **TempoSave**, qui conserve le package historique `fr.tempo.sport`.
+Les données restent locales dans cette version.
 
-## Architecture cible
-
-Santé Connect → base locale → références personnelles → récupération → moteur de décision → séance → moteur Tempo → historique.
-
-La couche ChatGPT restera optionnelle et ne sera jamais requise pour le fonctionnement principal.
-
-## Ancien Tempo
-
-Les anciens fichiers Capacitor / `dist` sont temporairement conservés sur cette branche comme référence pendant le portage du moteur Tempo et de la bibliothèque d'exercices.
-
-## Build
-
-Le workflow GitHub Actions compile une application Android native, la signe avec les secrets existants et publie un APK dans les Releases.
-
-Tag de cette version : `health-v0.1.0`.
+Package Android : `fr.tempo.health`.
+TempoSave reste indépendant sous `fr.tempo.sport`.

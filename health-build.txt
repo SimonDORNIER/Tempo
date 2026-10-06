@@ -1,1 +1,1 @@
-Tempo Health 0.1.0 foundation build - RowScope fix\n
+Tempo Health 0.2.0 Health Connect + Room build
