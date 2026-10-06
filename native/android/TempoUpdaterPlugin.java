@@ -28,7 +28,7 @@ import java.util.concurrent.Executors;
 @CapacitorPlugin(name = "TempoUpdater")
 public class TempoUpdaterPlugin extends Plugin {
     private static final String VERSION_URL =
-            "https://raw.githubusercontent.com/SimonDORNIER/Tempo/main/release-version.txt";
+            "https://raw.githubusercontent.com/SimonDORNIER/Tempo/temposave-v1.10.1/release-version.txt";
     private static final String RELEASE_BASE =
             "https://github.com/SimonDORNIER/Tempo/releases/download/";
 
@@ -44,7 +44,7 @@ public class TempoUpdaterPlugin extends Plugin {
                 connection.setConnectTimeout(15000);
                 connection.setReadTimeout(15000);
                 connection.setUseCaches(false);
-                connection.setRequestProperty("User-Agent", "Tempo-Android-Updater");
+                connection.setRequestProperty("User-Agent", "TempoSave-Android-Updater");
                 connection.connect();
 
                 int code = connection.getResponseCode();
@@ -63,7 +63,7 @@ public class TempoUpdaterPlugin extends Plugin {
                 }
 
                 latest = latest.trim();
-                String apkUrl = RELEASE_BASE + "v" + latest + "/Tempo-" + latest + ".apk";
+                String apkUrl = RELEASE_BASE + "temposave-v" + latest + "/TempoSave-" + latest + ".apk";
 
                 JSObject result = new JSObject();
                 result.put("latest", latest);
@@ -121,7 +121,7 @@ public class TempoUpdaterPlugin extends Plugin {
                 String safeVersion = version == null
                         ? "update"
                         : version.replaceAll("[^0-9A-Za-z._-]", "_");
-                File apk = new File(dir, "Tempo-" + safeVersion + ".apk");
+                File apk = new File(dir, "TempoSave-" + safeVersion + ".apk");
 
                 try (InputStream input = connection.getInputStream();
                      FileOutputStream output = new FileOutputStream(apk)) {
