@@ -27,11 +27,14 @@ import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -74,7 +77,8 @@ private val mainDestinations = listOf(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TempoHealthApp(
-    healthViewModel: HealthViewModel = viewModel()
+    healthViewModel: HealthViewModel = viewModel(),
+    workoutViewModel: WorkoutViewModel = viewModel()
 ) {
     val navController = rememberNavController()
     val currentEntry by navController.currentBackStackEntryAsState()
@@ -88,6 +92,8 @@ fun TempoHealthApp(
     val hasPermissions by healthViewModel.hasPermissions.collectAsStateWithLifecycle()
     val syncing by healthViewModel.syncing.collectAsStateWithLifecycle()
     val message by healthViewModel.message.collectAsStateWithLifecycle()
+    val workoutState by workoutViewModel.state.collectAsStateWithLifecycle()
+    val soundVolume by workoutViewModel.soundVolume.collectAsStateWithLifecycle()
 
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = PermissionController.createRequestPermissionResultContract()
@@ -101,14 +107,14 @@ fun TempoHealthApp(
                 title = {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
-                            text = if (currentRoute == "settings") {
-                                "Paramètres"
-                            } else {
-                                selectedDestination?.label ?: "Tempo Health"
+                            text = when (currentRoute) {
+                                "settings" -> "Paramètres"
+                                "workout" -> "Séance"
+                                else -> selectedDestination?.label ?: "Tempo Health"
                             },
                             fontWeight = FontWeight.SemiBold
                         )
-                        if (currentRoute != "settings") {
+                        if (currentRoute != "settings" && currentRoute != "workout") {
                             Text(
                                 text = "Tempo Health v" + BuildConfig.VERSION_NAME,
                                 style = MaterialTheme.typography.labelSmall,
@@ -118,7 +124,7 @@ fun TempoHealthApp(
                     }
                 },
                 actions = {
-                    if (currentRoute != "settings") {
+                    if (currentRoute != "settings" && currentRoute != "workout") {
                         IconButton(onClick = { navController.navigate("settings") }) {
                             Icon(Icons.Default.Settings, contentDescription = "Paramètres")
                         }
@@ -202,7 +208,26 @@ fun TempoHealthApp(
             }
 
             composable("training") {
-                TrainingScreen(recovery)
+                TrainingScreen(
+                    recovery = recovery,
+                    onStart = {
+                        workoutViewModel.prepare(recovery)
+                        navController.navigate("workout")
+                    }
+                )
+            }
+
+            composable("workout") {
+                WorkoutSessionScreen(
+                    state = workoutState,
+                    onStart = workoutViewModel::start,
+                    onPause = workoutViewModel::togglePause,
+                    onSkip = workoutViewModel::skip,
+                    onExit = {
+                        workoutViewModel.stop()
+                        navController.popBackStack()
+                    }
+                )
             }
 
             composable("progress") {
@@ -217,7 +242,9 @@ fun TempoHealthApp(
                 SettingsScreen(
                     availability = availability,
                     hasPermissions = hasPermissions,
-                    localDays = recentDays.size
+                    localDays = recentDays.size,
+                    soundVolume = soundVolume,
+                    onSoundVolumeChange = workoutViewModel::setSoundVolume
                 )
             }
         }
@@ -596,26 +623,41 @@ private fun HealthScreen(
 }
 
 @Composable
-private fun TrainingScreen(recovery: RecoveryResult) {
+private fun TrainingScreen(
+    recovery: RecoveryResult,
+    onStart: () -> Unit
+) {
+    val plan = fr.tempo.health.domain.WorkoutPlanner.build(recovery)
+
     Screen(
         title = "Entraînement",
-        subtitle = "La séance du jour est désormais décidée localement."
+        subtitle = "La séance du jour est prête à démarrer."
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             SessionRecommendationCard(recovery)
 
             StatusCard(
-                "🧠",
-                "Décision locale",
-                recovery.score?.let { it.toString() + " / 100" } ?: "En attente",
-                "Sommeil + HRV + FC repos + charge récente + ressenti."
+                "📋",
+                "Programme",
+                plan.items.size.toString() + " exercices",
+                plan.items.take(4).joinToString(" • ") { it.exercise.name } +
+                    if (plan.items.size > 4) "…" else ""
             )
+
+            Button(
+                onClick = onStart,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp)
+            ) {
+                Text("COMMENCER")
+            }
 
             StatusCard(
                 "⏱️",
-                "Moteur Tempo",
-                "Prochaine étape",
-                "Portage des exercices, timers, repos, sons et chrono global."
+                "Moteur Tempo natif",
+                "Prêt",
+                "Préparation 5 s • travail • repos • son mi-parcours • chrono global"
             )
         }
     }
@@ -684,11 +726,13 @@ private fun CoachScreen(recovery: RecoveryResult) {
 private fun SettingsScreen(
     availability: HealthConnectAvailability,
     hasPermissions: Boolean,
-    localDays: Int
+    localDays: Int,
+    soundVolume: Int,
+    onSoundVolumeChange: (Int) -> Unit
 ) {
     Screen(
         title = "Paramètres",
-        subtitle = "État technique et confidentialité."
+        subtitle = "État technique, confidentialité et sons."
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             StatusCard(
@@ -712,14 +756,244 @@ private fun SettingsScreen(
                 "Room / SQLite sur le téléphone"
             )
 
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(24.dp)
+            ) {
+                Column(Modifier.padding(18.dp)) {
+                    Text("Volume des sons", fontWeight = FontWeight.Bold)
+                    Text(
+                        soundVolume.toString() + " %",
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Slider(
+                        value = soundVolume.toFloat(),
+                        onValueChange = { onSoundVolumeChange(it.toInt()) },
+                        valueRange = 0f..100f
+                    )
+                    Text(
+                        "Le son de test est joué pendant le réglage.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
             StatusCard(
                 "📴",
                 "Fonctionnement hors ligne",
                 "Oui",
-                "Score et données déjà synchronisées disponibles hors connexion"
+                "Santé locale, score et moteur d'entraînement fonctionnent sans serveur"
             )
         }
     }
+}
+
+@Composable
+private fun WorkoutSessionScreen(
+    state: WorkoutUiState,
+    onStart: () -> Unit,
+    onPause: () -> Unit,
+    onSkip: () -> Unit,
+    onExit: () -> Unit
+) {
+    val plan = state.plan
+
+    if (plan == null) {
+        Screen(
+            title = "Séance",
+            subtitle = "Aucune séance préparée."
+        ) {
+            Button(
+                onClick = onExit,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("RETOUR")
+            }
+        }
+        return
+    }
+
+    val item = plan.items.getOrNull(state.exerciseIndex)
+
+    Screen(
+        title = plan.title,
+        subtitle = "Exercice " +
+            (state.exerciseIndex + 1).coerceAtMost(plan.items.size) +
+            " / " + plan.items.size
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            LinearProgressIndicator(
+                progress = {
+                    if (plan.items.isEmpty()) 0f
+                    else (state.exerciseIndex.toFloat() / plan.items.size.toFloat())
+                        .coerceIn(0f, 1f)
+                },
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            when (state.phase) {
+                WorkoutPhase.READY -> {
+                    StatusCard(
+                        "🏁",
+                        "Prêt",
+                        plan.estimatedMinutes.toString() + " min environ",
+                        plan.items.joinToString(" • ") { it.exercise.name }
+                    )
+
+                    Button(
+                        onClick = onStart,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(64.dp)
+                    ) {
+                        Text("DÉMARRER LA SÉANCE")
+                    }
+                }
+
+                WorkoutPhase.COMPLETE -> {
+                    StatusCard(
+                        "✅",
+                        "Séance terminée",
+                        formatClock(state.elapsedSeconds),
+                        "Bien joué. L'historique détaillé arrivera à l'étape suivante."
+                    )
+
+                    Button(
+                        onClick = onExit,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("TERMINER")
+                    }
+                }
+
+                else -> {
+                    val phaseLabel = when (state.phase) {
+                        WorkoutPhase.PREPARE -> "PRÉPARE-TOI"
+                        WorkoutPhase.WORK -> "EXERCICE"
+                        WorkoutPhase.REST -> "REPOS"
+                        else -> ""
+                    }
+
+                    val phaseEmoji = when (state.phase) {
+                        WorkoutPhase.PREPARE -> "👀"
+                        WorkoutPhase.WORK -> "🔥"
+                        WorkoutPhase.REST -> "💧"
+                        else -> "⏱️"
+                    }
+
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(28.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (state.phase == WorkoutPhase.WORK) {
+                                MaterialTheme.colorScheme.primaryContainer
+                            } else {
+                                MaterialTheme.colorScheme.surfaceVariant
+                            }
+                        )
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(24.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text(
+                                phaseEmoji + "  " + phaseLabel,
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+
+                            Spacer(Modifier.height(12.dp))
+
+                            Text(
+                                state.remainingSeconds.toString(),
+                                style = MaterialTheme.typography.displayLarge,
+                                fontWeight = FontWeight.Bold
+                            )
+
+                            Text(
+                                "secondes",
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+
+                    if (item != null) {
+                        StatusCard(
+                            "🏋️",
+                            if (state.phase == WorkoutPhase.REST) {
+                                "Prochain : " +
+                                    (plan.items.getOrNull(state.exerciseIndex + 1)
+                                        ?.exercise?.name ?: "Fin")
+                            } else {
+                                item.exercise.name
+                            },
+                            if (state.phase == WorkoutPhase.WORK) {
+                                item.workSeconds.toString() + " s"
+                            } else {
+                                "Préparation"
+                            },
+                            if (state.phase == WorkoutPhase.REST) {
+                                "Respire et relâche les tensions."
+                            } else {
+                                item.exercise.instructions
+                            }
+                        )
+
+                        if (state.phase != WorkoutPhase.REST) {
+                            Text(
+                                "💡 " + item.exercise.cue,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+
+                    StatusCard(
+                        "⏱️",
+                        "Chrono global",
+                        formatClock(state.elapsedSeconds),
+                        if (state.paused) "Séance en pause" else "Séance en cours"
+                    )
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Button(
+                            onClick = onPause,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text(if (state.paused) "REPRENDRE" else "PAUSE")
+                        }
+
+                        OutlinedButton(
+                            onClick = onSkip,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text("PASSER")
+                        }
+                    }
+
+                    OutlinedButton(
+                        onClick = onExit,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("QUITTER LA SÉANCE")
+                    }
+                }
+            }
+        }
+    }
+}
+
+private fun formatClock(seconds: Int): String {
+    val minutes = seconds / 60
+    val rest = seconds % 60
+    return minutes.toString().padStart(2, '0') + ":" +
+        rest.toString().padStart(2, '0')
 }
 
 private fun formatMinutes(minutes: Long?): String {
