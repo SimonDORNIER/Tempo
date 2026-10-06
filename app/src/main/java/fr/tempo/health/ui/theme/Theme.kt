@@ -1,0 +1,42 @@
+package fr.tempo.health.ui.theme
+
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.lightColorScheme
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.Color
+
+private val LightColors = lightColorScheme(
+    primary = Color(0xFF006B57),
+    onPrimary = Color.White,
+    primaryContainer = Color(0xFF9EF2D8),
+    onPrimaryContainer = Color(0xFF002019),
+    secondary = Color(0xFF4B635B),
+    secondaryContainer = Color(0xFFCDE8DD),
+    background = Color(0xFFF6FBF8),
+    surface = Color(0xFFF6FBF8),
+    surfaceVariant = Color(0xFFDCE5E0),
+    error = Color(0xFFBA1A1A)
+)
+
+private val DarkColors = darkColorScheme(
+    primary = Color(0xFF82D6BC),
+    onPrimary = Color(0xFF00382B),
+    primaryContainer = Color(0xFF005140),
+    onPrimaryContainer = Color(0xFF9EF2D8),
+    secondary = Color(0xFFB1CCC1),
+    secondaryContainer = Color(0xFF344B43),
+    background = Color(0xFF0F1512),
+    surface = Color(0xFF0F1512),
+    surfaceVariant = Color(0xFF404945),
+    error = Color(0xFFFFB4AB)
+)
+
+@Composable
+fun TempoHealthTheme(content: @Composable () -> Unit) {
+    MaterialTheme(
+        colorScheme = if (isSystemInDarkTheme()) DarkColors else LightColors,
+        content = content
+    )
+}
