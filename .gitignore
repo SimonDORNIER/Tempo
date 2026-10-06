@@ -1,5 +1,9 @@
 node_modules/
 android/
+.gradle/
+.idea/
+local.properties
+**/build/
 *.jks
 *.keystore
 *.pem
