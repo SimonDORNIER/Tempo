@@ -4,12 +4,16 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import fr.tempo.health.TempoHealthApplication
+import fr.tempo.health.data.DailyCheckInEntity
 import fr.tempo.health.data.DailyHealthEntity
 import fr.tempo.health.data.HealthConnectAvailability
+import fr.tempo.health.domain.RecoveryEngine
+import fr.tempo.health.domain.RecoveryResult
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -26,6 +30,23 @@ class HealthViewModel(application: Application) : AndroidViewModel(application) 
                 SharingStarted.WhileSubscribed(5_000),
                 emptyList()
             )
+
+    val todayCheckIn: StateFlow<DailyCheckInEntity?> =
+        repository.observeTodayCheckIn()
+            .stateIn(
+                viewModelScope,
+                SharingStarted.WhileSubscribed(5_000),
+                null
+            )
+
+    val recovery: StateFlow<RecoveryResult> =
+        combine(recentDays, todayCheckIn) { days, checkIn ->
+            RecoveryEngine.calculate(days, checkIn)
+        }.stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(5_000),
+            RecoveryEngine.calculate(emptyList(), null)
+        )
 
     private val _availability =
         MutableStateFlow(repository.availability())
@@ -79,6 +100,12 @@ class HealthViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
+    fun saveCheckIn(energy: Int, pain: Int) {
+        viewModelScope.launch {
+            repository.saveTodayCheckIn(energy, pain)
+        }
+    }
+
     fun sync() {
         if (_syncing.value) return
 
@@ -99,9 +126,5 @@ class HealthViewModel(application: Application) : AndroidViewModel(application) 
 
             _syncing.value = false
         }
-    }
-
-    fun clearMessage() {
-        _message.value = null
     }
 }
