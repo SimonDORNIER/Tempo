@@ -32,7 +32,9 @@ enum class HealthConnectAvailability {
 class HealthRepository(
     private val context: Context
 ) {
-    private val dao = TempoHealthDatabase.get(context).dailyHealthDao()
+    private val database = TempoHealthDatabase.get(context)
+    private val dao = database.dailyHealthDao()
+    private val checkInDao = database.dailyCheckInDao()
 
     val requiredPermissions: Set<String> = setOf(
         HealthPermission.getReadPermission(SleepSessionRecord::class),
@@ -50,6 +52,20 @@ class HealthRepository(
 
     fun observeRecentDays(limit: Int = 28): Flow<List<DailyHealthEntity>> =
         dao.observeRecent(limit)
+
+    fun observeTodayCheckIn(): Flow<DailyCheckInEntity?> =
+        checkInDao.observeByDate(LocalDate.now(ZoneId.systemDefault()).toString())
+
+    suspend fun saveTodayCheckIn(energy: Int, pain: Int) {
+        checkInDao.upsert(
+            DailyCheckInEntity(
+                date = LocalDate.now(ZoneId.systemDefault()).toString(),
+                energy = energy.coerceIn(1, 5),
+                pain = pain.coerceIn(0, 3),
+                updatedAtEpochMs = Instant.now().toEpochMilli()
+            )
+        )
+    }
 
     fun availability(): HealthConnectAvailability =
         when (HealthConnectClient.getSdkStatus(context)) {
