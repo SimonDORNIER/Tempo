@@ -1,5 +1,6 @@
 package fr.tempo.health.ui
 
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -30,21 +31,16 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.health.connect.client.PermissionController
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -54,8 +50,11 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import fr.tempo.health.BuildConfig
+import fr.tempo.health.data.DailyCheckInEntity
 import fr.tempo.health.data.DailyHealthEntity
 import fr.tempo.health.data.HealthConnectAvailability
+import fr.tempo.health.domain.RecoveryLevel
+import fr.tempo.health.domain.RecoveryResult
 import java.text.DecimalFormat
 
 private data class Destination(
@@ -81,9 +80,10 @@ fun TempoHealthApp(
     val currentEntry by navController.currentBackStackEntryAsState()
     val currentRoute = currentEntry?.destination?.route
     val selectedDestination = mainDestinations.firstOrNull { it.route == currentRoute }
-    val showBottomBar = selectedDestination != null
 
     val recentDays by healthViewModel.recentDays.collectAsStateWithLifecycle()
+    val checkIn by healthViewModel.todayCheckIn.collectAsStateWithLifecycle()
+    val recovery by healthViewModel.recovery.collectAsStateWithLifecycle()
     val availability by healthViewModel.availability.collectAsStateWithLifecycle()
     val hasPermissions by healthViewModel.hasPermissions.collectAsStateWithLifecycle()
     val syncing by healthViewModel.syncing.collectAsStateWithLifecycle()
@@ -95,18 +95,17 @@ fun TempoHealthApp(
         healthViewModel.onPermissionsResult(granted)
     }
 
-    val requestPermissions = {
-        permissionLauncher.launch(healthViewModel.requiredPermissions)
-    }
-
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
                 title = {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
-                            text = if (currentRoute == "settings") "Paramètres"
-                            else selectedDestination?.label ?: "Tempo Health",
+                            text = if (currentRoute == "settings") {
+                                "Paramètres"
+                            } else {
+                                selectedDestination?.label ?: "Tempo Health"
+                            },
                             fontWeight = FontWeight.SemiBold
                         )
                         if (currentRoute != "settings") {
@@ -131,11 +130,12 @@ fun TempoHealthApp(
             )
         },
         bottomBar = {
-            if (showBottomBar) {
+            if (selectedDestination != null) {
                 NavigationBar {
                     mainDestinations.forEach { destination ->
                         val selected = currentEntry?.destination?.hierarchy
                             ?.any { it.route == destination.route } == true
+
                         NavigationBarItem(
                             selected = selected,
                             onClick = {
@@ -166,21 +166,27 @@ fun TempoHealthApp(
                 }
             }
         }
-    ) { innerPadding ->
+    ) { padding ->
         NavHost(
             navController = navController,
             startDestination = "today",
-            modifier = Modifier.padding(innerPadding)
+            modifier = Modifier.padding(padding)
         ) {
             composable("today") {
                 TodayScreen(
                     latest = recentDays.firstOrNull(),
+                    checkIn = checkIn,
+                    recovery = recovery,
                     hasPermissions = hasPermissions,
                     syncing = syncing,
-                    requestPermissions = requestPermissions,
-                    sync = healthViewModel::sync
+                    requestPermissions = {
+                        permissionLauncher.launch(healthViewModel.requiredPermissions)
+                    },
+                    sync = healthViewModel::sync,
+                    saveCheckIn = healthViewModel::saveCheckIn
                 )
             }
+
             composable("health") {
                 HealthScreen(
                     days = recentDays,
@@ -188,13 +194,25 @@ fun TempoHealthApp(
                     hasPermissions = hasPermissions,
                     syncing = syncing,
                     message = message,
-                    requestPermissions = requestPermissions,
+                    requestPermissions = {
+                        permissionLauncher.launch(healthViewModel.requiredPermissions)
+                    },
                     sync = healthViewModel::sync
                 )
             }
-            composable("training") { TrainingScreen() }
-            composable("progress") { ProgressScreen(recentDays) }
-            composable("coach") { CoachScreen() }
+
+            composable("training") {
+                TrainingScreen(recovery)
+            }
+
+            composable("progress") {
+                ProgressScreen(recentDays)
+            }
+
+            composable("coach") {
+                CoachScreen(recovery)
+            }
+
             composable("settings") {
                 SettingsScreen(
                     availability = availability,
@@ -263,7 +281,9 @@ private fun StatusCard(
             ) {
                 Text(emoji, style = MaterialTheme.typography.headlineSmall)
             }
+
             Spacer(Modifier.width(14.dp))
+
             Column(modifier = Modifier.weight(1f)) {
                 Text(title, fontWeight = FontWeight.SemiBold)
                 Text(
@@ -284,59 +304,65 @@ private fun StatusCard(
 @Composable
 private fun TodayScreen(
     latest: DailyHealthEntity?,
+    checkIn: DailyCheckInEntity?,
+    recovery: RecoveryResult,
     hasPermissions: Boolean,
     syncing: Boolean,
     requestPermissions: () -> Unit,
-    sync: () -> Unit
+    sync: () -> Unit,
+    saveCheckIn: (Int, Int) -> Unit
 ) {
-    var energy by remember { mutableIntStateOf(2) }
-    var pain by remember { mutableIntStateOf(0) }
+    val energy = checkIn?.energy ?: 3
+    val pain = checkIn?.pain ?: 0
     val energyIcons = listOf("😫", "😕", "😐", "🙂", "😁")
     val painLabels = listOf("Aucune", "Légère", "Moyenne", "Importante")
 
     Screen(
         title = "Aujourd'hui",
-        subtitle = "Les données utiles d'abord, le détail ensuite."
+        subtitle = "Récupération, ressenti et décision du jour."
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            RecoveryCard(recovery)
+
             if (latest == null) {
                 StatusCard(
-                    "🔗",
-                    "Santé Connect",
-                    if (hasPermissions) "Prêt à synchroniser" else "Connexion nécessaire",
-                    "Autorise les données puis synchronise les 28 derniers jours."
+                    emoji = "🔗",
+                    title = "Santé Connect",
+                    value = if (hasPermissions) "Prêt à synchroniser" else "Connexion nécessaire",
+                    detail = "Le score devient pertinent après synchronisation."
                 )
+
                 Button(
                     onClick = if (hasPermissions) sync else requestPermissions,
                     enabled = !syncing,
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text(
-                        if (syncing) "Synchronisation…"
-                        else if (hasPermissions) "Synchroniser"
-                        else "Autoriser Santé Connect"
+                        if (syncing) {
+                            "Synchronisation…"
+                        } else if (hasPermissions) {
+                            "Synchroniser"
+                        } else {
+                            "Autoriser Santé Connect"
+                        }
                     )
                 }
             } else {
                 StatusCard(
-                    "😴",
-                    "Sommeil",
-                    formatMinutes(latest.sleepMinutes),
-                    sleepDetail(latest)
+                    emoji = "😴",
+                    title = "Sommeil",
+                    value = formatMinutes(latest.sleepMinutes),
+                    detail = sleepDetail(latest)
                 )
+
                 StatusCard(
-                    "❤️",
-                    "Récupération cardio",
-                    latest.hrvRmssdMs?.let { "HRV " + oneDecimal(it) + " ms" } ?: "HRV —",
-                    "FC repos " + bpm(latest.restingHeartRate) +
+                    emoji = "❤️",
+                    title = "Cardio",
+                    value = latest.hrvRmssdMs?.let {
+                        "HRV " + oneDecimal(it) + " ms"
+                    } ?: "HRV —",
+                    detail = "FC repos " + bpm(latest.restingHeartRate) +
                         " • nuit " + bpm(latest.overnightHeartRate)
-                )
-                StatusCard(
-                    "🏃",
-                    "Activité",
-                    (latest.steps ?: 0L).toString() + " pas",
-                    distance(latest.distanceMeters) +
-                        " • " + (latest.exerciseMinutes ?: 0L) + " min sport"
                 )
             }
 
@@ -346,71 +372,127 @@ private fun TodayScreen(
             ) {
                 Column(Modifier.padding(18.dp)) {
                     Text("Check-in rapide", fontWeight = FontWeight.Bold)
+
                     Spacer(Modifier.height(12.dp))
-                    Text("Énergie", color = MaterialTheme.colorScheme.onSurfaceVariant)
+
+                    Text(
+                        "Énergie",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         energyIcons.forEachIndexed { index, icon ->
+                            val level = index + 1
                             AssistChip(
-                                onClick = { energy = index },
+                                onClick = { saveCheckIn(level, pain) },
                                 label = {
                                     Text(
-                                        icon,
+                                        text = if (energy == level) "• " + icon else icon,
                                         style = MaterialTheme.typography.titleLarge
                                     )
                                 }
                             )
                         }
                     }
+
                     Text(
-                        "Niveau " + (energy + 1) + "/5",
-                        style = MaterialTheme.typography.labelMedium,
+                        text = "Niveau " + energy + "/5",
                         color = MaterialTheme.colorScheme.primary
                     )
 
                     Spacer(Modifier.height(14.dp))
-                    Text("Douleurs", color = MaterialTheme.colorScheme.onSurfaceVariant)
+
+                    Text(
+                        "Douleurs",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         painLabels.forEachIndexed { index, label ->
                             AssistChip(
-                                onClick = { pain = index },
-                                label = { Text(if (pain == index) "• " + label else label) }
+                                onClick = { saveCheckIn(energy, index) },
+                                label = {
+                                    Text(
+                                        if (pain == index) "• " + label else label
+                                    )
+                                }
                             )
                         }
                     }
+
+                    Text(
+                        "Enregistré localement et intégré au score.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             }
 
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(24.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer
-                )
-            ) {
-                Column(Modifier.padding(20.dp)) {
-                    Text(
-                        "Étape suivante",
-                        color = MaterialTheme.colorScheme.onPrimaryContainer
-                    )
-                    Spacer(Modifier.height(6.dp))
-                    Text(
-                        "Score de récupération local",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer
-                    )
-                    Text(
-                        "La base 7/28 jours est maintenant prête pour le moteur de décision.",
-                        color = MaterialTheme.colorScheme.onPrimaryContainer
-                    )
-                }
-            }
+            SessionRecommendationCard(recovery)
+        }
+    }
+}
+
+@Composable
+private fun RecoveryCard(recovery: RecoveryResult) {
+    val emoji = when (recovery.level) {
+        RecoveryLevel.GREEN -> "🟢"
+        RecoveryLevel.ORANGE -> "🟠"
+        RecoveryLevel.RED -> "🔴"
+        RecoveryLevel.UNKNOWN -> "⚪"
+    }
+
+    StatusCard(
+        emoji = emoji,
+        title = "Récupération",
+        value = recovery.score?.let { it.toString() + " / 100" } ?: "À calibrer",
+        detail = recovery.reasons.joinToString(" • ")
+    )
+}
+
+@Composable
+private fun SessionRecommendationCard(recovery: RecoveryResult) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.primaryContainer
+        )
+    ) {
+        Column(Modifier.padding(20.dp)) {
+            Text(
+                "Séance conseillée",
+                color = MaterialTheme.colorScheme.onPrimaryContainer
+            )
+
+            Spacer(Modifier.height(6.dp))
+
+            Text(
+                recovery.sessionTitle,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onPrimaryContainer
+            )
+
+            Text(
+                "⏱ " + recovery.sessionMinutes + " min   •   ⚡ Intensité " +
+                    recovery.intensity + "/10",
+                color = MaterialTheme.colorScheme.onPrimaryContainer
+            )
+
+            Spacer(Modifier.height(10.dp))
+
+            Text(
+                "Le moteur Tempo sera connecté à cette recommandation dans la prochaine étape.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onPrimaryContainer
+            )
         }
     }
 }
@@ -429,48 +511,49 @@ private fun HealthScreen(
 
     Screen(
         title = "Santé",
-        subtitle = "Santé Connect → base locale → tendances personnelles."
+        subtitle = "Santé Connect → base locale → références personnelles."
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            val connectionLabel = when (availability) {
+                HealthConnectAvailability.AVAILABLE ->
+                    if (hasPermissions) "Connecté" else "Autorisations requises"
+                HealthConnectAvailability.UPDATE_REQUIRED -> "Mise à jour requise"
+                HealthConnectAvailability.UNAVAILABLE -> "Indisponible"
+            }
+
             StatusCard(
-                "🔗",
-                "Santé Connect",
-                when (availability) {
-                    HealthConnectAvailability.AVAILABLE ->
-                        if (hasPermissions) "Connecté" else "Autorisations requises"
-                    HealthConnectAvailability.UPDATE_REQUIRED -> "Mise à jour requise"
-                    HealthConnectAvailability.UNAVAILABLE -> "Indisponible"
-                },
-                if (hasPermissions)
+                emoji = "🔗",
+                title = "Santé Connect",
+                value = connectionLabel,
+                detail = if (hasPermissions) {
                     days.size.toString() + " jours enregistrés localement"
-                else
-                    "Les données restent sur ton téléphone."
+                } else {
+                    "Lecture uniquement"
+                }
             )
 
             if (availability == HealthConnectAvailability.AVAILABLE) {
-                if (!hasPermissions) {
-                    Button(
-                        onClick = requestPermissions,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text("Autoriser les données santé")
-                    }
-                } else {
-                    Button(
-                        onClick = sync,
-                        enabled = !syncing,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(if (syncing) "Synchronisation en cours…" else "Synchroniser 28 jours")
-                    }
+                Button(
+                    onClick = if (hasPermissions) sync else requestPermissions,
+                    enabled = !syncing,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        if (syncing) {
+                            "Synchronisation en cours…"
+                        } else if (hasPermissions) {
+                            "Synchroniser 28 jours"
+                        } else {
+                            "Autoriser les données santé"
+                        }
+                    )
                 }
             }
 
             if (!message.isNullOrBlank()) {
                 Text(
                     message,
-                    color = MaterialTheme.colorScheme.primary,
-                    style = MaterialTheme.typography.bodyMedium
+                    color = MaterialTheme.colorScheme.primary
                 )
             }
 
@@ -478,8 +561,9 @@ private fun HealthScreen(
                 "😴",
                 "Sommeil",
                 latest?.sleepMinutes?.let(::formatMinutes) ?: "—",
-                latest?.let(::sleepDetail) ?: "Aucune nuit synchronisée"
+                latest?.let(::sleepDetail) ?: "Aucune donnée"
             )
+
             StatusCard(
                 "❤️",
                 "Cœur & HRV",
@@ -487,18 +571,20 @@ private fun HealthScreen(
                 latest?.let {
                     "FC repos " + bpm(it.restingHeartRate) +
                         " • respiration " + rate(it.respiratoryRate)
-                } ?: "Aucune donnée synchronisée"
+                } ?: "Aucune donnée"
             )
+
             StatusCard(
                 "🏃",
                 "Activité",
-                latest?.steps?.let { "$it pas" } ?: "—",
+                latest?.steps?.let { it.toString() + " pas" } ?: "—",
                 latest?.let {
-                    distance(it.distanceMeters) +
-                        " • " + kcal(it.caloriesKcal) +
-                        " • " + (it.exerciseMinutes ?: 0L) + " min sport"
-                } ?: "Aucune donnée synchronisée"
+                    distance(it.distanceMeters) + " • " +
+                        kcal(it.caloriesKcal) + " • " +
+                        (it.exerciseMinutes ?: 0L) + " min sport"
+                } ?: "Aucune donnée"
             )
+
             StatusCard(
                 "⚖️",
                 "Corps & cardio",
@@ -510,23 +596,26 @@ private fun HealthScreen(
 }
 
 @Composable
-private fun TrainingScreen() {
+private fun TrainingScreen(recovery: RecoveryResult) {
     Screen(
         title = "Entraînement",
-        subtitle = "Le moteur Tempo sera branché sur les données récupérées."
+        subtitle = "La séance du jour est désormais décidée localement."
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            SessionRecommendationCard(recovery)
+
             StatusCard(
-                "🏋️",
-                "Séance du jour",
-                "Moteur de décision à venir",
-                "La récupération et la charge récente serviront à choisir la séance."
+                "🧠",
+                "Décision locale",
+                recovery.score?.let { it.toString() + " / 100" } ?: "En attente",
+                "Sommeil + HRV + FC repos + charge récente + ressenti."
             )
+
             StatusCard(
                 "⏱️",
                 "Moteur Tempo",
-                "À porter",
-                "Timers, repos, sons, chrono global et bibliothèque d'exercices."
+                "Prochaine étape",
+                "Portage des exercices, timers, repos, sons et chrono global."
             )
         }
     }
@@ -539,50 +628,53 @@ private fun ProgressScreen(days: List<DailyHealthEntity>) {
 
     Screen(
         title = "Progression",
-        subtitle = "Références basées sur tes propres données."
+        subtitle = "Tes références 7 et 28 jours servent maintenant au score."
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             StatusCard(
                 "📅",
                 "Moyenne 7 jours",
                 averageMinutes(week.mapNotNull { it.sleepMinutes }),
-                "Sommeil • HRV " + averageDouble(week.mapNotNull { it.hrvRmssdMs }, " ms")
+                "HRV " + averageDouble(week.mapNotNull { it.hrvRmssdMs }, " ms")
             )
+
             StatusCard(
                 "📊",
                 "Moyenne 28 jours",
                 averageMinutes(month.mapNotNull { it.sleepMinutes }),
-                "Sommeil • FC repos " +
+                "FC repos " +
                     averageDouble(month.mapNotNull { it.restingHeartRate }, " bpm")
             )
+
             StatusCard(
                 "🚶",
                 "Activité 7 jours",
                 averageLong(week.mapNotNull { it.steps }) + " pas/j",
-                "Ta référence personnelle se construit automatiquement."
+                "Ces références sont personnelles, pas des normes de population."
             )
         }
     }
 }
 
 @Composable
-private fun CoachScreen() {
+private fun CoachScreen(recovery: RecoveryResult) {
     Screen(
         title = "Coach",
-        subtitle = "L'IA expliquera les décisions, elle ne remplacera pas les règles locales."
+        subtitle = "L'IA reste une couche explicative facultative."
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             StatusCard(
                 "🧠",
                 "Moteur local",
-                "Données disponibles",
-                "Sommeil, HRV, FC repos et activité peuvent maintenant alimenter les règles."
+                recovery.score?.let { it.toString() + " / 100" } ?: "En attente",
+                "La décision fonctionne déjà sans Internet et sans IA."
             )
+
             StatusCard(
                 "✨",
                 "Coach ChatGPT",
-                "Toujours optionnel",
-                "Aucune donnée santé n'est envoyée automatiquement."
+                "Optionnel",
+                "Plus tard, il expliquera le score et les tendances sans piloter aveuglément la séance."
             )
         }
     }
@@ -596,7 +688,7 @@ private fun SettingsScreen(
 ) {
     Screen(
         title = "Paramètres",
-        subtitle = "État de la synchronisation et du stockage local."
+        subtitle = "État technique et confidentialité."
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             StatusCard(
@@ -605,23 +697,26 @@ private fun SettingsScreen(
                 BuildConfig.VERSION_NAME,
                 "Package : " + BuildConfig.APPLICATION_ID
             )
+
             StatusCard(
                 "🔗",
                 "Santé Connect",
                 if (hasPermissions) "Autorisé" else availabilityLabel(availability),
                 "Lecture uniquement • aucun envoi automatique"
             )
+
             StatusCard(
                 "💾",
                 "Base locale",
-                "$localDays jours",
+                localDays.toString() + " jours",
                 "Room / SQLite sur le téléphone"
             )
+
             StatusCard(
                 "📴",
                 "Fonctionnement hors ligne",
                 "Oui",
-                "Les données déjà synchronisées restent consultables hors connexion."
+                "Score et données déjà synchronisées disponibles hors connexion"
             )
         }
     }
@@ -629,15 +724,15 @@ private fun SettingsScreen(
 
 private fun formatMinutes(minutes: Long?): String {
     if (minutes == null) return "—"
-    val h = minutes / 60
-    val m = minutes % 60
-    return h.toString() + " h " + m.toString().padStart(2, '0')
+    val hours = minutes / 60
+    val rest = minutes % 60
+    return hours.toString() + " h " + rest.toString().padStart(2, '0')
 }
 
 private fun sleepDetail(day: DailyHealthEntity): String =
-    "Profond " + (day.deepMinutes ?: 0L) + " min" +
-        " • REM " + (day.remMinutes ?: 0L) + " min" +
-        " • éveil " + (day.awakeMinutes ?: 0L) + " min"
+    "Profond " + (day.deepMinutes ?: 0L) + " min • REM " +
+        (day.remMinutes ?: 0L) + " min • éveil " +
+        (day.awakeMinutes ?: 0L) + " min"
 
 private fun bpm(value: Double?): String =
     value?.let { oneDecimal(it) + " bpm" } ?: "—"
