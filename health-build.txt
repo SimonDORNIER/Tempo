@@ -1,1 +1,1 @@
-Tempo Health 0.6.0 preferences + duration + equipment build
+Tempo Health 0.6.1 automatic updater build
