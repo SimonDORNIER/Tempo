@@ -58,6 +58,9 @@ import fr.tempo.health.data.DailyHealthEntity
 import fr.tempo.health.data.HealthConnectAvailability
 import fr.tempo.health.data.WorkoutHistoryEntity
 import fr.tempo.health.domain.WorkoutPlan
+import fr.tempo.health.domain.Equipment
+import fr.tempo.health.domain.ExerciseLibrary
+import fr.tempo.health.domain.TrainingPreferences
 import fr.tempo.health.domain.RecoveryLevel
 import fr.tempo.health.domain.RecoveryResult
 import java.text.DecimalFormat
@@ -97,6 +100,8 @@ fun TempoHealthApp(
     val workoutState by workoutViewModel.state.collectAsStateWithLifecycle()
     val soundVolume by workoutViewModel.soundVolume.collectAsStateWithLifecycle()
     val workoutHistory by workoutViewModel.history.collectAsStateWithLifecycle()
+    val trainingPreferences by workoutViewModel.trainingPreferences.collectAsStateWithLifecycle()
+    val previewPlan = workoutViewModel.previewPlan(recovery)
 
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = PermissionController.createRequestPermissionResultContract()
@@ -112,12 +117,16 @@ fun TempoHealthApp(
                         Text(
                             text = when (currentRoute) {
                                 "settings" -> "Paramètres"
+                                "exercise-settings" -> "Exercices"
                                 "workout" -> "Séance"
                                 else -> selectedDestination?.label ?: "Tempo Health"
                             },
                             fontWeight = FontWeight.SemiBold
                         )
-                        if (currentRoute != "settings" && currentRoute != "workout") {
+                        if (currentRoute != "settings" &&
+                            currentRoute != "exercise-settings" &&
+                            currentRoute != "workout"
+                        ) {
                             Text(
                                 text = "Tempo Health v" + BuildConfig.VERSION_NAME,
                                 style = MaterialTheme.typography.labelSmall,
@@ -127,7 +136,10 @@ fun TempoHealthApp(
                     }
                 },
                 actions = {
-                    if (currentRoute != "settings" && currentRoute != "workout") {
+                    if (currentRoute != "settings" &&
+                        currentRoute != "exercise-settings" &&
+                        currentRoute != "workout"
+                    ) {
                         IconButton(onClick = { navController.navigate("settings") }) {
                             Icon(Icons.Default.Settings, contentDescription = "Paramètres")
                         }
@@ -186,6 +198,7 @@ fun TempoHealthApp(
                     latest = recentDays.firstOrNull(),
                     checkIn = checkIn,
                     recovery = recovery,
+                    plan = previewPlan,
                     hasPermissions = hasPermissions,
                     syncing = syncing,
                     requestPermissions = {
@@ -213,7 +226,7 @@ fun TempoHealthApp(
             composable("training") {
                 TrainingScreen(
                     recovery = recovery,
-                    plan = workoutViewModel.previewPlan(recovery),
+                    plan = previewPlan,
                     history = workoutHistory,
                     onStart = {
                         workoutViewModel.prepare(recovery)
@@ -253,7 +266,21 @@ fun TempoHealthApp(
                     hasPermissions = hasPermissions,
                     localDays = recentDays.size,
                     soundVolume = soundVolume,
-                    onSoundVolumeChange = workoutViewModel::setSoundVolume
+                    preferences = trainingPreferences,
+                    onSoundVolumeChange = workoutViewModel::setSoundVolume,
+                    onDurationChange = workoutViewModel::setDurationMinutes,
+                    onToggleEquipment = workoutViewModel::toggleEquipment,
+                    onOpenExercises = {
+                        navController.navigate("exercise-settings")
+                    }
+                )
+            }
+
+            composable("exercise-settings") {
+                ExercisePreferencesScreen(
+                    preferences = trainingPreferences,
+                    onFavorite = workoutViewModel::toggleFavoriteExercise,
+                    onAvoid = workoutViewModel::toggleAvoidedExercise
                 )
             }
         }
@@ -342,6 +369,7 @@ private fun TodayScreen(
     latest: DailyHealthEntity?,
     checkIn: DailyCheckInEntity?,
     recovery: RecoveryResult,
+    plan: WorkoutPlan,
     hasPermissions: Boolean,
     syncing: Boolean,
     requestPermissions: () -> Unit,
@@ -470,7 +498,7 @@ private fun TodayScreen(
                 }
             }
 
-            SessionRecommendationCard(recovery)
+            SessionRecommendationCard(recovery, plan)
         }
     }
 }
@@ -493,7 +521,10 @@ private fun RecoveryCard(recovery: RecoveryResult) {
 }
 
 @Composable
-private fun SessionRecommendationCard(recovery: RecoveryResult) {
+private fun SessionRecommendationCard(
+    recovery: RecoveryResult,
+    plan: WorkoutPlan
+) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(24.dp),
@@ -510,15 +541,15 @@ private fun SessionRecommendationCard(recovery: RecoveryResult) {
             Spacer(Modifier.height(6.dp))
 
             Text(
-                recovery.sessionTitle,
+                plan.title,
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onPrimaryContainer
             )
 
             Text(
-                "⏱ " + recovery.sessionMinutes + " min   •   ⚡ Intensité " +
-                    recovery.intensity + "/10",
+                "⏱ " + plan.estimatedMinutes + " min   •   ⚡ Intensité " +
+                    plan.intensity + "/10",
                 color = MaterialTheme.colorScheme.onPrimaryContainer
             )
 
@@ -793,7 +824,11 @@ private fun SettingsScreen(
     hasPermissions: Boolean,
     localDays: Int,
     soundVolume: Int,
-    onSoundVolumeChange: (Int) -> Unit
+    preferences: TrainingPreferences,
+    onSoundVolumeChange: (Int) -> Unit,
+    onDurationChange: (Int) -> Unit,
+    onToggleEquipment: (Equipment) -> Unit,
+    onOpenExercises: () -> Unit
 ) {
     Screen(
         title = "Paramètres",
@@ -826,6 +861,90 @@ private fun SettingsScreen(
                 shape = RoundedCornerShape(24.dp)
             ) {
                 Column(Modifier.padding(18.dp)) {
+                    Text("Durée disponible", fontWeight = FontWeight.Bold)
+                    Text(
+                        preferences.durationMinutes.toString() + " min",
+                        color = MaterialTheme.colorScheme.primary
+                    )
+
+                    Spacer(Modifier.height(8.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        listOf(10, 15, 20, 30).forEach { minutes ->
+                            AssistChip(
+                                onClick = { onDurationChange(minutes) },
+                                label = {
+                                    Text(
+                                        if (preferences.durationMinutes == minutes) {
+                                            "• " + minutes
+                                        } else {
+                                            minutes.toString()
+                                        }
+                                    )
+                                }
+                            )
+                        }
+                    }
+
+                    Spacer(Modifier.height(12.dp))
+
+                    Text("Matériel disponible", fontWeight = FontWeight.Bold)
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        AssistChip(
+                            onClick = { onToggleEquipment(Equipment.MAT) },
+                            label = {
+                                Text(
+                                    if (Equipment.MAT in preferences.availableEquipment) {
+                                        "• Tapis"
+                                    } else {
+                                        "Tapis"
+                                    }
+                                )
+                            }
+                        )
+
+                        AssistChip(
+                            onClick = { onToggleEquipment(Equipment.CHAIR) },
+                            label = {
+                                Text(
+                                    if (Equipment.CHAIR in preferences.availableEquipment) {
+                                        "• Chaise"
+                                    } else {
+                                        "Chaise"
+                                    }
+                                )
+                            }
+                        )
+                    }
+                }
+            }
+
+            Button(
+                onClick = onOpenExercises,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("GÉRER LES EXERCICES")
+            }
+
+            Text(
+                preferences.favoriteExerciseIds.size.toString() + " favori(s) • " +
+                    preferences.avoidedExerciseIds.size + " à éviter",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(24.dp)
+            ) {
+                Column(Modifier.padding(18.dp)) {
                     Text("Volume des sons", fontWeight = FontWeight.Bold)
                     Text(
                         soundVolume.toString() + " %",
@@ -850,6 +969,83 @@ private fun SettingsScreen(
                 "Oui",
                 "Santé locale, score et moteur d'entraînement fonctionnent sans serveur"
             )
+        }
+    }
+}
+
+@Composable
+private fun ExercisePreferencesScreen(
+    preferences: TrainingPreferences,
+    onFavorite: (String) -> Unit,
+    onAvoid: (String) -> Unit
+) {
+    Screen(
+        title = "Préférences d'exercices",
+        subtitle = "Favorise ce que tu aimes et exclus ce que tu ne veux pas voir dans les séances."
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            ExerciseLibrary.all.forEach { exercise ->
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(20.dp)
+                ) {
+                    Column(Modifier.padding(16.dp)) {
+                        Text(
+                            exercise.name,
+                            fontWeight = FontWeight.Bold
+                        )
+
+                        Text(
+                            exercise.category.name.replace("_", " ").lowercase(),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+
+                        if (exercise.requiredEquipment != null) {
+                            Text(
+                                "Matériel : " + when (exercise.requiredEquipment) {
+                                    Equipment.MAT -> "tapis"
+                                    Equipment.CHAIR -> "chaise"
+                                },
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+
+                        Spacer(Modifier.height(8.dp))
+
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            AssistChip(
+                                onClick = { onFavorite(exercise.id) },
+                                label = {
+                                    Text(
+                                        if (exercise.id in preferences.favoriteExerciseIds) {
+                                            "★ Favori"
+                                        } else {
+                                            "☆ Favori"
+                                        }
+                                    )
+                                }
+                            )
+
+                            AssistChip(
+                                onClick = { onAvoid(exercise.id) },
+                                label = {
+                                    Text(
+                                        if (exercise.id in preferences.avoidedExerciseIds) {
+                                            "⛔ Évité"
+                                        } else {
+                                            "Éviter"
+                                        }
+                                    )
+                                }
+                            )
+                        }
+                    }
+                }
+            }
         }
     }
 }
