@@ -1,5 +1,6 @@
 package fr.tempo.health.ui
 
+import android.content.Intent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -42,6 +43,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.health.connect.client.PermissionController
@@ -57,6 +59,7 @@ import fr.tempo.health.data.DailyCheckInEntity
 import fr.tempo.health.data.DailyHealthEntity
 import fr.tempo.health.data.HealthConnectAvailability
 import fr.tempo.health.data.WorkoutHistoryEntity
+import fr.tempo.health.domain.CoachBriefBuilder
 import fr.tempo.health.domain.WorkoutPlan
 import fr.tempo.health.domain.Equipment
 import fr.tempo.health.domain.ExerciseLibrary
@@ -258,7 +261,13 @@ fun TempoHealthApp(
             }
 
             composable("coach") {
-                CoachScreen(recovery)
+                CoachScreen(
+                    days = recentDays,
+                    checkIn = checkIn,
+                    recovery = recovery,
+                    plan = previewPlan,
+                    history = workoutHistory
+                )
             }
 
             composable("settings") {
@@ -1005,24 +1014,91 @@ private fun TrendCard(
 }
 
 @Composable
-private fun CoachScreen(recovery: RecoveryResult) {
+private fun CoachScreen(
+    days: List<DailyHealthEntity>,
+    checkIn: DailyCheckInEntity?,
+    recovery: RecoveryResult,
+    plan: WorkoutPlan,
+    history: List<WorkoutHistoryEntity>
+) {
+    val context = LocalContext.current
+    val brief = CoachBriefBuilder.build(
+        days = days,
+        checkIn = checkIn,
+        recovery = recovery,
+        plan = plan,
+        history = history
+    )
+
     Screen(
         title = "Coach",
-        subtitle = "L'IA reste une couche explicative facultative."
+        subtitle = "Résumé local d'abord, partage vers ChatGPT seulement quand tu le demandes."
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(24.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer
+                )
+            ) {
+                Column(
+                    modifier = Modifier.padding(20.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        "Bilan du jour",
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                    Text(
+                        brief.headline,
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+
+                    brief.bullets.forEach { bullet ->
+                        Text(
+                            "• " + bullet,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    }
+                }
+            }
+
+            Button(
+                onClick = {
+                    val intent = Intent(Intent.ACTION_SEND).apply {
+                        type = "text/plain"
+                        putExtra(Intent.EXTRA_TEXT, brief.shareText)
+                    }
+                    context.startActivity(
+                        Intent.createChooser(
+                            intent,
+                            "Partager le bilan Tempo Health"
+                        )
+                    )
+                },
+                enabled = days.isNotEmpty(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp)
+            ) {
+                Text("PARTAGER À CHATGPT / AUTRE APP")
+            }
+
             StatusCard(
                 "🧠",
-                "Moteur local",
+                "Coach local",
                 recovery.score?.let { it.toString() + " / 100" } ?: "En attente",
-                "La décision fonctionne déjà sans Internet et sans IA."
+                "Le résumé est calculé sur le téléphone à partir de tes références personnelles."
             )
 
             StatusCard(
-                "✨",
-                "Coach ChatGPT",
-                "Optionnel",
-                "Plus tard, il expliquera le score et les tendances sans piloter aveuglément la séance."
+                "🔒",
+                "Confidentialité",
+                "Envoi manuel uniquement",
+                "Tempo Health n'envoie aucune donnée santé en arrière-plan et n'utilise aucune API payante."
             )
         }
     }
