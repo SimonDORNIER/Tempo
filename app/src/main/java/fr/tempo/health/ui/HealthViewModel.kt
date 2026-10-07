@@ -77,8 +77,8 @@ class HealthViewModel(application: Application) : AndroidViewModel(application) 
             runCatching { repository.hasRequiredPermissions() }
                 .onSuccess { granted ->
                     _hasPermissions.value = granted
-                    if (granted && recentDays.value.isEmpty()) {
-                        sync()
+                    if (granted) {
+                        autoSyncIfNeeded()
                     }
                 }
                 .onFailure {
@@ -107,21 +107,48 @@ class HealthViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     fun sync() {
+        launchSync(full = true)
+    }
+
+    private fun autoSyncIfNeeded() {
+        if (_syncing.value) return
+
+        viewModelScope.launch {
+            val shouldSync = runCatching {
+                repository.shouldAutoSync()
+            }.getOrDefault(true)
+
+            if (shouldSync) {
+                launchSync(full = recentDays.value.isEmpty())
+            }
+        }
+    }
+
+    private fun launchSync(full: Boolean) {
         if (_syncing.value) return
 
         viewModelScope.launch {
             _syncing.value = true
-            _message.value = null
+            if (full) {
+                _message.value = null
+            }
 
             runCatching {
-                repository.syncLast28Days()
+                if (full) {
+                    repository.syncLast28Days()
+                } else {
+                    repository.syncRecentDays(3)
+                }
             }.onSuccess {
-                _message.value = "Synchronisation des 28 derniers jours terminée."
+                if (full) {
+                    _message.value = "Synchronisation des 28 derniers jours terminée."
+                }
                 _hasPermissions.value = true
             }.onFailure { error ->
-                _message.value =
-                    error.message ?: "Synchronisation impossible."
-                refreshPermissionState()
+                if (full) {
+                    _message.value =
+                        error.message ?: "Synchronisation impossible."
+                }
             }
 
             _syncing.value = false
