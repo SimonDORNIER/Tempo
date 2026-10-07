@@ -2,8 +2,19 @@ package fr.tempo.health.domain
 
 import fr.tempo.health.data.DailyCheckInEntity
 import fr.tempo.health.data.DailyHealthEntity
+import kotlin.math.abs
+import kotlin.math.roundToInt
 
 enum class RecoveryLevel { GREEN, ORANGE, RED, UNKNOWN }
+enum class RecoveryFactorState { POSITIVE, NEUTRAL, NEGATIVE, MISSING }
+
+data class RecoveryFactor(
+    val label: String,
+    val value: String,
+    val reference: String,
+    val state: RecoveryFactorState,
+    val impact: Int
+)
 
 data class RecoveryResult(
     val score: Int?,
@@ -11,7 +22,10 @@ data class RecoveryResult(
     val reasons: List<String>,
     val sessionTitle: String,
     val sessionMinutes: Int,
-    val intensity: Int
+    val intensity: Int,
+    val confidence: Int = 0,
+    val baselineDays: Int = 0,
+    val factors: List<RecoveryFactor> = emptyList()
 )
 
 object RecoveryEngine {
@@ -32,76 +46,162 @@ object RecoveryEngine {
         val baseline = days.drop(1).take(27)
         var score = 70
         val reasons = mutableListOf<String>()
+        val factors = mutableListOf<RecoveryFactor>()
+        var availableSignals = 0
+
+        val sleepBase = baseline
+            .mapNotNull { it.sleepMinutes?.toDouble() }
+            .averageOrNull()
 
         compareHigherIsBetter(
             current = latest.sleepMinutes?.toDouble(),
-            baseline = baseline.mapNotNull { it.sleepMinutes?.toDouble() }.averageOrNull(),
-            label = "sommeil",
+            baseline = sleepBase,
+            label = "Sommeil",
             lowPenalty = 15,
-            highBonus = 5
-        )?.let { (delta, reason) ->
-            score += delta
-            reasons += reason
+            highBonus = 5,
+            format = { value -> formatDuration(value.roundToInt()) }
+        ).let { result ->
+            score += result.impact
+            factors += result.factor
+            result.reason?.let(reasons::add)
+            if (result.factor.state != RecoveryFactorState.MISSING) availableSignals++
         }
 
+        val hrvBase = baseline.mapNotNull { it.hrvRmssdMs }.averageOrNull()
         compareHigherIsBetter(
             current = latest.hrvRmssdMs,
-            baseline = baseline.mapNotNull { it.hrvRmssdMs }.averageOrNull(),
+            baseline = hrvBase,
             label = "HRV",
             lowPenalty = 15,
-            highBonus = 5
-        )?.let { (delta, reason) ->
-            score += delta
-            reasons += reason
+            highBonus = 5,
+            format = { value -> value.roundToInt().toString() + " ms" }
+        ).let { result ->
+            score += result.impact
+            factors += result.factor
+            result.reason?.let(reasons::add)
+            if (result.factor.state != RecoveryFactorState.MISSING) availableSignals++
         }
 
         val rhrBase = baseline.mapNotNull { it.restingHeartRate }.averageOrNull()
-        if (latest.restingHeartRate != null && rhrBase != null) {
-            val diff = latest.restingHeartRate - rhrBase
-            when {
-                diff >= 8 -> {
-                    score -= 15
-                    reasons += "FC repos nettement au-dessus de ta référence."
-                }
-                diff >= 4 -> {
-                    score -= 8
-                    reasons += "FC repos un peu élevée."
-                }
-                diff <= -3 -> {
-                    score += 4
-                    reasons += "FC repos favorable par rapport à ta référence."
-                }
+        val rhr = latest.restingHeartRate
+        if (rhr != null && rhrBase != null) {
+            val diff = rhr - rhrBase
+            val impact = when {
+                diff >= 8 -> -15
+                diff >= 4 -> -8
+                diff <= -3 -> 4
+                else -> 0
             }
+            val state = when {
+                impact > 0 -> RecoveryFactorState.POSITIVE
+                impact < 0 -> RecoveryFactorState.NEGATIVE
+                else -> RecoveryFactorState.NEUTRAL
+            }
+            score += impact
+            availableSignals++
+            factors += RecoveryFactor(
+                label = "FC repos",
+                value = rhr.roundToInt().toString() + " bpm",
+                reference = rhrBase.roundToInt().toString() + " bpm",
+                state = state,
+                impact = impact
+            )
+            when {
+                diff >= 8 -> reasons += "FC repos nettement au-dessus de ta référence."
+                diff >= 4 -> reasons += "FC repos un peu élevée."
+                diff <= -3 -> reasons += "FC repos favorable par rapport à ta référence."
+            }
+        } else {
+            factors += RecoveryFactor(
+                label = "FC repos",
+                value = "—",
+                reference = "Référence insuffisante",
+                state = RecoveryFactorState.MISSING,
+                impact = 0
+            )
         }
 
         val recentExercise = days.take(3).sumOf { it.exerciseMinutes ?: 0L }
+        val loadImpact = when {
+            recentExercise >= 150 -> -10
+            recentExercise >= 90 -> -5
+            else -> 0
+        }
+        score += loadImpact
+        availableSignals++
+        factors += RecoveryFactor(
+            label = "Charge 3 jours",
+            value = recentExercise.toString() + " min",
+            reference = "< 90 min = faible",
+            state = if (loadImpact < 0) {
+                RecoveryFactorState.NEGATIVE
+            } else {
+                RecoveryFactorState.NEUTRAL
+            },
+            impact = loadImpact
+        )
         if (recentExercise >= 150) {
-            score -= 10
             reasons += "Charge sportive élevée sur les 3 derniers jours."
         } else if (recentExercise >= 90) {
-            score -= 5
             reasons += "Charge sportive récente modérée."
         }
 
         if (checkIn != null) {
-            score += (checkIn.energy - 3) * 5
+            val energyImpact = (checkIn.energy - 3) * 5
+            score += energyImpact
+            availableSignals++
+            factors += RecoveryFactor(
+                label = "Énergie",
+                value = checkIn.energy.toString() + "/5",
+                reference = "3/5",
+                state = when {
+                    checkIn.energy >= 4 -> RecoveryFactorState.POSITIVE
+                    checkIn.energy <= 2 -> RecoveryFactorState.NEGATIVE
+                    else -> RecoveryFactorState.NEUTRAL
+                },
+                impact = energyImpact
+            )
+
+            val painImpact = when (checkIn.pain) {
+                1 -> -5
+                2 -> -15
+                3 -> -30
+                else -> 0
+            }
+            score += painImpact
+            availableSignals++
+            factors += RecoveryFactor(
+                label = "Douleurs",
+                value = when (checkIn.pain) {
+                    0 -> "Aucune"
+                    1 -> "Légères"
+                    2 -> "Moyennes"
+                    else -> "Importantes"
+                },
+                reference = "Aucune",
+                state = if (painImpact < 0) {
+                    RecoveryFactorState.NEGATIVE
+                } else {
+                    RecoveryFactorState.NEUTRAL
+                },
+                impact = painImpact
+            )
+
             when (checkIn.pain) {
-                1 -> {
-                    score -= 5
-                    reasons += "Douleurs légères signalées."
-                }
-                2 -> {
-                    score -= 15
-                    reasons += "Douleurs moyennes : intensité réduite."
-                }
-                3 -> {
-                    score -= 30
-                    reasons += "Douleurs importantes : priorité à la récupération."
-                }
+                1 -> reasons += "Douleurs légères signalées."
+                2 -> reasons += "Douleurs moyennes : intensité réduite."
+                3 -> reasons += "Douleurs importantes : priorité à la récupération."
             }
             if (checkIn.energy <= 2) reasons += "Énergie ressentie basse."
             if (checkIn.energy >= 4) reasons += "Bonne énergie ressentie."
         } else {
+            factors += RecoveryFactor(
+                label = "Ressenti",
+                value = "Non renseigné",
+                reference = "Check-in du jour",
+                state = RecoveryFactorState.MISSING,
+                impact = 0
+            )
             reasons += "Ajoute ton ressenti pour affiner le score."
         }
 
@@ -120,30 +220,106 @@ object RecoveryEngine {
             RecoveryLevel.UNKNOWN -> Triple("Mobilité douce", 10, 2)
         }
 
+        val baselineDays = baseline.count { day ->
+            day.sleepMinutes != null ||
+                day.hrvRmssdMs != null ||
+                day.restingHeartRate != null
+        }
+
+        val confidence = (
+            (availableSignals / 6.0 * 65.0) +
+                (baselineDays.coerceAtMost(14) / 14.0 * 35.0)
+            ).roundToInt().coerceIn(0, 100)
+
         return RecoveryResult(
             score = score,
             level = level,
-            reasons = reasons.take(3),
+            reasons = reasons.distinct().take(4),
             sessionTitle = recommendation.first,
             sessionMinutes = recommendation.second,
-            intensity = recommendation.third
+            intensity = recommendation.third,
+            confidence = confidence,
+            baselineDays = baselineDays,
+            factors = factors
         )
     }
+
+    private data class ComparisonResult(
+        val impact: Int,
+        val factor: RecoveryFactor,
+        val reason: String?
+    )
 
     private fun compareHigherIsBetter(
         current: Double?,
         baseline: Double?,
         label: String,
         lowPenalty: Int,
-        highBonus: Int
-    ): Pair<Int, String>? {
-        if (current == null || baseline == null || baseline <= 0.0) return null
+        highBonus: Int,
+        format: (Double) -> String
+    ): ComparisonResult {
+        if (current == null || baseline == null || baseline <= 0.0) {
+            return ComparisonResult(
+                impact = 0,
+                factor = RecoveryFactor(
+                    label = label,
+                    value = current?.let(format) ?: "—",
+                    reference = "Référence insuffisante",
+                    state = RecoveryFactorState.MISSING,
+                    impact = 0
+                ),
+                reason = null
+            )
+        }
+
         val ratio = current / baseline
-        return when {
-            ratio < 0.80 -> -lowPenalty to "$label nettement sous ta référence."
-            ratio < 0.92 -> -(lowPenalty / 2) to "$label légèrement sous ta référence."
-            ratio > 1.08 -> highBonus to "$label au-dessus de ta référence."
-            else -> 0 to "$label proche de ta référence."
+        val impact: Int
+        val state: RecoveryFactorState
+        val reason: String?
+
+        when {
+            ratio < 0.80 -> {
+                impact = -lowPenalty
+                state = RecoveryFactorState.NEGATIVE
+                reason = "$label nettement sous ta référence."
+            }
+            ratio < 0.92 -> {
+                impact = -(lowPenalty / 2)
+                state = RecoveryFactorState.NEGATIVE
+                reason = "$label légèrement sous ta référence."
+            }
+            ratio > 1.08 -> {
+                impact = highBonus
+                state = RecoveryFactorState.POSITIVE
+                reason = "$label au-dessus de ta référence."
+            }
+            else -> {
+                impact = 0
+                state = RecoveryFactorState.NEUTRAL
+                reason = null
+            }
+        }
+
+        return ComparisonResult(
+            impact = impact,
+            factor = RecoveryFactor(
+                label = label,
+                value = format(current),
+                reference = format(baseline),
+                state = state,
+                impact = impact
+            ),
+            reason = reason
+        )
+    }
+
+    private fun formatDuration(minutes: Int): String {
+        val hours = minutes / 60
+        val rest = minutes % 60
+        return if (hours > 0) {
+            hours.toString() + " h " + rest.toString().padStart(2, '0')
+        } else {
+            rest.toString() + " min"
         }
     }
 
