@@ -8,6 +8,8 @@ import androidx.lifecycle.viewModelScope
 import fr.tempo.health.TempoHealthApplication
 import fr.tempo.health.data.WorkoutHistoryEntity
 import fr.tempo.health.domain.ExerciseCategory
+import fr.tempo.health.domain.Equipment
+import fr.tempo.health.domain.TrainingPreferences
 import fr.tempo.health.domain.RecoveryResult
 import fr.tempo.health.domain.WorkoutHistoryHint
 import fr.tempo.health.domain.WorkoutPlan
@@ -67,6 +69,10 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
     )
     val soundVolume: StateFlow<Int> = _soundVolume.asStateFlow()
 
+    private val _trainingPreferences = MutableStateFlow(loadTrainingPreferences())
+    val trainingPreferences: StateFlow<TrainingPreferences> =
+        _trainingPreferences.asStateFlow()
+
     private var timerJob: Job? = null
     private var toneGenerator: ToneGenerator? = null
     private var sessionStartedAtEpochMs: Long? = null
@@ -79,7 +85,8 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
     fun previewPlan(recovery: RecoveryResult): WorkoutPlan =
         WorkoutPlanner.build(
             recovery = recovery,
-            history = history.value.map { it.toHint() }
+            history = history.value.map { it.toHint() },
+            preferences = _trainingPreferences.value
         )
 
     fun prepare(recovery: RecoveryResult) {
@@ -175,6 +182,114 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
         rebuildToneGenerator()
         playMidpointTone()
     }
+
+    fun setDurationMinutes(minutes: Int) {
+        updateTrainingPreferences(
+            _trainingPreferences.value.copy(
+                durationMinutes = minutes.coerceIn(8, 40)
+            )
+        )
+    }
+
+    fun toggleEquipment(equipment: Equipment) {
+        val current = _trainingPreferences.value.availableEquipment
+        val updated = if (equipment in current) {
+            current - equipment
+        } else {
+            current + equipment
+        }
+
+        updateTrainingPreferences(
+            _trainingPreferences.value.copy(
+                availableEquipment = updated
+            )
+        )
+    }
+
+    fun toggleFavoriteExercise(id: String) {
+        val current = _trainingPreferences.value
+        val favorites = if (id in current.favoriteExerciseIds) {
+            current.favoriteExerciseIds - id
+        } else {
+            current.favoriteExerciseIds + id
+        }
+
+        updateTrainingPreferences(
+            current.copy(
+                favoriteExerciseIds = favorites,
+                avoidedExerciseIds = current.avoidedExerciseIds - id
+            )
+        )
+    }
+
+    fun toggleAvoidedExercise(id: String) {
+        val current = _trainingPreferences.value
+        val avoided = if (id in current.avoidedExerciseIds) {
+            current.avoidedExerciseIds - id
+        } else {
+            current.avoidedExerciseIds + id
+        }
+
+        updateTrainingPreferences(
+            current.copy(
+                avoidedExerciseIds = avoided,
+                favoriteExerciseIds = current.favoriteExerciseIds - id
+            )
+        )
+    }
+
+    private fun updateTrainingPreferences(value: TrainingPreferences) {
+        _trainingPreferences.value = value
+
+        preferences.edit()
+            .putInt("training-duration", value.durationMinutes)
+            .putString(
+                "training-equipment",
+                value.availableEquipment.joinToString(",") { it.name }
+            )
+            .putString(
+                "training-favorites",
+                value.favoriteExerciseIds.joinToString(",")
+            )
+            .putString(
+                "training-avoided",
+                value.avoidedExerciseIds.joinToString(",")
+            )
+            .apply()
+    }
+
+    private fun loadTrainingPreferences(): TrainingPreferences {
+        val equipmentRaw = preferences.getString(
+            "training-equipment",
+            "MAT,CHAIR"
+        ).orEmpty()
+
+        val equipment = equipmentRaw
+            .split(",")
+            .filter { it.isNotBlank() }
+            .mapNotNull { raw ->
+                runCatching { Equipment.valueOf(raw) }.getOrNull()
+            }
+            .toSet()
+
+        fun csvSet(key: String): Set<String> =
+            preferences.getString(key, "")
+                .orEmpty()
+                .split(",")
+                .map { it.trim() }
+                .filter { it.isNotBlank() }
+                .toSet()
+
+        return TrainingPreferences(
+            durationMinutes = preferences
+                .getInt("training-duration", 20)
+                .coerceIn(8, 40),
+            availableEquipment = equipment,
+            favoriteExerciseIds = csvSet("training-favorites"),
+            avoidedExerciseIds = csvSet("training-avoided")
+        )
+    }
+
 
     private fun launchTimer() {
         timerJob?.cancel()
