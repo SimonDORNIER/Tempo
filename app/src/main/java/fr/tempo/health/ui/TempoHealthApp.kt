@@ -61,6 +61,7 @@ import fr.tempo.health.domain.WorkoutPlan
 import fr.tempo.health.domain.Equipment
 import fr.tempo.health.domain.ExerciseLibrary
 import fr.tempo.health.domain.TrainingPreferences
+import fr.tempo.health.domain.RecoveryFactorState
 import fr.tempo.health.domain.RecoveryLevel
 import fr.tempo.health.domain.RecoveryResult
 import java.text.DecimalFormat
@@ -387,6 +388,7 @@ private fun TodayScreen(
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
             RecoveryCard(recovery)
+            RecoveryFactorsCard(recovery)
 
             if (latest == null) {
                 StatusCard(
@@ -516,8 +518,84 @@ private fun RecoveryCard(recovery: RecoveryResult) {
         emoji = emoji,
         title = "Récupération",
         value = recovery.score?.let { it.toString() + " / 100" } ?: "À calibrer",
-        detail = recovery.reasons.joinToString(" • ")
+        detail = (
+            recovery.reasons.joinToString(" • ") +
+                if (recovery.score != null) {
+                    " • confiance " + recovery.confidence + "%"
+                } else {
+                    ""
+                }
+            )
     )
+}
+
+@Composable
+private fun RecoveryFactorsCard(recovery: RecoveryResult) {
+    if (recovery.factors.isEmpty()) return
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(18.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Text(
+                "Pourquoi ce score ?",
+                fontWeight = FontWeight.Bold
+            )
+
+            Text(
+                recovery.baselineDays.toString() +
+                    " jour(s) de référence • confiance " +
+                    recovery.confidence + "%",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            recovery.factors.take(6).forEach { factor ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        when (factor.state) {
+                            RecoveryFactorState.POSITIVE -> "↗"
+                            RecoveryFactorState.NEUTRAL -> "→"
+                            RecoveryFactorState.NEGATIVE -> "↘"
+                            RecoveryFactorState.MISSING -> "?"
+                        },
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+
+                    Spacer(Modifier.width(10.dp))
+
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            factor.label,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Text(
+                            factor.value + " • réf. " + factor.reference,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+
+                    if (factor.impact != 0) {
+                        Text(
+                            (if (factor.impact > 0) "+" else "") +
+                                factor.impact.toString(),
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+            }
+        }
+    }
 }
 
 @Composable
@@ -593,7 +671,8 @@ private fun HealthScreen(
                 title = "Santé Connect",
                 value = connectionLabel,
                 detail = if (hasPermissions) {
-                    days.size.toString() + " jours enregistrés localement"
+                    days.size.toString() + " jours locaux • " +
+                        formatSyncAge(latest?.syncedAtEpochMs)
                 } else {
                     "Lecture uniquement"
                 }
@@ -657,6 +736,20 @@ private fun HealthScreen(
                 "Corps & cardio",
                 latest?.weightKg?.let { oneDecimal(it) + " kg" } ?: "Poids —",
                 "VO₂ max " + (latest?.vo2Max?.let(::oneDecimal) ?: "—")
+            )
+
+            TrendCard(
+                emoji = "😴",
+                title = "Sommeil • 7 jours",
+                values = days.take(7).reversed().map { it.sleepMinutes?.toDouble() },
+                valueText = { value -> formatMinutes(value.toLong()) }
+            )
+
+            TrendCard(
+                emoji = "❤️",
+                title = "HRV • 7 jours",
+                values = days.take(7).reversed().map { it.hrvRmssdMs },
+                valueText = { value -> oneDecimal(value) + " ms" }
             )
         }
     }
@@ -768,6 +861,35 @@ private fun ProgressScreen(
                 "Ces références sont personnelles, pas des normes de population."
             )
 
+            TrendCard(
+                emoji = "😴",
+                title = "Sommeil • 7 jours",
+                values = week.reversed().map { it.sleepMinutes?.toDouble() },
+                valueText = { value -> formatMinutes(value.toLong()) }
+            )
+
+            TrendCard(
+                emoji = "❤️",
+                title = "HRV • 7 jours",
+                values = week.reversed().map { it.hrvRmssdMs },
+                valueText = { value -> oneDecimal(value) + " ms" }
+            )
+
+            TrendCard(
+                emoji = "💓",
+                title = "FC repos • 7 jours",
+                values = week.reversed().map { it.restingHeartRate },
+                valueText = { value -> value.toInt().toString() + " bpm" },
+                lowerIsBetter = true
+            )
+
+            TrendCard(
+                emoji = "🚶",
+                title = "Pas • 7 jours",
+                values = week.reversed().map { it.steps?.toDouble() },
+                valueText = { value -> value.toLong().toString() }
+            )
+
             StatusCard(
                 "🏋️",
                 "Séances 7 jours",
@@ -789,6 +911,94 @@ private fun ProgressScreen(
                             " • difficulté " + it + "/5"
                         } ?: "")
                 )
+            }
+        }
+    }
+}
+
+@Composable
+private fun TrendCard(
+    emoji: String,
+    title: String,
+    values: List<Double?>,
+    valueText: (Double) -> String,
+    lowerIsBetter: Boolean = false
+) {
+    val valid = values.mapNotNull { it }
+    if (valid.isEmpty()) return
+
+    val min = valid.minOrNull() ?: 0.0
+    val max = valid.maxOrNull() ?: min
+    val span = (max - min).takeIf { it > 0.0 } ?: 1.0
+    val latest = values.lastOrNull { it != null }
+    val first = values.firstOrNull { it != null }
+
+    val direction = if (latest != null && first != null) {
+        val change = latest - first
+        when {
+            kotlin.math.abs(change) < span * 0.08 -> "stable"
+            (change > 0 && !lowerIsBetter) || (change < 0 && lowerIsBetter) -> "↗ favorable"
+            else -> "↘ à surveiller"
+        }
+    } else {
+        "tendance incomplète"
+    }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp)
+    ) {
+        Column(Modifier.padding(18.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(emoji, style = MaterialTheme.typography.titleLarge)
+                Spacer(Modifier.width(10.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(title, fontWeight = FontWeight.Bold)
+                    Text(
+                        latest?.let(valueText) ?: "—",
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+                Text(
+                    direction,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            Spacer(Modifier.height(14.dp))
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(92.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.Bottom
+            ) {
+                values.forEach { value ->
+                    val normalized = if (value == null) {
+                        0.05
+                    } else {
+                        0.18 + 0.82 * ((value - min) / span).coerceIn(0.0, 1.0)
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height((88.0 * normalized).dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(
+                                if (value == null) {
+                                    MaterialTheme.colorScheme.surfaceVariant
+                                } else {
+                                    MaterialTheme.colorScheme.primary
+                                }
+                            )
+                    )
+                }
             }
         }
     }
@@ -1324,6 +1534,23 @@ private fun muscleGroupsLabel(csv: String): String {
             }
         }
         .joinToString(" + ")
+}
+
+private fun formatSyncAge(epochMs: Long?): String {
+    if (epochMs == null) return "jamais synchronisé"
+
+    val ageMinutes = (
+        (System.currentTimeMillis() - epochMs)
+            .coerceAtLeast(0L) / 60_000L
+        )
+
+    return when {
+        ageMinutes < 2 -> "mis à jour à l'instant"
+        ageMinutes < 60 -> "mis à jour il y a " + ageMinutes + " min"
+        ageMinutes < 24 * 60 -> "mis à jour il y a " +
+            (ageMinutes / 60) + " h"
+        else -> "mis à jour il y a " + (ageMinutes / (24 * 60)) + " j"
+    }
 }
 
 private fun formatClock(seconds: Int): String {
