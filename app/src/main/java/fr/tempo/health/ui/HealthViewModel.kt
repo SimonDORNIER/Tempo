@@ -119,7 +119,8 @@ class HealthViewModel(application: Application) : AndroidViewModel(application) 
             }.getOrDefault(true)
 
             if (shouldSync) {
-                launchSync(full = recentDays.value.isEmpty())
+                val hasLocalHistory = repository.lastSyncEpochMs() != null
+                launchSync(full = !hasLocalHistory)
             }
         }
     }
