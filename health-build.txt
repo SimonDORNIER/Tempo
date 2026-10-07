@@ -1,1 +1,1 @@
-Tempo Health 0.5.0 history + adaptive planner build
+Tempo Health 0.6.0 preferences + duration + equipment build
