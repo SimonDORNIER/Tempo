@@ -86,14 +86,31 @@ class HealthRepository(
     suspend fun hasRequiredPermissions(): Boolean =
         grantedPermissions().containsAll(requiredPermissions)
 
+    suspend fun lastSyncEpochMs(): Long? =
+        dao.getLastSyncEpochMs()
+
+    suspend fun shouldAutoSync(maxAgeMinutes: Long = 30): Boolean {
+        val last = lastSyncEpochMs() ?: return true
+        val age = Instant.now().toEpochMilli() - last
+        return age >= Duration.ofMinutes(maxAgeMinutes).toMillis()
+    }
+
+    suspend fun syncRecentDays(dayCount: Int = 3) {
+        syncDays(dayCount.coerceIn(1, 28))
+    }
+
     suspend fun syncLast28Days() {
+        syncDays(28)
+    }
+
+    private suspend fun syncDays(dayCount: Int) {
         if (!hasRequiredPermissions()) {
             throw SecurityException("Autorisations Santé Connect incomplètes")
         }
 
         val zone = ZoneId.systemDefault()
         val today = LocalDate.now(zone)
-        val days = (0L..27L)
+        val days = (0L until dayCount.toLong())
             .map { offset -> today.minusDays(offset) }
             .map { date -> readDay(date, zone) }
 
