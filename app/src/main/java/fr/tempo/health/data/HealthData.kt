@@ -67,6 +67,9 @@ interface DailyHealthDao {
 
     @Query("SELECT * FROM daily_health ORDER BY date DESC LIMIT :limit")
     fun observeRecent(limit: Int = 28): Flow<List<DailyHealthEntity>>
+
+    @Query("SELECT MAX(syncedAtEpochMs) FROM daily_health")
+    suspend fun getLastSyncEpochMs(): Long?
 }
 
 @Dao
