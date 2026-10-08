@@ -74,7 +74,7 @@ class HealthViewModel(application: Application) : AndroidViewModel(application) 
         }
 
         viewModelScope.launch {
-            runCatching { repository.hasRequiredPermissions() }
+            runCatching { repository.hasAnyGrantedPermissions() }
                 .onSuccess { granted ->
                     _hasPermissions.value = granted
                     if (granted) {
@@ -88,15 +88,20 @@ class HealthViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     fun onPermissionsResult(grantedPermissions: Set<String>) {
-        _hasPermissions.value =
-            grantedPermissions.containsAll(requiredPermissions)
+        val grantedRelevant = grantedPermissions.intersect(requiredPermissions)
+        _hasPermissions.value = grantedRelevant.isNotEmpty()
 
         if (_hasPermissions.value) {
-            _message.value = "Autorisations accordées."
+            val missing = requiredPermissions.size - grantedRelevant.size
+            _message.value = if (missing == 0) {
+                "Toutes les autorisations Santé Connect sont accordées."
+            } else {
+                "Synchronisation partielle : " + missing +
+                    " type(s) de données non autorisé(s)."
+            }
             sync()
         } else {
-            _message.value =
-                "Certaines données Santé Connect restent non autorisées."
+            _message.value = "Aucune donnée Santé Connect n’est autorisée."
         }
     }
 
