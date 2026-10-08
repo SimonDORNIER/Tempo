@@ -661,7 +661,13 @@ object WorkoutPlanner {
 
         if (eligible.isNotEmpty()) return eligible
 
-        return listOf(ExerciseLibrary.byId(fallbackId))
+        val fallback = ExerciseLibrary.byId(fallbackId)
+        val fallbackAllowed =
+            fallback.id !in preferences.avoidedExerciseIds &&
+                (fallback.requiredEquipment == null ||
+                    fallback.requiredEquipment in preferences.availableEquipment)
+
+        return if (fallbackAllowed) listOf(fallback) else emptyList()
     }
 
     private fun fillToTarget(
@@ -674,18 +680,41 @@ object WorkoutPlanner {
         val result = mutableListOf<WorkoutExercise>()
         val warmup = base.first()
         val cooldown = base.last()
-        val main = base.drop(1).dropLast(1).ifEmpty { listOf(warmup) }
+        val main = base
+            .drop(1)
+            .dropLast(1)
+            .distinctBy { it.exercise.id }
+            .ifEmpty { listOf(warmup) }
 
         result += warmup
 
-        var index = 0
-        while (result.sumOf(::itemSeconds) +
-            itemSeconds(cooldown) +
-            itemSeconds(main[index % main.size]) <= targetSeconds &&
-            result.size < 28
-        ) {
-            result += main[index % main.size]
-            index++
+        var round = 0
+        var cursor = 0
+
+        while (result.size < 28) {
+            val offset = if (main.size <= 1) 0 else round % main.size
+            val ordered = if (offset == 0) {
+                main
+            } else {
+                main.drop(offset) + main.take(offset)
+            }
+
+            val next = ordered[cursor]
+            val projected = result.sumOf(::itemSeconds) +
+                itemSeconds(next) +
+                itemSeconds(cooldown)
+
+            if (projected > targetSeconds) break
+
+            if (result.lastOrNull()?.exercise?.id != next.exercise.id) {
+                result += next
+            }
+
+            cursor++
+            if (cursor >= ordered.size) {
+                cursor = 0
+                round++
+            }
         }
 
         if (result.size == 1 && base.size > 2) {
