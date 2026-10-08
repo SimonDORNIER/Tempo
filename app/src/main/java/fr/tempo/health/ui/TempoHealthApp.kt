@@ -59,6 +59,7 @@ import fr.tempo.health.data.HealthConnectAvailability
 import fr.tempo.health.data.WorkoutHistoryEntity
 import fr.tempo.health.domain.WorkoutPlan
 import fr.tempo.health.domain.Equipment
+import fr.tempo.health.domain.ExerciseCategory
 import fr.tempo.health.domain.ExerciseLibrary
 import fr.tempo.health.domain.TrainingPreferences
 import fr.tempo.health.domain.RecoveryFactorState
