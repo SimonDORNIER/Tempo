@@ -19,7 +19,10 @@ data class TrainingPreferences(
     val durationMinutes: Int = 20,
     val availableEquipment: Set<Equipment> = setOf(Equipment.MAT, Equipment.CHAIR),
     val favoriteExerciseIds: Set<String> = emptySet(),
-    val avoidedExerciseIds: Set<String> = emptySet()
+    val avoidedExerciseIds: Set<String> = emptySet(),
+    val disabledCategories: Set<ExerciseCategory> = emptySet(),
+    val categoryIcons: Map<ExerciseCategory, String> = emptyMap(),
+    val exerciseWorkSeconds: Map<String, Int> = emptyMap()
 )
 
 data class Exercise(
@@ -380,7 +383,7 @@ object WorkoutPlanner {
         preferences: TrainingPreferences = TrainingPreferences()
     ): WorkoutPlan {
         val recentGroups = recentGroups(history)
-        val focus = chooseFocus(history, recentGroups)
+        val focus = chooseFocus(history, recentGroups, preferences)
         val lastDifficulty = history.firstOrNull()?.perceivedDifficulty
 
         val difficultyScale = when {
@@ -432,9 +435,13 @@ object WorkoutPlanner {
             )
         }
 
+        val customizedItems = basePlan.items.mapNotNull { item ->
+            customizeItem(item, preferences)
+        }
+
         return basePlan.copy(
             items = fillToTarget(
-                base = basePlan.items,
+                base = customizedItems,
                 targetMinutes = targetMinutes
             )
         )
@@ -654,6 +661,7 @@ object WorkoutPlanner {
             .map(ExerciseLibrary::byId)
             .filter { exercise ->
                 exercise.id !in preferences.avoidedExerciseIds &&
+                    exercise.category !in preferences.disabledCategories &&
                     (exercise.requiredEquipment == null ||
                         exercise.requiredEquipment in preferences.availableEquipment)
             }
@@ -664,6 +672,7 @@ object WorkoutPlanner {
         val fallback = ExerciseLibrary.byId(fallbackId)
         val fallbackAllowed =
             fallback.id !in preferences.avoidedExerciseIds &&
+                fallback.category !in preferences.disabledCategories &&
                 (fallback.requiredEquipment == null ||
                     fallback.requiredEquipment in preferences.availableEquipment)
 
@@ -743,13 +752,18 @@ object WorkoutPlanner {
 
     private fun chooseFocus(
         history: List<WorkoutHistoryHint>,
-        recentGroups: Set<ExerciseCategory>
+        recentGroups: Set<ExerciseCategory>,
+        preferences: TrainingPreferences
     ): ExerciseCategory {
         val strengthGroups = listOf(
             ExerciseCategory.UPPER_BODY,
             ExerciseCategory.LOWER_BODY,
             ExerciseCategory.CORE
-        )
+        ).filter { it !in preferences.disabledCategories }
+
+        if (strengthGroups.isEmpty()) {
+            return ExerciseCategory.CORE
+        }
 
         strengthGroups.firstOrNull { it !in recentGroups }?.let { return it }
 
@@ -759,6 +773,30 @@ object WorkoutPlanner {
                 .maxOfOrNull { it.startedAtEpochMs } ?: 0L
             System.currentTimeMillis() - last
         } ?: ExerciseCategory.LOWER_BODY
+    }
+
+    private fun customizeItem(
+        item: WorkoutExercise,
+        preferences: TrainingPreferences
+    ): WorkoutExercise? {
+        val exercise = item.exercise
+
+        if (exercise.id in preferences.avoidedExerciseIds ||
+            exercise.category in preferences.disabledCategories ||
+            (exercise.requiredEquipment != null &&
+                exercise.requiredEquipment !in preferences.availableEquipment)
+        ) {
+            return null
+        }
+
+        val customSeconds = preferences.exerciseWorkSeconds[exercise.id]
+            ?.coerceIn(15, 120)
+
+        return if (customSeconds != null) {
+            item.copy(workSeconds = customSeconds)
+        } else {
+            item
+        }
     }
 
     private fun work(
