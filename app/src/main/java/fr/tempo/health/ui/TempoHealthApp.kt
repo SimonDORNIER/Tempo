@@ -84,7 +84,8 @@ private val mainDestinations = listOf(
 @Composable
 fun TempoHealthApp(
     healthViewModel: HealthViewModel = viewModel(),
-    workoutViewModel: WorkoutViewModel = viewModel()
+    workoutViewModel: WorkoutViewModel = viewModel(),
+    freeTimerViewModel: FreeTimerViewModel = viewModel()
 ) {
     val navController = rememberNavController()
     val currentEntry by navController.currentBackStackEntryAsState()
@@ -102,6 +103,7 @@ fun TempoHealthApp(
     val soundVolume by workoutViewModel.soundVolume.collectAsStateWithLifecycle()
     val workoutHistory by workoutViewModel.history.collectAsStateWithLifecycle()
     val trainingPreferences by workoutViewModel.trainingPreferences.collectAsStateWithLifecycle()
+    val freeTimerState by freeTimerViewModel.state.collectAsStateWithLifecycle()
     val previewPlan = workoutViewModel.previewPlan(recovery)
 
     val permissionLauncher = rememberLauncherForActivityResult(
@@ -119,6 +121,7 @@ fun TempoHealthApp(
                             text = when (currentRoute) {
                                 "settings" -> "Paramètres"
                                 "exercise-settings" -> "Exercices"
+                                "timer" -> "Minuteur"
                                 "workout" -> "Séance"
                                 else -> selectedDestination?.label ?: "Tempo Health"
                             },
@@ -126,6 +129,7 @@ fun TempoHealthApp(
                         )
                         if (currentRoute != "settings" &&
                             currentRoute != "exercise-settings" &&
+                            currentRoute != "timer" &&
                             currentRoute != "workout"
                         ) {
                             Text(
@@ -273,7 +277,19 @@ fun TempoHealthApp(
                     onToggleEquipment = workoutViewModel::toggleEquipment,
                     onOpenExercises = {
                         navController.navigate("exercise-settings")
+                    },
+                    onOpenTimer = {
+                        navController.navigate("timer")
                     }
+                )
+            }
+
+            composable("timer") {
+                FreeTimerScreen(
+                    state = freeTimerState,
+                    onMinutesChange = freeTimerViewModel::setMinutes,
+                    onToggle = freeTimerViewModel::toggleRunning,
+                    onReset = freeTimerViewModel::reset
                 )
             }
 
@@ -1062,7 +1078,8 @@ private fun SettingsScreen(
     onSoundVolumeChange: (Int) -> Unit,
     onDurationChange: (Int) -> Unit,
     onToggleEquipment: (Equipment) -> Unit,
-    onOpenExercises: () -> Unit
+    onOpenExercises: () -> Unit,
+    onOpenTimer: () -> Unit
 ) {
     Screen(
         title = "Paramètres",
@@ -1167,6 +1184,13 @@ private fun SettingsScreen(
                 Text("GÉRER LES EXERCICES")
             }
 
+            OutlinedButton(
+                onClick = onOpenTimer,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("⏱ MINUTEUR LIBRE")
+            }
+
             Text(
                 preferences.favoriteExerciseIds.size.toString() + " favori(s) • " +
                     preferences.avoidedExerciseIds.size + " à éviter",
@@ -1202,6 +1226,132 @@ private fun SettingsScreen(
                 "Fonctionnement hors ligne",
                 "Oui",
                 "Santé locale, score et moteur d'entraînement fonctionnent sans serveur"
+            )
+        }
+    }
+}
+
+@Composable
+private fun FreeTimerScreen(
+    state: FreeTimerUiState,
+    onMinutesChange: (Int) -> Unit,
+    onToggle: () -> Unit,
+    onReset: () -> Unit
+) {
+    val total = state.durationSeconds.coerceAtLeast(1)
+    val progress = (state.remainingSeconds.toFloat() / total.toFloat())
+        .coerceIn(0f, 1f)
+
+    Screen(
+        title = "Minuteur libre",
+        subtitle = "Règle une durée, lance le chrono et Tempo sonne à la fin."
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(28.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = if (state.finished) {
+                        MaterialTheme.colorScheme.primaryContainer
+                    } else {
+                        MaterialTheme.colorScheme.surfaceVariant
+                    }
+                )
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        when {
+                            state.finished -> "✅ TERMINÉ"
+                            state.running -> "⏱ EN COURS"
+                            else -> "⏱ PRÊT"
+                        },
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+
+                    Spacer(Modifier.height(10.dp))
+
+                    Text(
+                        formatClock(state.remainingSeconds),
+                        style = MaterialTheme.typography.displayLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+
+                    Spacer(Modifier.height(14.dp))
+
+                    LinearProgressIndicator(
+                        progress = { progress },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            }
+
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(24.dp)
+            ) {
+                Column(Modifier.padding(18.dp)) {
+                    Text("Durée", fontWeight = FontWeight.Bold)
+                    Text(
+                        (state.durationSeconds / 60).toString() + " min",
+                        color = MaterialTheme.colorScheme.primary
+                    )
+
+                    Slider(
+                        value = (state.durationSeconds / 60).toFloat(),
+                        onValueChange = { onMinutesChange(it.toInt()) },
+                        valueRange = 1f..60f,
+                        steps = 58,
+                        enabled = !state.running
+                    )
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        listOf(1, 3, 5, 10, 15, 20).forEach { minutes ->
+                            AssistChip(
+                                onClick = { onMinutesChange(minutes) },
+                                enabled = !state.running,
+                                label = { Text(minutes.toString()) }
+                            )
+                        }
+                    }
+                }
+            }
+
+            Button(
+                onClick = onToggle,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(58.dp)
+            ) {
+                Text(
+                    when {
+                        state.finished -> "RELANCER"
+                        state.running -> "PAUSE"
+                        state.remainingSeconds < state.durationSeconds -> "REPRENDRE"
+                        else -> "DÉMARRER"
+                    }
+                )
+            }
+
+            OutlinedButton(
+                onClick = onReset,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("RÉINITIALISER")
+            }
+
+            Text(
+                "Le volume du signal de fin suit le réglage « Volume des sons ».",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }
