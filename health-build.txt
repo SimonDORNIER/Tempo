@@ -1,1 +1,1 @@
-Tempo Health 0.9.0 library editor, category controls and exercise durations
+Tempo Health 0.9.1 library editor build fix
