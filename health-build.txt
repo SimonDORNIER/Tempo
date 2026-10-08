@@ -1,1 +1,1 @@
-Tempo Health 0.7.0 dashboard, recovery factors and 7/28 day trends
+Tempo Health 0.8.0 partial Health Connect, free timer and planner polish
