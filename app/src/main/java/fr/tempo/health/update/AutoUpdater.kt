@@ -28,33 +28,86 @@ class AutoUpdater(
     private val executor = Executors.newSingleThreadExecutor()
     private var pendingRelease: HealthRelease? = null
     private var downloading = false
+    private var checking = false
+    private var lastCheckEpochMs = 0L
 
     fun checkAtLaunch() {
-        executor.execute {
-            runCatching { fetchLatestHealthRelease() }
-                .onSuccess { found ->
-                    if (found != null &&
-                        compareVersions(found.version, BuildConfig.VERSION_NAME) > 0
-                    ) {
-                        pendingRelease = found
-                        activity.runOnUiThread {
-                            showUpdateDialog(found)
-                        }
-                    }
-                }
-        }
+        checkForUpdate(showFeedback = false, force = true)
+    }
+
+    fun checkNow() {
+        checkForUpdate(showFeedback = true, force = true)
     }
 
     fun onResume() {
-        val found = pendingRelease ?: return
-        if (canInstallPackages() && !downloading) {
+        val found = pendingRelease
+        if (found != null && canInstallPackages() && !downloading) {
             pendingRelease = null
             downloadAndInstall(found)
+            return
         }
+
+        checkForUpdate(showFeedback = false, force = false)
     }
 
     fun destroy() {
         executor.shutdownNow()
+    }
+
+    private fun checkForUpdate(
+        showFeedback: Boolean,
+        force: Boolean
+    ) {
+        if (checking || downloading) return
+
+        val now = System.currentTimeMillis()
+        if (!force && now - lastCheckEpochMs < AUTO_CHECK_INTERVAL_MS) {
+            return
+        }
+
+        checking = true
+        lastCheckEpochMs = now
+
+        executor.execute {
+            runCatching { fetchLatestHealthRelease() }
+                .onSuccess { found ->
+                    activity.runOnUiThread {
+                        checking = false
+
+                        if (found == null) {
+                            if (showFeedback) {
+                                toast("Aucune release Tempo Health trouvée sur GitHub.")
+                            }
+                            return@runOnUiThread
+                        }
+
+                        val comparison =
+                            compareVersions(found.version, BuildConfig.VERSION_NAME)
+
+                        if (comparison > 0) {
+                            pendingRelease = found
+                            showUpdateDialog(found)
+                        } else if (showFeedback) {
+                            toast(
+                                "Tempo Health est à jour : " +
+                                    BuildConfig.VERSION_NAME +
+                                    " • GitHub " + found.version
+                            )
+                        }
+                    }
+                }
+                .onFailure { error ->
+                    activity.runOnUiThread {
+                        checking = false
+                        if (showFeedback) {
+                            toast(
+                                "Vérification impossible : " +
+                                    (error.message ?: "erreur inconnue")
+                            )
+                        }
+                    }
+                }
+        }
     }
 
     private fun showUpdateDialog(found: HealthRelease) {
@@ -64,7 +117,8 @@ class AutoUpdater(
             .setTitle("Mise à jour disponible")
             .setMessage(
                 "Tempo Health " + found.version +
-                    " est disponible. La mise à jour peut être installée maintenant."
+                    " est disponible. Version installée : " +
+                    BuildConfig.VERSION_NAME + "."
             )
             .setNegativeButton("Plus tard", null)
             .setPositiveButton("Mettre à jour") { _, _ ->
@@ -88,11 +142,9 @@ class AutoUpdater(
             return
         }
 
-        Toast.makeText(
-            activity,
-            "Autorise Tempo Health à installer ses mises à jour, puis reviens dans l'application.",
-            Toast.LENGTH_LONG
-        ).show()
+        toast(
+            "Autorise Tempo Health à installer ses mises à jour, puis reviens dans l'application."
+        )
 
         val intent = Intent(
             Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
@@ -109,11 +161,7 @@ class AutoUpdater(
         if (downloading) return
         downloading = true
 
-        Toast.makeText(
-            activity,
-            "Téléchargement de Tempo Health " + found.version + "…",
-            Toast.LENGTH_LONG
-        ).show()
+        toast("Téléchargement de Tempo Health " + found.version + "…")
 
         executor.execute {
             runCatching {
@@ -128,12 +176,10 @@ class AutoUpdater(
             }.onFailure { error ->
                 activity.runOnUiThread {
                     downloading = false
-                    Toast.makeText(
-                        activity,
+                    toast(
                         "Mise à jour impossible : " +
-                            (error.message ?: "erreur inconnue"),
-                        Toast.LENGTH_LONG
-                    ).show()
+                            (error.message ?: "erreur inconnue")
+                    )
                 }
             }
         }
@@ -141,21 +187,27 @@ class AutoUpdater(
 
     private fun fetchLatestHealthRelease(): HealthRelease? {
         val connection = openConnection(
-            "https://api.github.com/repos/SimonDORNIER/Tempo/releases?per_page=20"
+            "https://api.github.com/repos/SimonDORNIER/Tempo/releases?per_page=30"
         )
 
         try {
             val code = connection.responseCode
             if (code !in 200..299) {
-                throw IllegalStateException("GitHub HTTP " + code)
+                val remaining = connection.getHeaderField("X-RateLimit-Remaining")
+                throw IllegalStateException(
+                    "GitHub HTTP " + code +
+                        if (remaining != null) " • quota " + remaining else ""
+                )
             }
 
             val json = connection.inputStream.bufferedReader().use { it.readText() }
             val releases = JSONArray(json)
+            val candidates = mutableListOf<HealthRelease>()
 
             for (index in 0 until releases.length()) {
                 val releaseObject = releases.getJSONObject(index)
                 if (releaseObject.optBoolean("draft", false)) continue
+                if (releaseObject.optBoolean("prerelease", false)) continue
 
                 val tag = releaseObject.optString("tag_name")
                 if (!tag.startsWith("health-v")) continue
@@ -171,7 +223,7 @@ class AutoUpdater(
                     if (asset.optString("name") == expectedName) {
                         val url = asset.optString("browser_download_url")
                         if (url.isNotBlank()) {
-                            return HealthRelease(
+                            candidates += HealthRelease(
                                 version = version,
                                 apkUrl = url
                             )
@@ -180,7 +232,9 @@ class AutoUpdater(
                 }
             }
 
-            return null
+            return candidates.maxWithOrNull { left, right ->
+                compareVersions(left.version, right.version)
+            }
         } finally {
             connection.disconnect()
         }
@@ -327,5 +381,13 @@ class AutoUpdater(
         }
 
         return 0
+    }
+
+    private fun toast(message: String) {
+        Toast.makeText(activity, message, Toast.LENGTH_LONG).show()
+    }
+
+    companion object {
+        private const val AUTO_CHECK_INTERVAL_MS = 5L * 60L * 1000L
     }
 }
