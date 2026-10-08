@@ -36,18 +36,41 @@ class HealthRepository(
     private val dao = database.dailyHealthDao()
     private val checkInDao = database.dailyCheckInDao()
 
-    val requiredPermissions: Set<String> = setOf(
-        HealthPermission.getReadPermission(SleepSessionRecord::class),
-        HealthPermission.getReadPermission(HeartRateRecord::class),
-        HealthPermission.getReadPermission(RestingHeartRateRecord::class),
-        HealthPermission.getReadPermission(HeartRateVariabilityRmssdRecord::class),
-        HealthPermission.getReadPermission(RespiratoryRateRecord::class),
-        HealthPermission.getReadPermission(StepsRecord::class),
-        HealthPermission.getReadPermission(DistanceRecord::class),
-        HealthPermission.getReadPermission(TotalCaloriesBurnedRecord::class),
-        HealthPermission.getReadPermission(ExerciseSessionRecord::class),
-        HealthPermission.getReadPermission(WeightRecord::class),
+    private val sleepPermission =
+        HealthPermission.getReadPermission(SleepSessionRecord::class)
+    private val heartRatePermission =
+        HealthPermission.getReadPermission(HeartRateRecord::class)
+    private val restingHeartRatePermission =
+        HealthPermission.getReadPermission(RestingHeartRateRecord::class)
+    private val hrvPermission =
+        HealthPermission.getReadPermission(HeartRateVariabilityRmssdRecord::class)
+    private val respiratoryPermission =
+        HealthPermission.getReadPermission(RespiratoryRateRecord::class)
+    private val stepsPermission =
+        HealthPermission.getReadPermission(StepsRecord::class)
+    private val distancePermission =
+        HealthPermission.getReadPermission(DistanceRecord::class)
+    private val caloriesPermission =
+        HealthPermission.getReadPermission(TotalCaloriesBurnedRecord::class)
+    private val exercisePermission =
+        HealthPermission.getReadPermission(ExerciseSessionRecord::class)
+    private val weightPermission =
+        HealthPermission.getReadPermission(WeightRecord::class)
+    private val vo2Permission =
         HealthPermission.getReadPermission(Vo2MaxRecord::class)
+
+    val requiredPermissions: Set<String> = setOf(
+        sleepPermission,
+        heartRatePermission,
+        restingHeartRatePermission,
+        hrvPermission,
+        respiratoryPermission,
+        stepsPermission,
+        distancePermission,
+        caloriesPermission,
+        exercisePermission,
+        weightPermission,
+        vo2Permission
     )
 
     fun observeRecentDays(limit: Int = 28): Flow<List<DailyHealthEntity>> =
@@ -86,6 +109,9 @@ class HealthRepository(
     suspend fun hasRequiredPermissions(): Boolean =
         grantedPermissions().containsAll(requiredPermissions)
 
+    suspend fun hasAnyGrantedPermissions(): Boolean =
+        grantedPermissions().any { it in requiredPermissions }
+
     suspend fun lastSyncEpochMs(): Long? =
         dao.getLastSyncEpochMs()
 
@@ -104,49 +130,65 @@ class HealthRepository(
     }
 
     private suspend fun syncDays(dayCount: Int) {
-        if (!hasRequiredPermissions()) {
-            throw SecurityException("Autorisations Santé Connect incomplètes")
+        val granted = grantedPermissions()
+        if (granted.none { it in requiredPermissions }) {
+            throw SecurityException("Aucune autorisation Santé Connect accordée")
         }
 
         val zone = ZoneId.systemDefault()
         val today = LocalDate.now(zone)
         val days = (0L until dayCount.toLong())
             .map { offset -> today.minusDays(offset) }
-            .map { date -> readDay(date, zone) }
+            .map { date -> readDay(date, zone, granted) }
 
         dao.upsertAll(days)
     }
 
     private suspend fun readDay(
         date: LocalDate,
-        zone: ZoneId
+        zone: ZoneId,
+        granted: Set<String>
     ): DailyHealthEntity {
         val hc = client()
         val dayStart = date.atStartOfDay(zone).toInstant()
         val dayEnd = date.plusDays(1).atStartOfDay(zone).toInstant()
 
-        val aggregate = hc.aggregate(
-            AggregateRequest(
-                metrics = setOf(
-                    StepsRecord.COUNT_TOTAL,
-                    DistanceRecord.DISTANCE_TOTAL,
-                    TotalCaloriesBurnedRecord.ENERGY_TOTAL,
-                    RestingHeartRateRecord.BPM_AVG,
-                    WeightRecord.WEIGHT_AVG
-                ),
-                timeRangeFilter = TimeRangeFilter.between(dayStart, dayEnd)
-            )
-        )
+        val aggregateMetrics = buildSet {
+            if (stepsPermission in granted) add(StepsRecord.COUNT_TOTAL)
+            if (distancePermission in granted) add(DistanceRecord.DISTANCE_TOTAL)
+            if (caloriesPermission in granted) {
+                add(TotalCaloriesBurnedRecord.ENERGY_TOTAL)
+            }
+            if (restingHeartRatePermission in granted) {
+                add(RestingHeartRateRecord.BPM_AVG)
+            }
+            if (weightPermission in granted) add(WeightRecord.WEIGHT_AVG)
+        }
 
-        val sleepRecords = hc.readRecords(
-            ReadRecordsRequest(
-                recordType = SleepSessionRecord::class,
-                timeRangeFilter = TimeRangeFilter.between(
-                    dayStart.minus(Duration.ofHours(12)),
-                    dayEnd
+        val aggregate = if (aggregateMetrics.isEmpty()) {
+            null
+        } else {
+            hc.aggregate(
+                AggregateRequest(
+                    metrics = aggregateMetrics,
+                    timeRangeFilter = TimeRangeFilter.between(dayStart, dayEnd)
                 )
             )
-        ).records
+        }
+
+        val sleepRecords = if (sleepPermission in granted) {
+            hc.readRecords(
+                ReadRecordsRequest(
+                    recordType = SleepSessionRecord::class,
+                    timeRangeFilter = TimeRangeFilter.between(
+                        dayStart.minus(Duration.ofHours(12)),
+                        dayEnd
+                    )
+                )
+            ).records
+        } else {
+            emptyList()
+        }
 
         val mainSleep = sleepRecords
             .filter { record ->
@@ -169,59 +211,86 @@ class HealthRepository(
             }
         }
 
-        val overnightHeartRate = mainSleep?.let { sleep ->
-            hc.aggregate(
-                AggregateRequest(
-                    metrics = setOf(HeartRateRecord.BPM_AVG),
-                    timeRangeFilter = TimeRangeFilter.between(
-                        sleep.startTime,
-                        sleep.endTime
+        val overnightHeartRate =
+            if (mainSleep != null && heartRatePermission in granted) {
+                hc.aggregate(
+                    AggregateRequest(
+                        metrics = setOf(HeartRateRecord.BPM_AVG),
+                        timeRangeFilter = TimeRangeFilter.between(
+                            mainSleep.startTime,
+                            mainSleep.endTime
+                        )
                     )
-                )
-            )[HeartRateRecord.BPM_AVG]
-        }
+                )[HeartRateRecord.BPM_AVG]
+            } else {
+                null
+            }
 
         val hrvWindowStart = mainSleep?.startTime ?: dayStart
         val hrvWindowEnd = mainSleep?.endTime ?: dayEnd
 
-        val hrv = hc.readRecords(
-            ReadRecordsRequest(
-                recordType = HeartRateVariabilityRmssdRecord::class,
-                timeRangeFilter = TimeRangeFilter.between(hrvWindowStart, hrvWindowEnd)
-            )
-        ).records
-            .map { it.heartRateVariabilityMillis }
-            .takeIf { it.isNotEmpty() }
-            ?.average()
+        val hrv = if (hrvPermission in granted) {
+            hc.readRecords(
+                ReadRecordsRequest(
+                    recordType = HeartRateVariabilityRmssdRecord::class,
+                    timeRangeFilter = TimeRangeFilter.between(
+                        hrvWindowStart,
+                        hrvWindowEnd
+                    )
+                )
+            ).records
+                .map { it.heartRateVariabilityMillis }
+                .takeIf { it.isNotEmpty() }
+                ?.average()
+        } else {
+            null
+        }
 
-        val respiratoryRate = hc.readRecords(
-            ReadRecordsRequest(
-                recordType = RespiratoryRateRecord::class,
-                timeRangeFilter = TimeRangeFilter.between(hrvWindowStart, hrvWindowEnd)
-            )
-        ).records
-            .map { it.rate }
-            .takeIf { it.isNotEmpty() }
-            ?.average()
+        val respiratoryRate = if (respiratoryPermission in granted) {
+            hc.readRecords(
+                ReadRecordsRequest(
+                    recordType = RespiratoryRateRecord::class,
+                    timeRangeFilter = TimeRangeFilter.between(
+                        hrvWindowStart,
+                        hrvWindowEnd
+                    )
+                )
+            ).records
+                .map { it.rate }
+                .takeIf { it.isNotEmpty() }
+                ?.average()
+        } else {
+            null
+        }
 
-        val exerciseMinutes = hc.readRecords(
-            ReadRecordsRequest(
-                recordType = ExerciseSessionRecord::class,
-                timeRangeFilter = TimeRangeFilter.between(dayStart, dayEnd)
-            )
-        ).records
-            .sumOf { Duration.between(it.startTime, it.endTime).toMinutes() }
-            .takeIf { it > 0L }
+        val exerciseMinutes = if (exercisePermission in granted) {
+            hc.readRecords(
+                ReadRecordsRequest(
+                    recordType = ExerciseSessionRecord::class,
+                    timeRangeFilter = TimeRangeFilter.between(dayStart, dayEnd)
+                )
+            ).records
+                .sumOf {
+                    Duration.between(it.startTime, it.endTime).toMinutes()
+                }
+                .takeIf { it > 0L }
+        } else {
+            null
+        }
 
-        val vo2Max = hc.readRecords(
-            ReadRecordsRequest(
-                recordType = Vo2MaxRecord::class,
-                timeRangeFilter = TimeRangeFilter.between(dayStart, dayEnd)
-            )
-        ).records
-            .map { it.vo2MillilitersPerMinuteKilogram }
-            .takeIf { it.isNotEmpty() }
-            ?.average()
+        val vo2Max = if (vo2Permission in granted) {
+            hc.readRecords(
+                ReadRecordsRequest(
+                    recordType = Vo2MaxRecord::class,
+                    timeRangeFilter = TimeRangeFilter.between(dayStart, dayEnd)
+                )
+            ).records
+                .map { it.vo2MillilitersPerMinuteKilogram }
+                .takeIf { it.isNotEmpty() }
+                ?.average()
+        } else {
+            null
+        }
 
         return DailyHealthEntity(
             date = date.toString(),
@@ -237,14 +306,17 @@ class HealthRepository(
                 SleepSessionRecord.STAGE_TYPE_OUT_OF_BED
             ),
             overnightHeartRate = overnightHeartRate?.toDouble(),
-            restingHeartRate = aggregate[RestingHeartRateRecord.BPM_AVG]?.toDouble(),
+            restingHeartRate =
+                aggregate?.get(RestingHeartRateRecord.BPM_AVG)?.toDouble(),
             hrvRmssdMs = hrv,
             respiratoryRate = respiratoryRate,
-            steps = aggregate[StepsRecord.COUNT_TOTAL],
-            distanceMeters = aggregate[DistanceRecord.DISTANCE_TOTAL]?.inMeters,
-            caloriesKcal = aggregate[TotalCaloriesBurnedRecord.ENERGY_TOTAL]?.inKilocalories,
+            steps = aggregate?.get(StepsRecord.COUNT_TOTAL),
+            distanceMeters =
+                aggregate?.get(DistanceRecord.DISTANCE_TOTAL)?.inMeters,
+            caloriesKcal =
+                aggregate?.get(TotalCaloriesBurnedRecord.ENERGY_TOTAL)?.inKilocalories,
             exerciseMinutes = exerciseMinutes,
-            weightKg = aggregate[WeightRecord.WEIGHT_AVG]?.inKilograms,
+            weightKg = aggregate?.get(WeightRecord.WEIGHT_AVG)?.inKilograms,
             vo2Max = vo2Max,
             syncedAtEpochMs = Instant.now().toEpochMilli()
         )
