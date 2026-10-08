@@ -1,1 +1,1 @@
-Tempo Health 0.6.1 automatic updater build
+Tempo Health 0.7.0 dashboard, recovery factors and 7/28 day trends
