@@ -75,7 +75,7 @@ private data class Destination(
 private val mainDestinations = listOf(
     Destination("today", "Aujourd'hui", "🏠"),
     Destination("health", "Santé", "❤️"),
-    Destination("training", "Entraînement", "🏋️"),
+    Destination("training", "Séance", "🏋️"),
     Destination("progress", "Progression", "📈"),
     Destination("coach", "Coach", "🧠")
 )
@@ -476,19 +476,27 @@ private fun TodayScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
 
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        painLabels.forEachIndexed { index, label ->
-                            AssistChip(
-                                onClick = { saveCheckIn(energy, index) },
-                                label = {
-                                    Text(
-                                        if (pain == index) "• " + label else label
+                        painLabels.chunked(2).forEachIndexed { rowIndex, labels ->
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                labels.forEachIndexed { columnIndex, label ->
+                                    val index = rowIndex * 2 + columnIndex
+                                    AssistChip(
+                                        onClick = { saveCheckIn(energy, index) },
+                                        modifier = Modifier.weight(1f),
+                                        label = {
+                                            Text(
+                                                if (pain == index) "• " + label else label
+                                            )
+                                        }
                                     )
                                 }
-                            )
+                            }
                         }
                     }
 
@@ -862,6 +870,20 @@ private fun ProgressScreen(
             )
 
             TrendCard(
+                emoji = "🗓️",
+                title = "Sommeil • 28 jours",
+                values = month.reversed().map { it.sleepMinutes?.toDouble() },
+                valueText = { value -> formatMinutes(value.toLong()) }
+            )
+
+            TrendCard(
+                emoji = "📈",
+                title = "HRV • 28 jours",
+                values = month.reversed().map { it.hrvRmssdMs },
+                valueText = { value -> oneDecimal(value) + " ms" }
+            )
+
+            TrendCard(
                 emoji = "😴",
                 title = "Sommeil • 7 jours",
                 values = week.reversed().map { it.sleepMinutes?.toDouble() },
@@ -975,7 +997,9 @@ private fun TrendCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(92.dp),
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                horizontalArrangement = Arrangement.spacedBy(
+                    if (values.size > 14) 2.dp else 6.dp
+                ),
                 verticalAlignment = Alignment.Bottom
             ) {
                 values.forEach { value ->
