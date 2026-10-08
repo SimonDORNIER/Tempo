@@ -1,1 +1,1 @@
-Tempo Health 0.8.0 partial Health Connect, free timer and planner polish
+Tempo Health 0.8.1 updater resume fix and manual diagnostics
