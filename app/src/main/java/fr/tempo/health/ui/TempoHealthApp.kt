@@ -85,7 +85,8 @@ private val mainDestinations = listOf(
 fun TempoHealthApp(
     healthViewModel: HealthViewModel = viewModel(),
     workoutViewModel: WorkoutViewModel = viewModel(),
-    freeTimerViewModel: FreeTimerViewModel = viewModel()
+    freeTimerViewModel: FreeTimerViewModel = viewModel(),
+    onCheckForUpdates: () -> Unit = {}
 ) {
     val navController = rememberNavController()
     val currentEntry by navController.currentBackStackEntryAsState()
@@ -280,7 +281,8 @@ fun TempoHealthApp(
                     },
                     onOpenTimer = {
                         navController.navigate("timer")
-                    }
+                    },
+                    onCheckForUpdates = onCheckForUpdates
                 )
             }
 
@@ -1079,7 +1081,8 @@ private fun SettingsScreen(
     onDurationChange: (Int) -> Unit,
     onToggleEquipment: (Equipment) -> Unit,
     onOpenExercises: () -> Unit,
-    onOpenTimer: () -> Unit
+    onOpenTimer: () -> Unit,
+    onCheckForUpdates: () -> Unit
 ) {
     Screen(
         title = "Paramètres",
@@ -1092,6 +1095,13 @@ private fun SettingsScreen(
                 BuildConfig.VERSION_NAME,
                 "Package : " + BuildConfig.APPLICATION_ID
             )
+
+            OutlinedButton(
+                onClick = onCheckForUpdates,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("🔄 VÉRIFIER LES MISES À JOUR")
+            }
 
             StatusCard(
                 "🔗",
