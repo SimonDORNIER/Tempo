@@ -238,6 +238,66 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
         )
     }
 
+    fun toggleCategory(category: ExerciseCategory) {
+        val current = _trainingPreferences.value
+        val disabled = if (category in current.disabledCategories) {
+            current.disabledCategories - category
+        } else {
+            current.disabledCategories + category
+        }
+
+        updateTrainingPreferences(
+            current.copy(disabledCategories = disabled)
+        )
+    }
+
+    fun cycleCategoryIcon(category: ExerciseCategory) {
+        val current = _trainingPreferences.value
+        val icons = listOf("🔥", "💪", "🦵", "🧠", "🧘", "🤸", "⚡", "❤️")
+        val default = defaultCategoryIcon(category)
+        val currentIcon = current.categoryIcons[category] ?: default
+        val next = icons[(icons.indexOf(currentIcon).takeIf { it >= 0 } ?: -1)
+            .plus(1)
+            .mod(icons.size)]
+
+        updateTrainingPreferences(
+            current.copy(
+                categoryIcons = current.categoryIcons + (category to next)
+            )
+        )
+    }
+
+    fun setExerciseWorkSeconds(id: String, seconds: Int) {
+        val safe = seconds.coerceIn(15, 120)
+        val current = _trainingPreferences.value
+
+        updateTrainingPreferences(
+            current.copy(
+                exerciseWorkSeconds =
+                    current.exerciseWorkSeconds + (id to safe)
+            )
+        )
+    }
+
+    fun resetExerciseWorkSeconds(id: String) {
+        val current = _trainingPreferences.value
+        updateTrainingPreferences(
+            current.copy(
+                exerciseWorkSeconds = current.exerciseWorkSeconds - id
+            )
+        )
+    }
+
+    fun resetLibraryCustomizations() {
+        updateTrainingPreferences(
+            _trainingPreferences.value.copy(
+                disabledCategories = emptySet(),
+                categoryIcons = emptyMap(),
+                exerciseWorkSeconds = emptyMap()
+            )
+        )
+    }
+
     private fun updateTrainingPreferences(value: TrainingPreferences) {
         _trainingPreferences.value = value
 
@@ -254,6 +314,22 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
             .putString(
                 "training-avoided",
                 value.avoidedExerciseIds.joinToString(",")
+            )
+            .putString(
+                "training-disabled-categories",
+                value.disabledCategories.joinToString(",") { it.name }
+            )
+            .putString(
+                "training-category-icons",
+                value.categoryIcons.entries.joinToString("|") {
+                    it.key.name + "=" + it.value
+                }
+            )
+            .putString(
+                "training-work-seconds",
+                value.exerciseWorkSeconds.entries.joinToString("|") {
+                    it.key + "=" + it.value
+                }
             )
             .apply()
     }
@@ -280,13 +356,54 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
                 .filter { it.isNotBlank() }
                 .toSet()
 
+        val disabledCategories = csvSet("training-disabled-categories")
+            .mapNotNull { raw ->
+                runCatching { ExerciseCategory.valueOf(raw) }.getOrNull()
+            }
+            .toSet()
+
+        val categoryIcons = preferences.getString(
+            "training-category-icons",
+            ""
+        ).orEmpty()
+            .split("|")
+            .mapNotNull { entry ->
+                val parts = entry.split("=", limit = 2)
+                val category = parts.getOrNull(0)?.let { raw ->
+                    runCatching { ExerciseCategory.valueOf(raw) }.getOrNull()
+                }
+                val icon = parts.getOrNull(1)?.takeIf { it.isNotBlank() }
+                if (category != null && icon != null) category to icon else null
+            }
+            .toMap()
+
+        val exerciseWorkSeconds = preferences.getString(
+            "training-work-seconds",
+            ""
+        ).orEmpty()
+            .split("|")
+            .mapNotNull { entry ->
+                val parts = entry.split("=", limit = 2)
+                val id = parts.getOrNull(0)?.takeIf { it.isNotBlank() }
+                val seconds = parts.getOrNull(1)?.toIntOrNull()
+                if (id != null && seconds != null) {
+                    id to seconds.coerceIn(15, 120)
+                } else {
+                    null
+                }
+            }
+            .toMap()
+
         return TrainingPreferences(
             durationMinutes = preferences
                 .getInt("training-duration", 20)
                 .coerceIn(8, 40),
             availableEquipment = equipment,
             favoriteExerciseIds = csvSet("training-favorites"),
-            avoidedExerciseIds = csvSet("training-avoided")
+            avoidedExerciseIds = csvSet("training-avoided"),
+            disabledCategories = disabledCategories,
+            categoryIcons = categoryIcons,
+            exerciseWorkSeconds = exerciseWorkSeconds
         )
     }
 
@@ -486,6 +603,17 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
                 .toSet(),
             perceivedDifficulty = perceivedDifficulty
         )
+
+    private fun defaultCategoryIcon(category: ExerciseCategory): String =
+        when (category) {
+            ExerciseCategory.WARMUP -> "🔥"
+            ExerciseCategory.FULL_BODY -> "⚡"
+            ExerciseCategory.UPPER_BODY -> "💪"
+            ExerciseCategory.CORE -> "🧠"
+            ExerciseCategory.LOWER_BODY -> "🦵"
+            ExerciseCategory.MOBILITY -> "🤸"
+            ExerciseCategory.STRETCHING -> "🧘"
+        }
 
     companion object {
         private const val PREPARE_SECONDS = 5
