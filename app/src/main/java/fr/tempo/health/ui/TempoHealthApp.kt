@@ -121,6 +121,8 @@ fun TempoHealthApp(
                         Text(
                             text = when (currentRoute) {
                                 "settings" -> "Paramètres"
+                                "library-settings" -> "Bibliothèque"
+                                "category-settings" -> "Catégories"
                                 "exercise-settings" -> "Exercices"
                                 "timer" -> "Minuteur"
                                 "workout" -> "Séance"
@@ -129,6 +131,8 @@ fun TempoHealthApp(
                             fontWeight = FontWeight.SemiBold
                         )
                         if (currentRoute != "settings" &&
+                            currentRoute != "library-settings" &&
+                            currentRoute != "category-settings" &&
                             currentRoute != "exercise-settings" &&
                             currentRoute != "timer" &&
                             currentRoute != "workout"
@@ -276,8 +280,8 @@ fun TempoHealthApp(
                     onSoundVolumeChange = workoutViewModel::setSoundVolume,
                     onDurationChange = workoutViewModel::setDurationMinutes,
                     onToggleEquipment = workoutViewModel::toggleEquipment,
-                    onOpenExercises = {
-                        navController.navigate("exercise-settings")
+                    onOpenLibrary = {
+                        navController.navigate("library-settings")
                     },
                     onOpenTimer = {
                         navController.navigate("timer")
@@ -295,11 +299,34 @@ fun TempoHealthApp(
                 )
             }
 
+            composable("library-settings") {
+                LibrarySettingsScreen(
+                    preferences = trainingPreferences,
+                    onOpenCategories = {
+                        navController.navigate("category-settings")
+                    },
+                    onOpenExercises = {
+                        navController.navigate("exercise-settings")
+                    },
+                    onReset = workoutViewModel::resetLibraryCustomizations
+                )
+            }
+
+            composable("category-settings") {
+                CategorySettingsScreen(
+                    preferences = trainingPreferences,
+                    onToggle = workoutViewModel::toggleCategory,
+                    onCycleIcon = workoutViewModel::cycleCategoryIcon
+                )
+            }
+
             composable("exercise-settings") {
                 ExercisePreferencesScreen(
                     preferences = trainingPreferences,
                     onFavorite = workoutViewModel::toggleFavoriteExercise,
-                    onAvoid = workoutViewModel::toggleAvoidedExercise
+                    onAvoid = workoutViewModel::toggleAvoidedExercise,
+                    onWorkSecondsChange = workoutViewModel::setExerciseWorkSeconds,
+                    onResetWorkSeconds = workoutViewModel::resetExerciseWorkSeconds
                 )
             }
         }
@@ -1080,7 +1107,7 @@ private fun SettingsScreen(
     onSoundVolumeChange: (Int) -> Unit,
     onDurationChange: (Int) -> Unit,
     onToggleEquipment: (Equipment) -> Unit,
-    onOpenExercises: () -> Unit,
+    onOpenLibrary: () -> Unit,
     onOpenTimer: () -> Unit,
     onCheckForUpdates: () -> Unit
 ) {
@@ -1188,10 +1215,10 @@ private fun SettingsScreen(
             }
 
             Button(
-                onClick = onOpenExercises,
+                onClick = onOpenLibrary,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text("GÉRER LES EXERCICES")
+                Text("🛠 GÉRER LA BIBLIOTHÈQUE")
             }
 
             OutlinedButton(
@@ -1237,6 +1264,145 @@ private fun SettingsScreen(
                 "Oui",
                 "Santé locale, score et moteur d'entraînement fonctionnent sans serveur"
             )
+        }
+    }
+}
+
+@Composable
+private fun LibrarySettingsScreen(
+    preferences: TrainingPreferences,
+    onOpenCategories: () -> Unit,
+    onOpenExercises: () -> Unit,
+    onReset: () -> Unit
+) {
+    val disabledExercises = preferences.avoidedExerciseIds.size
+    val customDurations = preferences.exerciseWorkSeconds.size
+
+    Screen(
+        title = "Bibliothèque",
+        subtitle = "L'utilisation reste séparée de l'édition."
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            StatusCard(
+                "🗂️",
+                "Catégories",
+                (ExerciseCategory.entries.size - preferences.disabledCategories.size)
+                    .toString() + "/" + ExerciseCategory.entries.size + " actives",
+                "Icônes et catégories utilisées par le générateur."
+            )
+
+            Button(
+                onClick = onOpenCategories,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("MODIFIER LES CATÉGORIES")
+            }
+
+            StatusCard(
+                "🏋️",
+                "Exercices",
+                ExerciseLibrary.all.size.toString() + " exercices",
+                disabledExercises.toString() + " à éviter • " +
+                    customDurations + " durée(s) personnalisée(s)"
+            )
+
+            Button(
+                onClick = onOpenExercises,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("MODIFIER LES EXERCICES")
+            }
+
+            OutlinedButton(
+                onClick = onReset,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("RÉINITIALISER LES PERSONNALISATIONS")
+            }
+
+            Text(
+                "Les favoris et les exercices « à éviter » sont conservés lors de cette réinitialisation.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
+private fun CategorySettingsScreen(
+    preferences: TrainingPreferences,
+    onToggle: (ExerciseCategory) -> Unit,
+    onCycleIcon: (ExerciseCategory) -> Unit
+) {
+    Screen(
+        title = "Modifier les catégories",
+        subtitle = "Active, désactive ou change l'icône de chaque catégorie."
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            ExerciseCategory.entries.forEach { category ->
+                val active = category !in preferences.disabledCategories
+                val icon = categoryIcon(category, preferences)
+                val count = ExerciseLibrary.all.count { it.category == category }
+
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(20.dp)
+                ) {
+                    Column(Modifier.padding(16.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(48.dp)
+                                    .clip(CircleShape)
+                                    .background(MaterialTheme.colorScheme.primaryContainer),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(icon, style = MaterialTheme.typography.titleLarge)
+                            }
+
+                            Spacer(Modifier.width(12.dp))
+
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    categoryLabel(category),
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    count.toString() + " exercice(s) • " +
+                                        if (active) "active" else "désactivée",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+
+                        Spacer(Modifier.height(10.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            AssistChip(
+                                onClick = { onCycleIcon(category) },
+                                modifier = Modifier.weight(1f),
+                                label = { Text("Changer l'icône") }
+                            )
+
+                            AssistChip(
+                                onClick = { onToggle(category) },
+                                modifier = Modifier.weight(1f),
+                                label = {
+                                    Text(if (active) "Désactiver" else "Activer")
+                                }
+                            )
+                        }
+                    }
+                }
+            }
         }
     }
 }
@@ -1371,11 +1537,13 @@ private fun FreeTimerScreen(
 private fun ExercisePreferencesScreen(
     preferences: TrainingPreferences,
     onFavorite: (String) -> Unit,
-    onAvoid: (String) -> Unit
+    onAvoid: (String) -> Unit,
+    onWorkSecondsChange: (String, Int) -> Unit,
+    onResetWorkSeconds: (String) -> Unit
 ) {
     Screen(
-        title = "Préférences d'exercices",
-        subtitle = "Favorise ce que tu aimes et exclus ce que tu ne veux pas voir dans les séances."
+        title = "Modifier les exercices",
+        subtitle = "Durée, favoris et exclusions sont appliqués aux prochaines séances."
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             ExerciseLibrary.all.forEach { exercise ->
@@ -1390,7 +1558,13 @@ private fun ExercisePreferencesScreen(
                         )
 
                         Text(
-                            exercise.category.name.replace("_", " ").lowercase(),
+                            categoryIcon(exercise.category, preferences) + " " +
+                                categoryLabel(exercise.category) +
+                                if (exercise.category in preferences.disabledCategories) {
+                                    " • catégorie désactivée"
+                                } else {
+                                    ""
+                                },
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -1403,6 +1577,47 @@ private fun ExercisePreferencesScreen(
                                 },
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+
+                        Spacer(Modifier.height(10.dp))
+
+                        val customSeconds = preferences.exerciseWorkSeconds[exercise.id]
+                        val workSeconds = customSeconds ?: exercise.defaultWorkSeconds
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                "Durée",
+                                fontWeight = FontWeight.SemiBold,
+                                modifier = Modifier.weight(1f)
+                            )
+                            Text(
+                                workSeconds.toString() + " s",
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+
+                        Slider(
+                            value = workSeconds.toFloat(),
+                            onValueChange = {
+                                onWorkSecondsChange(exercise.id, it.toInt())
+                            },
+                            valueRange = 15f..90f,
+                            steps = 14
+                        )
+
+                        if (customSeconds != null) {
+                            AssistChip(
+                                onClick = { onResetWorkSeconds(exercise.id) },
+                                label = {
+                                    Text(
+                                        "Durée par défaut : " +
+                                            exercise.defaultWorkSeconds + " s"
+                                    )
+                                }
                             )
                         }
 
@@ -1696,6 +1911,31 @@ private fun WorkoutSessionScreen(
         }
     }
 }
+
+private fun categoryLabel(category: ExerciseCategory): String =
+    when (category) {
+        ExerciseCategory.WARMUP -> "Échauffement"
+        ExerciseCategory.FULL_BODY -> "Corps entier"
+        ExerciseCategory.UPPER_BODY -> "Haut du corps"
+        ExerciseCategory.CORE -> "Gainage"
+        ExerciseCategory.LOWER_BODY -> "Bas du corps"
+        ExerciseCategory.MOBILITY -> "Mobilité"
+        ExerciseCategory.STRETCHING -> "Étirements"
+    }
+
+private fun categoryIcon(
+    category: ExerciseCategory,
+    preferences: TrainingPreferences
+): String =
+    preferences.categoryIcons[category] ?: when (category) {
+        ExerciseCategory.WARMUP -> "🔥"
+        ExerciseCategory.FULL_BODY -> "⚡"
+        ExerciseCategory.UPPER_BODY -> "💪"
+        ExerciseCategory.CORE -> "🧠"
+        ExerciseCategory.LOWER_BODY -> "🦵"
+        ExerciseCategory.MOBILITY -> "🤸"
+        ExerciseCategory.STRETCHING -> "🧘"
+    }
 
 private fun recoveryEmoji(recovery: RecoveryResult): String =
     when (recovery.level) {
