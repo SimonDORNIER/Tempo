@@ -19,7 +19,9 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             TempoHealthTheme {
-                TempoHealthApp()
+                TempoHealthApp(
+                    onCheckForUpdates = autoUpdater::checkNow
+                )
             }
         }
 
