@@ -256,9 +256,8 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
         val icons = listOf("🔥", "💪", "🦵", "🧠", "🧘", "🤸", "⚡", "❤️")
         val default = defaultCategoryIcon(category)
         val currentIcon = current.categoryIcons[category] ?: default
-        val next = icons[(icons.indexOf(currentIcon).takeIf { it >= 0 } ?: -1)
-            .plus(1)
-            .mod(icons.size)]
+        val currentIndex = icons.indexOf(currentIcon).takeIf { it >= 0 } ?: -1
+        val next = icons[(currentIndex + 1) % icons.size]
 
         updateTrainingPreferences(
             current.copy(
