@@ -106,6 +106,27 @@ class HealthRepository(
         return client().permissionController.getGrantedPermissions()
     }
 
+    fun missingPermissionLabels(
+        granted: Set<String>
+    ): List<String> =
+        listOf(
+            sleepPermission to "Sommeil",
+            heartRatePermission to "Fréquence cardiaque",
+            restingHeartRatePermission to "FC au repos",
+            hrvPermission to "VFC / HRV",
+            respiratoryPermission to "Respiration",
+            stepsPermission to "Pas",
+            distancePermission to "Distance",
+            caloriesPermission to "Calories",
+            exercisePermission to "Séances",
+            weightPermission to "Poids",
+            vo2Permission to "VO₂ max"
+        ).filter { (permission, _) ->
+            permission !in granted
+        }.map { (_, label) ->
+            label
+        }
+
     suspend fun hasRequiredPermissions(): Boolean =
         grantedPermissions().containsAll(requiredPermissions)
 
