@@ -73,6 +73,24 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
     )
     val soundVolume: StateFlow<Int> = _soundVolume.asStateFlow()
 
+    private val _startSoundEnabled = MutableStateFlow(
+        preferences.getBoolean("sound-start-enabled", true)
+    )
+    val startSoundEnabled: StateFlow<Boolean> =
+        _startSoundEnabled.asStateFlow()
+
+    private val _midpointSoundEnabled = MutableStateFlow(
+        preferences.getBoolean("sound-midpoint-enabled", true)
+    )
+    val midpointSoundEnabled: StateFlow<Boolean> =
+        _midpointSoundEnabled.asStateFlow()
+
+    private val _endSoundEnabled = MutableStateFlow(
+        preferences.getBoolean("sound-end-enabled", true)
+    )
+    val endSoundEnabled: StateFlow<Boolean> =
+        _endSoundEnabled.asStateFlow()
+
     private val _trainingPreferences = MutableStateFlow(loadTrainingPreferences())
     val trainingPreferences: StateFlow<TrainingPreferences> =
         _trainingPreferences.asStateFlow()
@@ -248,6 +266,94 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
         preferences.edit().putInt("sound-volume", safe).apply()
         rebuildToneGenerator()
         playMidpointTone()
+    }
+
+    fun setStartSoundEnabled(enabled: Boolean) {
+        _startSoundEnabled.value = enabled
+        preferences.edit()
+            .putBoolean("sound-start-enabled", enabled)
+            .apply()
+        if (enabled) playStartTone()
+    }
+
+    fun setMidpointSoundEnabled(enabled: Boolean) {
+        _midpointSoundEnabled.value = enabled
+        preferences.edit()
+            .putBoolean("sound-midpoint-enabled", enabled)
+            .apply()
+        if (enabled) playMidpointTone()
+    }
+
+    fun setEndSoundEnabled(enabled: Boolean) {
+        _endSoundEnabled.value = enabled
+        preferences.edit()
+            .putBoolean("sound-end-enabled", enabled)
+            .apply()
+        if (enabled) playEndTone()
+    }
+
+    fun exportSettingsJson(): String {
+        val settings = JSONObject()
+        preferences.all.forEach { (key, value) ->
+            when (value) {
+                is Boolean -> settings.put(key, value)
+                is Int -> settings.put(key, value)
+                is Long -> settings.put(key, value)
+                is Float -> settings.put(key, value.toDouble())
+                is String -> settings.put(key, value)
+            }
+        }
+
+        return JSONObject()
+            .put("schemaVersion", 1)
+            .put("app", "Tempo Health")
+            .put("settings", settings)
+            .toString()
+    }
+
+    fun importSettingsJson(raw: String): Boolean {
+        val imported = runCatching {
+            val root = JSONObject(raw)
+            val settings = root.optJSONObject("settings") ?: root
+            val editor = preferences.edit().clear()
+
+            val keys = settings.keys()
+            while (keys.hasNext()) {
+                val key = keys.next()
+                when (val value = settings.get(key)) {
+                    is Boolean -> editor.putBoolean(key, value)
+                    is Int -> editor.putInt(key, value)
+                    is Long -> editor.putLong(key, value)
+                    is Double -> {
+                        if (value % 1.0 == 0.0 &&
+                            value >= Int.MIN_VALUE &&
+                            value <= Int.MAX_VALUE
+                        ) {
+                            editor.putInt(key, value.toInt())
+                        } else {
+                            editor.putFloat(key, value.toFloat())
+                        }
+                    }
+                    is String -> editor.putString(key, value)
+                }
+            }
+
+            editor.commit()
+        }.getOrDefault(false)
+
+        if (!imported) return false
+
+        _soundVolume.value =
+            preferences.getInt("sound-volume", 70).coerceIn(0, 100)
+        _startSoundEnabled.value =
+            preferences.getBoolean("sound-start-enabled", true)
+        _midpointSoundEnabled.value =
+            preferences.getBoolean("sound-midpoint-enabled", true)
+        _endSoundEnabled.value =
+            preferences.getBoolean("sound-end-enabled", true)
+        _trainingPreferences.value = loadTrainingPreferences()
+        rebuildToneGenerator()
+        return true
     }
 
     fun setDurationMinutes(minutes: Int) {
@@ -798,18 +904,22 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
     }
 
     private fun playStartTone() {
+        if (!_startSoundEnabled.value) return
         toneGenerator?.startTone(ToneGenerator.TONE_PROP_BEEP, 120)
     }
 
     private fun playMidpointTone() {
+        if (!_midpointSoundEnabled.value) return
         toneGenerator?.startTone(ToneGenerator.TONE_PROP_BEEP2, 100)
     }
 
     private fun playEndTone() {
+        if (!_endSoundEnabled.value) return
         toneGenerator?.startTone(ToneGenerator.TONE_PROP_ACK, 180)
     }
 
     private fun playCompleteTone() {
+        if (!_endSoundEnabled.value) return
         toneGenerator?.startTone(ToneGenerator.TONE_CDMA_ALERT_CALL_GUARD, 500)
     }
 
