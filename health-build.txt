@@ -1,1 +1,1 @@
-Tempo Health 0.12.0 coach planner variety and live exercise replacement
+Tempo Health 0.13.0 health permission detail and 7 vs 28 day trends
