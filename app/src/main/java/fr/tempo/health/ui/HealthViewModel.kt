@@ -56,6 +56,11 @@ class HealthViewModel(application: Application) : AndroidViewModel(application) 
     private val _hasPermissions = MutableStateFlow(false)
     val hasPermissions: StateFlow<Boolean> = _hasPermissions.asStateFlow()
 
+    private val _missingPermissionLabels =
+        MutableStateFlow<List<String>>(emptyList())
+    val missingPermissionLabels: StateFlow<List<String>> =
+        _missingPermissionLabels.asStateFlow()
+
     private val _syncing = MutableStateFlow(false)
     val syncing: StateFlow<Boolean> = _syncing.asStateFlow()
 
@@ -74,14 +79,18 @@ class HealthViewModel(application: Application) : AndroidViewModel(application) 
         }
 
         viewModelScope.launch {
-            runCatching { repository.hasAnyGrantedPermissions() }
+            runCatching { repository.grantedPermissions() }
                 .onSuccess { granted ->
-                    _hasPermissions.value = granted
-                    if (granted) {
+                    val relevant = granted.intersect(requiredPermissions)
+                    _hasPermissions.value = relevant.isNotEmpty()
+                    _missingPermissionLabels.value =
+                        repository.missingPermissionLabels(relevant)
+                    if (_hasPermissions.value) {
                         autoSyncIfNeeded()
                     }
                 }
                 .onFailure {
+                    _missingPermissionLabels.value = emptyList()
                     _message.value = "Impossible de vérifier les autorisations."
                 }
         }
@@ -90,6 +99,8 @@ class HealthViewModel(application: Application) : AndroidViewModel(application) 
     fun onPermissionsResult(grantedPermissions: Set<String>) {
         val grantedRelevant = grantedPermissions.intersect(requiredPermissions)
         _hasPermissions.value = grantedRelevant.isNotEmpty()
+        _missingPermissionLabels.value =
+            repository.missingPermissionLabels(grantedRelevant)
 
         if (_hasPermissions.value) {
             val missing = requiredPermissions.size - grantedRelevant.size
