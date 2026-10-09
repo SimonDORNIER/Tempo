@@ -62,6 +62,7 @@ import fr.tempo.health.data.DailyHealthEntity
 import fr.tempo.health.data.HealthConnectAvailability
 import fr.tempo.health.data.WorkoutHistoryEntity
 import fr.tempo.health.domain.WorkoutPlan
+import fr.tempo.health.domain.DailyCoachEngine
 import fr.tempo.health.domain.Equipment
 import fr.tempo.health.domain.Exercise
 import fr.tempo.health.domain.ExerciseCategory
@@ -277,7 +278,12 @@ fun TempoHealthApp(
             }
 
             composable("coach") {
-                CoachScreen(recovery)
+                CoachScreen(
+                    recovery = recovery,
+                    latest = recentDays.firstOrNull(),
+                    checkIn = checkIn,
+                    plan = previewPlan
+                )
             }
 
             composable("settings") {
@@ -1181,24 +1187,96 @@ private fun TrendCard(
 }
 
 @Composable
-private fun CoachScreen(recovery: RecoveryResult) {
+private fun CoachScreen(
+    recovery: RecoveryResult,
+    latest: DailyHealthEntity?,
+    checkIn: DailyCheckInEntity?,
+    plan: WorkoutPlan
+) {
+    val advice = DailyCoachEngine.build(
+        recovery = recovery,
+        latest = latest,
+        checkIn = checkIn,
+        workoutPlan = plan
+    )
+
     Screen(
-        title = "Coach",
-        subtitle = "L'IA reste une couche explicative facultative."
+        title = "Coach du jour",
+        subtitle = "Conseils locaux basés sur tes données, ton ressenti et ton historique."
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             StatusCard(
-                "🧠",
-                "Moteur local",
+                advice.emoji,
+                advice.headline,
                 recovery.score?.let { it.toString() + " / 100" } ?: "En attente",
-                "La décision fonctionne déjà sans Internet et sans IA."
+                "Confiance " + recovery.confidence + "% • " +
+                    recovery.baselineDays + " jour(s) de référence"
             )
 
             StatusCard(
-                "✨",
-                "Coach ChatGPT",
-                "Optionnel",
-                "Plus tard, il expliquera le score et les tendances sans piloter aveuglément la séance."
+                "🏋️",
+                "Activité conseillée",
+                plan.title,
+                advice.sessionGuidance
+            )
+
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(24.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(18.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        "Pourquoi ?",
+                        fontWeight = FontWeight.Bold
+                    )
+                    advice.reasons.forEach { reason ->
+                        Text(
+                            "• " + reason,
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+                }
+            }
+
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(24.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer
+                )
+            ) {
+                Column(
+                    modifier = Modifier.padding(18.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        "À faire aujourd'hui",
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                    advice.actions.forEach { action ->
+                        Text(
+                            "✓ " + action,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    }
+                }
+            }
+
+            StatusCard(
+                "🌙",
+                "Ce soir",
+                "Préparer demain",
+                advice.evening
+            )
+
+            Text(
+                "Tempo donne des conseils de bien-être et d'entraînement, pas un diagnostic médical.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }
