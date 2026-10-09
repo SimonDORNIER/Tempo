@@ -257,6 +257,7 @@ fun TempoHealthApp(
                     onStart = workoutViewModel::start,
                     onPause = workoutViewModel::togglePause,
                     onSkip = workoutViewModel::skip,
+                    onReplace = workoutViewModel::replaceCurrentExercise,
                     onDifficulty = workoutViewModel::rateDifficulty,
                     onExit = {
                         workoutViewModel.stop()
@@ -1897,6 +1898,7 @@ private fun WorkoutSessionScreen(
     onStart: () -> Unit,
     onPause: () -> Unit,
     onSkip: () -> Unit,
+    onReplace: () -> Unit,
     onDifficulty: (Int) -> Unit,
     onExit: () -> Unit
 ) {
@@ -1951,6 +1953,13 @@ private fun WorkoutSessionScreen(
                             .height(64.dp)
                     ) {
                         Text("DÉMARRER LA SÉANCE")
+                    }
+
+                    OutlinedButton(
+                        onClick = onReplace,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("🔄 REMPLACER LE PREMIER EXERCICE")
                     }
                 }
 
@@ -2129,6 +2138,15 @@ private fun WorkoutSessionScreen(
                             modifier = Modifier.weight(1f)
                         ) {
                             Text("PASSER")
+                        }
+                    }
+
+                    if (state.phase != WorkoutPhase.REST) {
+                        OutlinedButton(
+                            onClick = onReplace,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("🔄 REMPLACER CET EXERCICE")
                         }
                     }
 
