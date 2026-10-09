@@ -29,6 +29,7 @@ class AutoUpdater(
     private var pendingRelease: HealthRelease? = null
     private var downloading = false
     private var checking = false
+    private var awaitingInstallPermission = false
     private var lastCheckEpochMs = 0L
 
     fun checkAtLaunch() {
@@ -40,11 +41,19 @@ class AutoUpdater(
     }
 
     fun onResume() {
-        val found = pendingRelease
-        if (found != null && canInstallPackages() && !downloading) {
+        if (awaitingInstallPermission) {
+            awaitingInstallPermission = false
+            val found = pendingRelease
             pendingRelease = null
-            downloadAndInstall(found)
-            return
+
+            if (found != null && canInstallPackages() && !downloading) {
+                downloadAndInstall(found)
+                return
+            }
+
+            if (found != null && !canInstallPackages()) {
+                toast("Installation automatique non autorisée.")
+            }
         }
 
         checkForUpdate(showFeedback = false, force = false)
@@ -85,7 +94,6 @@ class AutoUpdater(
                             compareVersions(found.version, BuildConfig.VERSION_NAME)
 
                         if (comparison > 0) {
-                            pendingRelease = found
                             showUpdateDialog(found)
                         } else if (showFeedback) {
                             toast(
@@ -120,13 +128,18 @@ class AutoUpdater(
                     " est disponible. Version installée : " +
                     BuildConfig.VERSION_NAME + "."
             )
-            .setNegativeButton("Plus tard", null)
+            .setNegativeButton("Plus tard") { _, _ ->
+                pendingRelease = null
+                awaitingInstallPermission = false
+            }
             .setPositiveButton("Mettre à jour") { _, _ ->
                 if (canInstallPackages()) {
                     pendingRelease = null
+                    awaitingInstallPermission = false
                     downloadAndInstall(found)
                 } else {
                     pendingRelease = found
+                    awaitingInstallPermission = true
                     requestInstallPermission()
                 }
             }
@@ -135,6 +148,7 @@ class AutoUpdater(
 
     private fun requestInstallPermission() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
+            awaitingInstallPermission = false
             pendingRelease?.let {
                 pendingRelease = null
                 downloadAndInstall(it)
