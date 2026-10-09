@@ -1,1 +1,1 @@
-Tempo Health 0.14.0 local daily coach and actionable guidance
+Tempo Health 1.0.0 backup restore, progress stats, sound controls and UI polish
