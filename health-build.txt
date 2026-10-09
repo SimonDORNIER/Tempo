@@ -1,1 +1,1 @@
-Tempo Health 0.9.1 library editor build fix
+Tempo Health 0.10.0 updater consent fix and library editor UX
