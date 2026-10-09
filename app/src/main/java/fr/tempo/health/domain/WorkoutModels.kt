@@ -456,9 +456,14 @@ object WorkoutPlanner {
             customizeItem(item, preferences)
         }
 
+        val diversifiedItems = diversifyOrder(
+            items = customizedItems,
+            seed = history.size
+        )
+
         return basePlan.copy(
             items = fillToTarget(
-                base = customizedItems,
+                base = diversifiedItems,
                 targetMinutes = targetMinutes
             )
         )
@@ -706,6 +711,22 @@ object WorkoutPlanner {
                     fallback.requiredEquipment in preferences.availableEquipment)
 
         return if (fallbackAllowed) listOf(fallback) else emptyList()
+    }
+
+    private fun diversifyOrder(
+        items: List<WorkoutExercise>,
+        seed: Int
+    ): List<WorkoutExercise> {
+        if (items.size <= 3) return items
+
+        val first = items.first()
+        val last = items.last()
+        val middle = items.drop(1).dropLast(1)
+        if (middle.size <= 1) return items
+
+        val offset = seed % middle.size
+        val rotated = middle.drop(offset) + middle.take(offset)
+        return listOf(first) + rotated + listOf(last)
     }
 
     private fun fillToTarget(
