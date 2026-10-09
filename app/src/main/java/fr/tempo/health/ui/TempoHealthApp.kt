@@ -111,6 +111,12 @@ fun TempoHealthApp(
     val message by healthViewModel.message.collectAsStateWithLifecycle()
     val workoutState by workoutViewModel.state.collectAsStateWithLifecycle()
     val soundVolume by workoutViewModel.soundVolume.collectAsStateWithLifecycle()
+    val startSoundEnabled by
+        workoutViewModel.startSoundEnabled.collectAsStateWithLifecycle()
+    val midpointSoundEnabled by
+        workoutViewModel.midpointSoundEnabled.collectAsStateWithLifecycle()
+    val endSoundEnabled by
+        workoutViewModel.endSoundEnabled.collectAsStateWithLifecycle()
     val workoutHistory by workoutViewModel.history.collectAsStateWithLifecycle()
     val trainingPreferences by workoutViewModel.trainingPreferences.collectAsStateWithLifecycle()
     val freeTimerState by freeTimerViewModel.state.collectAsStateWithLifecycle()
@@ -292,8 +298,16 @@ fun TempoHealthApp(
                     hasPermissions = hasPermissions,
                     localDays = recentDays.size,
                     soundVolume = soundVolume,
+                    startSoundEnabled = startSoundEnabled,
+                    midpointSoundEnabled = midpointSoundEnabled,
+                    endSoundEnabled = endSoundEnabled,
                     preferences = trainingPreferences,
                     onSoundVolumeChange = workoutViewModel::setSoundVolume,
+                    onStartSoundEnabled = workoutViewModel::setStartSoundEnabled,
+                    onMidpointSoundEnabled = workoutViewModel::setMidpointSoundEnabled,
+                    onEndSoundEnabled = workoutViewModel::setEndSoundEnabled,
+                    onExportSettings = workoutViewModel::exportSettingsJson,
+                    onImportSettings = workoutViewModel::importSettingsJson,
                     onDurationChange = workoutViewModel::setDurationMinutes,
                     onToggleEquipment = workoutViewModel::toggleEquipment,
                     onOpenLibrary = {
@@ -1288,14 +1302,25 @@ private fun SettingsScreen(
     hasPermissions: Boolean,
     localDays: Int,
     soundVolume: Int,
+    startSoundEnabled: Boolean,
+    midpointSoundEnabled: Boolean,
+    endSoundEnabled: Boolean,
     preferences: TrainingPreferences,
     onSoundVolumeChange: (Int) -> Unit,
+    onStartSoundEnabled: (Boolean) -> Unit,
+    onMidpointSoundEnabled: (Boolean) -> Unit,
+    onEndSoundEnabled: (Boolean) -> Unit,
+    onExportSettings: () -> String,
+    onImportSettings: (String) -> Boolean,
     onDurationChange: (Int) -> Unit,
     onToggleEquipment: (Equipment) -> Unit,
     onOpenLibrary: () -> Unit,
     onOpenTimer: () -> Unit,
     onCheckForUpdates: () -> Unit
 ) {
+    var backupText by remember { mutableStateOf("") }
+    var backupMessage by remember { mutableStateOf<String?>(null) }
+
     Screen(
         title = "Paramètres",
         subtitle = "État technique, confidentialité et sons."
@@ -1440,6 +1465,115 @@ private fun SettingsScreen(
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+
+                    Spacer(Modifier.height(10.dp))
+
+                    Text("Signaux actifs", fontWeight = FontWeight.Bold)
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        AssistChip(
+                            onClick = {
+                                onStartSoundEnabled(!startSoundEnabled)
+                            },
+                            modifier = Modifier.weight(1f),
+                            label = {
+                                Text(
+                                    if (startSoundEnabled) "• Début" else "Début"
+                                )
+                            }
+                        )
+                        AssistChip(
+                            onClick = {
+                                onMidpointSoundEnabled(!midpointSoundEnabled)
+                            },
+                            modifier = Modifier.weight(1f),
+                            label = {
+                                Text(
+                                    if (midpointSoundEnabled) "• Mi-temps" else "Mi-temps"
+                                )
+                            }
+                        )
+                        AssistChip(
+                            onClick = {
+                                onEndSoundEnabled(!endSoundEnabled)
+                            },
+                            modifier = Modifier.weight(1f),
+                            label = {
+                                Text(
+                                    if (endSoundEnabled) "• Fin" else "Fin"
+                                )
+                            }
+                        )
+                    }
+                }
+            }
+
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(24.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(18.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Text(
+                        "Sauvegarde de la configuration",
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        "Inclut catégories, exercices personnalisés, favoris, matériel, sons et minuteur.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    OutlinedButton(
+                        onClick = {
+                            backupText = onExportSettings()
+                            backupMessage =
+                                "Sauvegarde générée. Copie le JSON pour le conserver."
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("GÉNÉRER LA SAUVEGARDE")
+                    }
+
+                    OutlinedTextField(
+                        value = backupText,
+                        onValueChange = {
+                            backupText = it
+                            backupMessage = null
+                        },
+                        label = { Text("JSON de sauvegarde") },
+                        modifier = Modifier.fillMaxWidth(),
+                        minLines = 3,
+                        maxLines = 6
+                    )
+
+                    Button(
+                        onClick = {
+                            val ok = onImportSettings(backupText)
+                            backupMessage = if (ok) {
+                                "Configuration restaurée."
+                            } else {
+                                "Sauvegarde invalide."
+                            }
+                        },
+                        enabled = backupText.isNotBlank(),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("RESTAURER")
+                    }
+
+                    backupMessage?.let { message ->
+                        Text(
+                            message,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
                 }
             }
 
