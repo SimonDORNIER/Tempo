@@ -1,1 +1,1 @@
-Tempo Health 0.11.0 full exercise editor and custom exercises
+Tempo Health 0.12.0 coach planner variety and live exercise replacement
