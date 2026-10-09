@@ -1,1 +1,1 @@
-Tempo Health 0.13.0 health permission detail and 7 vs 28 day trends
+Tempo Health 0.14.0 local daily coach and actionable guidance
