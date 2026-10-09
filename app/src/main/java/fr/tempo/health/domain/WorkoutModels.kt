@@ -22,7 +22,9 @@ data class TrainingPreferences(
     val avoidedExerciseIds: Set<String> = emptySet(),
     val disabledCategories: Set<ExerciseCategory> = emptySet(),
     val categoryIcons: Map<ExerciseCategory, String> = emptyMap(),
-    val exerciseWorkSeconds: Map<String, Int> = emptyMap()
+    val exerciseWorkSeconds: Map<String, Int> = emptyMap(),
+    val exerciseOverrides: Map<String, Exercise> = emptyMap(),
+    val customExercises: List<Exercise> = emptyList()
 )
 
 data class Exercise(
@@ -374,6 +376,21 @@ object ExerciseLibrary {
 
     fun byId(id: String): Exercise =
         all.first { it.id == id }
+
+    fun effective(preferences: TrainingPreferences): List<Exercise> {
+        val builtIns = all.map { exercise ->
+            preferences.exerciseOverrides[exercise.id] ?: exercise
+        }
+        return builtIns + preferences.customExercises
+    }
+
+    fun resolve(
+        id: String,
+        preferences: TrainingPreferences
+    ): Exercise? =
+        preferences.exerciseOverrides[id]
+            ?: preferences.customExercises.firstOrNull { it.id == id }
+            ?: all.firstOrNull { it.id == id }
 }
 
 object WorkoutPlanner {
@@ -657,8 +674,19 @@ object WorkoutPlanner {
         preferences: TrainingPreferences,
         fallbackId: String
     ): List<Exercise> {
-        val eligible = ids
-            .map(ExerciseLibrary::byId)
+        val categories = ids
+            .mapNotNull { ExerciseLibrary.resolve(it, preferences)?.category }
+            .toSet()
+
+        val builtInCandidates = ids
+            .mapNotNull { ExerciseLibrary.resolve(it, preferences) }
+
+        val customCandidates = preferences.customExercises.filter { exercise ->
+            exercise.category in categories
+        }
+
+        val eligible = (builtInCandidates + customCandidates)
+            .distinctBy { it.id }
             .filter { exercise ->
                 exercise.id !in preferences.avoidedExerciseIds &&
                     exercise.category !in preferences.disabledCategories &&
@@ -669,7 +697,8 @@ object WorkoutPlanner {
 
         if (eligible.isNotEmpty()) return eligible
 
-        val fallback = ExerciseLibrary.byId(fallbackId)
+        val fallback = ExerciseLibrary.resolve(fallbackId, preferences)
+            ?: return emptyList()
         val fallbackAllowed =
             fallback.id !in preferences.avoidedExerciseIds &&
                 fallback.category !in preferences.disabledCategories &&
@@ -779,7 +808,10 @@ object WorkoutPlanner {
         item: WorkoutExercise,
         preferences: TrainingPreferences
     ): WorkoutExercise? {
-        val exercise = item.exercise
+        val exercise = ExerciseLibrary.resolve(
+            item.exercise.id,
+            preferences
+        ) ?: item.exercise
 
         if (exercise.id in preferences.avoidedExerciseIds ||
             exercise.category in preferences.disabledCategories ||
@@ -792,11 +824,10 @@ object WorkoutPlanner {
         val customSeconds = preferences.exerciseWorkSeconds[exercise.id]
             ?.coerceIn(15, 120)
 
-        return if (customSeconds != null) {
-            item.copy(workSeconds = customSeconds)
-        } else {
-            item
-        }
+        return item.copy(
+            exercise = exercise,
+            workSeconds = customSeconds ?: item.workSeconds
+        )
     }
 
     private fun work(
