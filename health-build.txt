@@ -1,1 +1,1 @@
-Tempo Health 0.10.0 updater consent fix and library editor UX
+Tempo Health 0.11.0 full exercise editor and custom exercises
