@@ -39,6 +39,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -317,7 +320,8 @@ fun TempoHealthApp(
                 CategorySettingsScreen(
                     preferences = trainingPreferences,
                     onToggle = workoutViewModel::toggleCategory,
-                    onCycleIcon = workoutViewModel::cycleCategoryIcon
+                    onSetIcon = workoutViewModel::setCategoryIcon,
+                    onResetIcon = workoutViewModel::resetCategoryIcon
                 )
             }
 
@@ -1334,7 +1338,8 @@ private fun LibrarySettingsScreen(
 private fun CategorySettingsScreen(
     preferences: TrainingPreferences,
     onToggle: (ExerciseCategory) -> Unit,
-    onCycleIcon: (ExerciseCategory) -> Unit
+    onSetIcon: (ExerciseCategory, String) -> Unit,
+    onResetIcon: (ExerciseCategory) -> Unit
 ) {
     Screen(
         title = "Modifier les catégories",
@@ -1383,23 +1388,59 @@ private fun CategorySettingsScreen(
 
                         Spacer(Modifier.height(10.dp))
 
+                        Text(
+                            "Icône",
+                            fontWeight = FontWeight.SemiBold
+                        )
+
+                        val availableIcons = listOf(
+                            "🔥", "💪", "🦵", "🧠", "🧘", "🤸",
+                            "⚡", "❤️", "🏃", "🫁", "🦴", "🎯"
+                        )
+
+                        availableIcons.chunked(6).forEach { iconRow ->
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                iconRow.forEach { candidate ->
+                                    AssistChip(
+                                        onClick = {
+                                            onSetIcon(category, candidate)
+                                        },
+                                        modifier = Modifier.weight(1f),
+                                        label = {
+                                            Text(
+                                                if (candidate == icon) {
+                                                    "• " + candidate
+                                                } else {
+                                                    candidate
+                                                }
+                                            )
+                                        }
+                                    )
+                                }
+                            }
+                        }
+
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            AssistChip(
-                                onClick = { onCycleIcon(category) },
+                            OutlinedButton(
+                                onClick = { onResetIcon(category) },
                                 modifier = Modifier.weight(1f),
-                                label = { Text("Changer l'icône") }
-                            )
+                                enabled = category in preferences.categoryIcons
+                            ) {
+                                Text("ICÔNE DÉFAUT")
+                            }
 
-                            AssistChip(
+                            Button(
                                 onClick = { onToggle(category) },
-                                modifier = Modifier.weight(1f),
-                                label = {
-                                    Text(if (active) "Désactiver" else "Activer")
-                                }
-                            )
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text(if (active) "DÉSACTIVER" else "ACTIVER")
+                            }
                         }
                     }
                 }
@@ -1542,12 +1583,70 @@ private fun ExercisePreferencesScreen(
     onWorkSecondsChange: (String, Int) -> Unit,
     onResetWorkSeconds: (String) -> Unit
 ) {
+    var selectedCategory by remember {
+        mutableStateOf<ExerciseCategory?>(null)
+    }
+
+    val visibleExercises = ExerciseLibrary.all.filter { exercise ->
+        selectedCategory == null || exercise.category == selectedCategory
+    }
+
     Screen(
         title = "Modifier les exercices",
         subtitle = "Durée, favoris et exclusions sont appliqués aux prochaines séances."
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            ExerciseLibrary.all.forEach { exercise ->
+            Text("Filtrer par catégorie", fontWeight = FontWeight.Bold)
+
+            val filterOptions = listOf<ExerciseCategory?>(null) +
+                ExerciseCategory.entries
+
+            filterOptions.chunked(2).forEach { filterRow ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    filterRow.forEach { category ->
+                        AssistChip(
+                            onClick = { selectedCategory = category },
+                            modifier = Modifier.weight(1f),
+                            label = {
+                                Text(
+                                    if (category == null) {
+                                        if (selectedCategory == null) {
+                                            "• Toutes"
+                                        } else {
+                                            "Toutes"
+                                        }
+                                    } else {
+                                        val base = categoryIcon(
+                                            category,
+                                            preferences
+                                        ) + " " + categoryLabel(category)
+                                        if (selectedCategory == category) {
+                                            "• " + base
+                                        } else {
+                                            base
+                                        }
+                                    }
+                                )
+                            }
+                        )
+                    }
+
+                    if (filterRow.size == 1) {
+                        Spacer(Modifier.weight(1f))
+                    }
+                }
+            }
+
+            Text(
+                visibleExercises.size.toString() + " exercice(s)",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            visibleExercises.forEach { exercise ->
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(20.dp)
