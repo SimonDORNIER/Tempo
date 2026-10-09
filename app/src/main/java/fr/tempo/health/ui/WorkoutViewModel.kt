@@ -7,6 +7,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import fr.tempo.health.TempoHealthApplication
 import fr.tempo.health.data.WorkoutHistoryEntity
+import fr.tempo.health.domain.Exercise
 import fr.tempo.health.domain.ExerciseCategory
 import fr.tempo.health.domain.Equipment
 import fr.tempo.health.domain.TrainingPreferences
@@ -22,6 +23,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import org.json.JSONArray
+import org.json.JSONObject
 
 enum class WorkoutPhase {
     READY,
@@ -296,6 +299,71 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
         )
     }
 
+    fun saveExercise(exercise: Exercise) {
+        val current = _trainingPreferences.value
+        val isCustom = current.customExercises.any { it.id == exercise.id }
+
+        val updated = if (isCustom) {
+            current.copy(
+                customExercises = current.customExercises.map {
+                    if (it.id == exercise.id) exercise else it
+                }
+            )
+        } else {
+            current.copy(
+                exerciseOverrides =
+                    current.exerciseOverrides + (exercise.id to exercise)
+            )
+        }
+
+        updateTrainingPreferences(updated)
+    }
+
+    fun addCustomExercise(): String {
+        val id = "user-" + System.currentTimeMillis()
+        val exercise = Exercise(
+            id = id,
+            name = "Nouvel exercice",
+            category = ExerciseCategory.MOBILITY,
+            defaultWorkSeconds = 40,
+            instructions = "Décris ici comment réaliser l'exercice.",
+            cue = "Ajoute un conseil simple d'exécution.",
+            requiredEquipment = null
+        )
+
+        updateTrainingPreferences(
+            _trainingPreferences.value.copy(
+                customExercises =
+                    _trainingPreferences.value.customExercises + exercise
+            )
+        )
+        return id
+    }
+
+    fun deleteCustomExercise(id: String) {
+        val current = _trainingPreferences.value
+        updateTrainingPreferences(
+            current.copy(
+                customExercises = current.customExercises.filterNot {
+                    it.id == id
+                },
+                favoriteExerciseIds = current.favoriteExerciseIds - id,
+                avoidedExerciseIds = current.avoidedExerciseIds - id,
+                exerciseWorkSeconds = current.exerciseWorkSeconds - id
+            )
+        )
+    }
+
+    fun resetExerciseOverride(id: String) {
+        val current = _trainingPreferences.value
+        updateTrainingPreferences(
+            current.copy(
+                exerciseOverrides = current.exerciseOverrides - id,
+                exerciseWorkSeconds = current.exerciseWorkSeconds - id
+            )
+        )
+    }
+
     fun resetLibraryCustomizations() {
         updateTrainingPreferences(
             _trainingPreferences.value.copy(
@@ -338,6 +406,14 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
                 value.exerciseWorkSeconds.entries.joinToString("|") {
                     it.key + "=" + it.value
                 }
+            )
+            .putString(
+                "training-exercise-overrides",
+                exercisesToJson(value.exerciseOverrides.values.toList())
+            )
+            .putString(
+                "training-custom-exercises",
+                exercisesToJson(value.customExercises)
             )
             .apply()
     }
@@ -402,6 +478,20 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
             }
             .toMap()
 
+        val exerciseOverrides = exercisesFromJson(
+            preferences.getString(
+                "training-exercise-overrides",
+                "[]"
+            ).orEmpty()
+        ).associateBy { it.id }
+
+        val customExercises = exercisesFromJson(
+            preferences.getString(
+                "training-custom-exercises",
+                "[]"
+            ).orEmpty()
+        )
+
         return TrainingPreferences(
             durationMinutes = preferences
                 .getInt("training-duration", 20)
@@ -411,10 +501,76 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
             avoidedExerciseIds = csvSet("training-avoided"),
             disabledCategories = disabledCategories,
             categoryIcons = categoryIcons,
-            exerciseWorkSeconds = exerciseWorkSeconds
+            exerciseWorkSeconds = exerciseWorkSeconds,
+            exerciseOverrides = exerciseOverrides,
+            customExercises = customExercises
         )
     }
 
+
+    private fun exercisesToJson(exercises: List<Exercise>): String {
+        val array = JSONArray()
+        exercises.forEach { exercise ->
+            array.put(
+                JSONObject()
+                    .put("id", exercise.id)
+                    .put("name", exercise.name)
+                    .put("category", exercise.category.name)
+                    .put("seconds", exercise.defaultWorkSeconds)
+                    .put("instructions", exercise.instructions)
+                    .put("cue", exercise.cue)
+                    .put(
+                        "equipment",
+                        exercise.requiredEquipment?.name ?: ""
+                    )
+            )
+        }
+        return array.toString()
+    }
+
+    private fun exercisesFromJson(raw: String): List<Exercise> {
+        return runCatching {
+            val array = JSONArray(raw.ifBlank { "[]" })
+            buildList {
+                for (index in 0 until array.length()) {
+                    val item = array.getJSONObject(index)
+                    val category = runCatching {
+                        ExerciseCategory.valueOf(
+                            item.optString("category")
+                        )
+                    }.getOrDefault(ExerciseCategory.MOBILITY)
+
+                    val equipment = item.optString("equipment")
+                        .takeIf { it.isNotBlank() }
+                        ?.let { rawEquipment ->
+                            runCatching {
+                                Equipment.valueOf(rawEquipment)
+                            }.getOrNull()
+                        }
+
+                    val id = item.optString("id").trim()
+                    if (id.isBlank()) continue
+
+                    add(
+                        Exercise(
+                            id = id,
+                            name = item.optString("name", "Exercice"),
+                            category = category,
+                            defaultWorkSeconds = item
+                                .optInt("seconds", 40)
+                                .coerceIn(15, 120),
+                            instructions = item.optString(
+                                "instructions",
+                                ""
+                            ),
+                            cue = item.optString("cue", ""),
+                            requiredEquipment = equipment
+                        )
+                    )
+                }
+            }
+        }.getOrDefault(emptyList())
+    }
 
     private fun launchTimer() {
         timerJob?.cancel()
