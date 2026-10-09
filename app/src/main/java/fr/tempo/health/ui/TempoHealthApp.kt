@@ -982,12 +982,38 @@ private fun ProgressScreen(
     val weekCutoff = System.currentTimeMillis() - 7L * 24L * 60L * 60L * 1000L
     val recentWorkouts = history.filter { it.startedAtEpochMs >= weekCutoff }
     val completedWorkouts = recentWorkouts.filter { it.completed }
+    val completedAll = history.filter { it.completed }
+    val totalTrainingSeconds = completedAll.sumOf { it.durationSeconds }
+    val averageDifficulty = completedAll
+        .mapNotNull { it.perceivedDifficulty }
+        .takeIf { it.isNotEmpty() }
+        ?.average()
+    val longestWorkout = completedAll.maxByOrNull { it.durationSeconds }
 
     Screen(
         title = "Progression",
         subtitle = "Santé et entraînement sont maintenant suivis ensemble."
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            StatusCard(
+                "🏆",
+                "Bilan entraînement",
+                completedAll.size.toString() + " séance(s) terminée(s)",
+                "Temps total " + formatClock(totalTrainingSeconds) +
+                    (averageDifficulty?.let {
+                        " • difficulté moyenne " + oneDecimal(it) + "/5"
+                    } ?: "")
+            )
+
+            if (longestWorkout != null) {
+                StatusCard(
+                    "⏱️",
+                    "Plus longue séance",
+                    formatClock(longestWorkout.durationSeconds),
+                    longestWorkout.title
+                )
+            }
+
             StatusCard(
                 "📅",
                 "Moyenne 7 jours",
@@ -1842,18 +1868,25 @@ private fun FreeTimerScreen(
                         enabled = !state.running
                     )
 
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        listOf(1, 3, 5, 10, 15, 20).forEach { minutes ->
-                            AssistChip(
-                                onClick = { onMinutesChange(minutes) },
-                                enabled = !state.running,
-                                label = { Text(minutes.toString()) }
-                            )
+                    listOf(1, 3, 5, 10, 15, 20)
+                        .chunked(3)
+                        .forEach { minutesRow ->
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                minutesRow.forEach { minutes ->
+                                    AssistChip(
+                                        onClick = { onMinutesChange(minutes) },
+                                        enabled = !state.running,
+                                        modifier = Modifier.weight(1f),
+                                        label = {
+                                            Text(minutes.toString() + " min")
+                                        }
+                                    )
+                                }
+                            }
                         }
-                    }
                 }
             }
 
