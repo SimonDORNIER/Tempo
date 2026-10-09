@@ -251,17 +251,26 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
         )
     }
 
-    fun cycleCategoryIcon(category: ExerciseCategory) {
-        val current = _trainingPreferences.value
-        val icons = listOf("🔥", "💪", "🦵", "🧠", "🧘", "🤸", "⚡", "❤️")
-        val default = defaultCategoryIcon(category)
-        val currentIcon = current.categoryIcons[category] ?: default
-        val currentIndex = icons.indexOf(currentIcon).takeIf { it >= 0 } ?: -1
-        val next = icons[(currentIndex + 1) % icons.size]
+    fun setCategoryIcon(category: ExerciseCategory, icon: String) {
+        val allowed = setOf(
+            "🔥", "💪", "🦵", "🧠", "🧘", "🤸",
+            "⚡", "❤️", "🏃", "🫁", "🦴", "🎯"
+        )
+        if (icon !in allowed) return
 
+        val current = _trainingPreferences.value
         updateTrainingPreferences(
             current.copy(
-                categoryIcons = current.categoryIcons + (category to next)
+                categoryIcons = current.categoryIcons + (category to icon)
+            )
+        )
+    }
+
+    fun resetCategoryIcon(category: ExerciseCategory) {
+        val current = _trainingPreferences.value
+        updateTrainingPreferences(
+            current.copy(
+                categoryIcons = current.categoryIcons - category
             )
         )
     }
