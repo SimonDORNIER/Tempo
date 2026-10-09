@@ -9,6 +9,7 @@ import fr.tempo.health.TempoHealthApplication
 import fr.tempo.health.data.WorkoutHistoryEntity
 import fr.tempo.health.domain.Exercise
 import fr.tempo.health.domain.ExerciseCategory
+import fr.tempo.health.domain.ExerciseLibrary
 import fr.tempo.health.domain.Equipment
 import fr.tempo.health.domain.TrainingPreferences
 import fr.tempo.health.domain.RecoveryResult
@@ -80,6 +81,7 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
     private var toneGenerator: ToneGenerator? = null
     private var sessionStartedAtEpochMs: Long? = null
     private var sessionRecorded = false
+    private var replacementSerial = 0
 
     init {
         rebuildToneGenerator()
@@ -125,6 +127,68 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
         )
         playStartTone()
         launchTimer()
+    }
+
+    fun replaceCurrentExercise() {
+        val state = _state.value
+        val plan = state.plan ?: return
+        val current = plan.items.getOrNull(state.exerciseIndex) ?: return
+        val prefs = _trainingPreferences.value
+        val usedIds = plan.items.map { it.exercise.id }.toSet()
+
+        val allCandidates = ExerciseLibrary.effective(prefs)
+            .filter { exercise ->
+                exercise.category == current.exercise.category &&
+                    exercise.id != current.exercise.id &&
+                    exercise.id !in prefs.avoidedExerciseIds &&
+                    exercise.category !in prefs.disabledCategories &&
+                    (exercise.requiredEquipment == null ||
+                        exercise.requiredEquipment in prefs.availableEquipment)
+            }
+
+        val candidates = allCandidates.filter { it.id !in usedIds }
+            .ifEmpty { allCandidates }
+
+        if (candidates.isEmpty()) return
+
+        replacementSerial++
+        val replacement = candidates[
+            replacementSerial % candidates.size
+        ]
+
+        val replacementItem = current.copy(
+            exercise = replacement,
+            workSeconds = prefs.exerciseWorkSeconds[replacement.id]
+                ?: replacement.defaultWorkSeconds
+        )
+
+        val updatedItems = plan.items.toMutableList().apply {
+            set(state.exerciseIndex, replacementItem)
+        }
+
+        val restartPreparation =
+            state.phase == WorkoutPhase.WORK ||
+                state.phase == WorkoutPhase.PREPARE
+
+        _state.value = state.copy(
+            plan = plan.copy(items = updatedItems),
+            phase = if (restartPreparation) {
+                WorkoutPhase.PREPARE
+            } else {
+                state.phase
+            },
+            remainingSeconds = if (restartPreparation) {
+                PREPARE_SECONDS
+            } else {
+                state.remainingSeconds
+            },
+            midpointPlayed = false,
+            paused = false
+        )
+
+        if (restartPreparation) {
+            playStartTone()
+        }
     }
 
     fun togglePause() {
