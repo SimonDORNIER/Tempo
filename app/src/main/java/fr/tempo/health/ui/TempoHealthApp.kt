@@ -104,6 +104,8 @@ fun TempoHealthApp(
     val recovery by healthViewModel.recovery.collectAsStateWithLifecycle()
     val availability by healthViewModel.availability.collectAsStateWithLifecycle()
     val hasPermissions by healthViewModel.hasPermissions.collectAsStateWithLifecycle()
+    val missingPermissionLabels by
+        healthViewModel.missingPermissionLabels.collectAsStateWithLifecycle()
     val syncing by healthViewModel.syncing.collectAsStateWithLifecycle()
     val message by healthViewModel.message.collectAsStateWithLifecycle()
     val workoutState by workoutViewModel.state.collectAsStateWithLifecycle()
@@ -230,6 +232,7 @@ fun TempoHealthApp(
                     days = recentDays,
                     availability = availability,
                     hasPermissions = hasPermissions,
+                    missingPermissionLabels = missingPermissionLabels,
                     syncing = syncing,
                     message = message,
                     requestPermissions = {
@@ -712,12 +715,15 @@ private fun HealthScreen(
     days: List<DailyHealthEntity>,
     availability: HealthConnectAvailability,
     hasPermissions: Boolean,
+    missingPermissionLabels: List<String>,
     syncing: Boolean,
     message: String?,
     requestPermissions: () -> Unit,
     sync: () -> Unit
 ) {
     val latest = days.firstOrNull()
+    val week = days.take(7)
+    val month = days.take(28)
 
     Screen(
         title = "Santé",
@@ -768,6 +774,15 @@ private fun HealthScreen(
                 )
             }
 
+            if (hasPermissions && missingPermissionLabels.isNotEmpty()) {
+                StatusCard(
+                    "⚠️",
+                    "Données non autorisées",
+                    missingPermissionLabels.size.toString() + " type(s)",
+                    missingPermissionLabels.joinToString(" • ")
+                )
+            }
+
             StatusCard(
                 "😴",
                 "Sommeil",
@@ -801,6 +816,55 @@ private fun HealthScreen(
                 "Corps & cardio",
                 latest?.weightKg?.let { oneDecimal(it) + " kg" } ?: "Poids —",
                 "VO₂ max " + (latest?.vo2Max?.let(::oneDecimal) ?: "—")
+            )
+
+            HealthAverageComparisonCard(
+                emoji = "😴",
+                title = "Sommeil • 7 j vs 28 j",
+                weekValues = week.mapNotNull {
+                    it.sleepMinutes?.toDouble()
+                },
+                monthValues = month.mapNotNull {
+                    it.sleepMinutes?.toDouble()
+                },
+                valueText = { value ->
+                    formatMinutes(value.toLong())
+                }
+            )
+
+            HealthAverageComparisonCard(
+                emoji = "❤️",
+                title = "VFC • 7 j vs 28 j",
+                weekValues = week.mapNotNull { it.hrvRmssdMs },
+                monthValues = month.mapNotNull { it.hrvRmssdMs },
+                valueText = { value ->
+                    oneDecimal(value) + " ms"
+                }
+            )
+
+            HealthAverageComparisonCard(
+                emoji = "💓",
+                title = "FC repos • 7 j vs 28 j",
+                weekValues = week.mapNotNull { it.restingHeartRate },
+                monthValues = month.mapNotNull { it.restingHeartRate },
+                valueText = { value ->
+                    oneDecimal(value) + " bpm"
+                },
+                lowerIsBetter = true
+            )
+
+            HealthAverageComparisonCard(
+                emoji = "🚶",
+                title = "Pas • 7 j vs 28 j",
+                weekValues = week.mapNotNull {
+                    it.steps?.toDouble()
+                },
+                monthValues = month.mapNotNull {
+                    it.steps?.toDouble()
+                },
+                valueText = { value ->
+                    value.toLong().toString() + " pas/j"
+                }
             )
 
             TrendCard(
@@ -993,6 +1057,37 @@ private fun ProgressScreen(
             }
         }
     }
+}
+
+@Composable
+private fun HealthAverageComparisonCard(
+    emoji: String,
+    title: String,
+    weekValues: List<Double>,
+    monthValues: List<Double>,
+    valueText: (Double) -> String,
+    lowerIsBetter: Boolean = false
+) {
+    if (weekValues.isEmpty() || monthValues.isEmpty()) return
+
+    val weekAverage = weekValues.average()
+    val monthAverage = monthValues.average()
+    val delta = weekAverage - monthAverage
+    val threshold = kotlin.math.abs(monthAverage) * 0.03
+
+    val trend = when {
+        kotlin.math.abs(delta) <= threshold -> "≈ stable"
+        (delta > 0 && !lowerIsBetter) ||
+            (delta < 0 && lowerIsBetter) -> "↗ favorable"
+        else -> "↘ à surveiller"
+    }
+
+    StatusCard(
+        emoji,
+        title,
+        valueText(weekAverage),
+        "Référence 28 j : " + valueText(monthAverage) + " • " + trend
+    )
 }
 
 @Composable
