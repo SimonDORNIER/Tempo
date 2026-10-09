@@ -97,6 +97,7 @@ class FreeTimerViewModel(application: Application) : AndroidViewModel(applicatio
     }
 
     private fun playFinishTone() {
+        if (!preferences.getBoolean("sound-end-enabled", true)) return
         val volume = preferences.getInt("sound-volume", 70).coerceIn(0, 100)
         if (volume <= 0) return
 
