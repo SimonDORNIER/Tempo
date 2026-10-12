@@ -15,8 +15,8 @@ android {
         applicationId = "fr.tempo.health"
         minSdk = 28
         targetSdk = 36
-        versionCode = (project.findProperty("VERSION_CODE") as String?)?.toInt() ?: 10300
-        versionName = project.findProperty("VERSION_NAME") as String? ?: "1.3.0"
+        versionCode = (project.findProperty("VERSION_CODE") as String?)?.toInt() ?: 10400
+        versionName = project.findProperty("VERSION_NAME") as String? ?: "1.4.0"
     }
 
     buildFeatures {
