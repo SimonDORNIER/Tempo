@@ -5,6 +5,12 @@ import android.content.Intent
 import android.net.Uri
 import androidx.room.withTransaction
 import fr.tempo.health.BuildConfig
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -38,6 +44,8 @@ class FullBackupManager(
     )
     private val database = TempoHealthDatabase.get(context)
     private val resolver = context.contentResolver
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private var autoBackupJob: Job? = null
 
     fun hasDestination(): Boolean =
         !preferences.getString(PREF_BACKUP_URI, null).isNullOrBlank()
@@ -105,6 +113,16 @@ class FullBackupManager(
 
     suspend fun backupIfConfigured(): BackupResult? =
         if (hasDestination()) backupToSavedLocation() else null
+
+    fun requestAutoBackup(delayMillis: Long = 800L) {
+        if (!hasDestination()) return
+
+        autoBackupJob?.cancel()
+        autoBackupJob = scope.launch {
+            delay(delayMillis.coerceAtLeast(0L))
+            backupToSavedLocation()
+        }
+    }
 
     suspend fun backupTo(uri: Uri): BackupResult =
         runCatching {
