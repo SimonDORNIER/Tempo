@@ -18,7 +18,6 @@ import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import fr.tempo.health.MainActivity
-import fr.tempo.health.R
 import java.time.DayOfWeek
 import java.time.Duration
 import java.time.ZonedDateTime
@@ -289,7 +288,7 @@ class ReminderWorker(
             applicationContext,
             ReminderManager.CHANNEL_ID
         )
-            .setSmallIcon(R.mipmap.ic_launcher)
+            .setSmallIcon(android.R.drawable.ic_dialog_info)
             .setContentTitle(title)
             .setContentText(text)
             .setStyle(NotificationCompat.BigTextStyle().bigText(text))
