@@ -4,9 +4,12 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.lifecycle.lifecycleScope
 import fr.tempo.health.ui.TempoHealthApp
 import fr.tempo.health.ui.theme.TempoHealthTheme
 import fr.tempo.health.update.AutoUpdater
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     private lateinit var autoUpdater: AutoUpdater
@@ -33,6 +36,16 @@ class MainActivity : ComponentActivity() {
         if (::autoUpdater.isInitialized) {
             autoUpdater.onResume()
         }
+    }
+
+    override fun onStop() {
+        val app = application as TempoHealthApplication
+        if (app.fullBackupManager.hasDestination()) {
+            lifecycleScope.launch(Dispatchers.IO) {
+                app.fullBackupManager.backupToSavedLocation()
+            }
+        }
+        super.onStop()
     }
 
     override fun onDestroy() {
