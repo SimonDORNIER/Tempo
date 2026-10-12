@@ -1,1 +1,1 @@
-Tempo Health 1.3.0 configurable reminders and routines - notification icon build fix
+Tempo Health 1.4.0 personalized recovery baselines and daily coach
