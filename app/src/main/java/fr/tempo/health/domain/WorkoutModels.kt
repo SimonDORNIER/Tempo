@@ -15,6 +15,14 @@ enum class Equipment {
     CHAIR
 }
 
+enum class TrainingGoal {
+    PAIN_FREE,
+    MOBILITY,
+    FITNESS,
+    STRENGTH,
+    RELAXATION
+}
+
 data class TrainingPreferences(
     val durationMinutes: Int = 20,
     val availableEquipment: Set<Equipment> = setOf(Equipment.MAT, Equipment.CHAIR),
@@ -23,6 +31,7 @@ data class TrainingPreferences(
     val disabledCategories: Set<ExerciseCategory> = emptySet(),
     val categoryIcons: Map<ExerciseCategory, String> = emptyMap(),
     val exerciseWorkSeconds: Map<String, Int> = emptyMap(),
+    val goal: TrainingGoal = TrainingGoal.FITNESS,
     val exerciseOverrides: Map<String, Exercise> = emptyMap(),
     val customExercises: List<Exercise> = emptyList()
 )
@@ -427,29 +436,60 @@ object WorkoutPlanner {
             RecoveryLevel.UNKNOWN -> preferences.durationMinutes.coerceAtMost(12)
         }.coerceIn(8, 40)
 
-        val basePlan = when (recovery.level) {
-            RecoveryLevel.GREEN -> buildGreen(
-                focus = focus,
-                intensity = adjustedIntensity,
-                scale = difficultyScale,
-                preferences = preferences
-            )
+        val basePlan = when {
+            recovery.level == RecoveryLevel.RED ->
+                buildRecovery(
+                    intensity = adjustedIntensity.coerceAtMost(3),
+                    preferences = preferences
+                )
 
-            RecoveryLevel.ORANGE -> buildActivation(
-                intensity = adjustedIntensity.coerceAtMost(5),
-                scale = difficultyScale,
-                preferences = preferences
-            )
+            recovery.level == RecoveryLevel.UNKNOWN ->
+                buildRecovery(
+                    intensity = 2,
+                    preferences = preferences
+                )
 
-            RecoveryLevel.RED -> buildRecovery(
-                intensity = adjustedIntensity.coerceAtMost(3),
-                preferences = preferences
-            )
+            preferences.goal == TrainingGoal.RELAXATION ->
+                buildRecovery(
+                    intensity = adjustedIntensity.coerceAtMost(3),
+                    preferences = preferences
+                ).copy(title = "Détente + mobilité")
 
-            RecoveryLevel.UNKNOWN -> buildRecovery(
-                intensity = 2,
-                preferences = preferences
-            )
+            preferences.goal == TrainingGoal.MOBILITY ->
+                buildMobilityGoal(
+                    intensity = adjustedIntensity.coerceAtMost(5),
+                    preferences = preferences
+                )
+
+            preferences.goal == TrainingGoal.PAIN_FREE ->
+                buildPainFreeGoal(
+                    intensity = adjustedIntensity.coerceAtMost(5),
+                    scale = difficultyScale,
+                    preferences = preferences
+                )
+
+            recovery.level == RecoveryLevel.ORANGE ->
+                buildActivation(
+                    intensity = adjustedIntensity.coerceAtMost(5),
+                    scale = difficultyScale,
+                    preferences = preferences
+                )
+
+            else ->
+                buildGreen(
+                    focus = focus,
+                    intensity = if (preferences.goal == TrainingGoal.STRENGTH) {
+                        (adjustedIntensity + 1).coerceAtMost(8)
+                    } else {
+                        adjustedIntensity
+                    },
+                    scale = if (preferences.goal == TrainingGoal.STRENGTH) {
+                        (difficultyScale * 1.05).coerceAtMost(1.12)
+                    } else {
+                        difficultyScale
+                    },
+                    preferences = preferences
+                )
         }
 
         val customizedItems = basePlan.items.mapNotNull { item ->
@@ -632,6 +672,98 @@ object WorkoutPlanner {
                         exercise = exercise,
                         workSeconds = exercise.defaultWorkSeconds,
                         restSeconds = if (index == mobility.lastIndex) 0 else 10
+                    )
+                })
+            }
+        )
+    }
+
+    private fun buildMobilityGoal(
+        intensity: Int,
+        preferences: TrainingPreferences
+    ): WorkoutPlan {
+        val exercises = chooseExercises(
+            ids = listOf(
+                "arm-circles",
+                "cat-cow",
+                "thoracic-rotation",
+                "seated-thoracic-rotation",
+                "hip-90-90",
+                "ankle-rocks",
+                "world-stretch",
+                "single-leg-balance",
+                "hip-flexor-stretch",
+                "hamstring-hinge",
+                "chest-opener",
+                "child-pose-reach"
+            ),
+            preferences = preferences,
+            fallbackId = "arm-circles"
+        )
+
+        return WorkoutPlan(
+            title = "Mobilité complète",
+            intensity = intensity.coerceAtMost(5),
+            items = exercises.mapIndexed { index, exercise ->
+                WorkoutExercise(
+                    exercise = exercise,
+                    workSeconds = exercise.defaultWorkSeconds,
+                    restSeconds = if (index == exercises.lastIndex) 0 else 8
+                )
+            }
+        )
+    }
+
+    private fun buildPainFreeGoal(
+        intensity: Int,
+        scale: Double,
+        preferences: TrainingPreferences
+    ): WorkoutPlan {
+        val control = chooseExercises(
+            ids = listOf(
+                "bird-dog",
+                "dead-bug",
+                "glute-bridge",
+                "chair-sit-stand",
+                "wall-pushups",
+                "good-mornings",
+                "single-leg-balance"
+            ),
+            preferences = preferences,
+            fallbackId = "bird-dog"
+        ).take(5)
+
+        val mobility = chooseExercises(
+            ids = listOf(
+                "cat-cow",
+                "thoracic-rotation",
+                "hip-90-90",
+                "ankle-rocks",
+                "hip-flexor-stretch",
+                "chest-opener"
+            ),
+            preferences = preferences,
+            fallbackId = "cat-cow"
+        ).take(4)
+
+        return WorkoutPlan(
+            title = "Contrôle + mobilité",
+            intensity = intensity.coerceAtMost(5),
+            items = buildList {
+                addAll(control.map { exercise ->
+                    WorkoutExercise(
+                        exercise = exercise,
+                        workSeconds = (exercise.defaultWorkSeconds * scale)
+                            .toInt()
+                            .coerceIn(20, 60),
+                        restSeconds = 12
+                    )
+                })
+                addAll(mobility.mapIndexed { index, exercise ->
+                    WorkoutExercise(
+                        exercise = exercise,
+                        workSeconds = exercise.defaultWorkSeconds,
+                        restSeconds = if (index == mobility.lastIndex) 0 else 8
                     )
                 })
             }
