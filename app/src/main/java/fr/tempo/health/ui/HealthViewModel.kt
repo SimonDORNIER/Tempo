@@ -18,8 +18,9 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 class HealthViewModel(application: Application) : AndroidViewModel(application) {
-    private val repository =
-        (application as TempoHealthApplication).healthRepository
+    private val app = application as TempoHealthApplication
+    private val repository = app.healthRepository
+    private val backupManager = app.fullBackupManager
 
     val requiredPermissions: Set<String> = repository.requiredPermissions
 
@@ -119,6 +120,7 @@ class HealthViewModel(application: Application) : AndroidViewModel(application) 
     fun saveCheckIn(energy: Int, pain: Int) {
         viewModelScope.launch {
             repository.saveTodayCheckIn(energy, pain)
+            backupManager.requestAutoBackup(delayMillis = 0L)
         }
     }
 
@@ -160,6 +162,7 @@ class HealthViewModel(application: Application) : AndroidViewModel(application) 
                     _message.value = "Synchronisation des 28 derniers jours terminée."
                 }
                 _hasPermissions.value = true
+                backupManager.requestAutoBackup()
             }.onFailure { error ->
                 if (full) {
                     _message.value =
