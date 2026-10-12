@@ -44,6 +44,7 @@ object RecoveryEngine {
             )
 
         val baseline = days.drop(1).take(27)
+        val recentBaseline = baseline.take(7)
         var score = 70
         val reasons = mutableListOf<String>()
         val factors = mutableListOf<RecoveryFactor>()
@@ -51,7 +52,7 @@ object RecoveryEngine {
 
         val sleepBase = baseline
             .mapNotNull { it.sleepMinutes?.toDouble() }
-            .averageOrNull()
+            .medianOrNull()
 
         compareHigherIsBetter(
             current = latest.sleepMinutes?.toDouble(),
@@ -67,7 +68,7 @@ object RecoveryEngine {
             if (result.factor.state != RecoveryFactorState.MISSING) availableSignals++
         }
 
-        val hrvBase = baseline.mapNotNull { it.hrvRmssdMs }.averageOrNull()
+        val hrvBase = baseline.mapNotNull { it.hrvRmssdMs }.medianOrNull()
         compareHigherIsBetter(
             current = latest.hrvRmssdMs,
             baseline = hrvBase,
@@ -82,7 +83,7 @@ object RecoveryEngine {
             if (result.factor.state != RecoveryFactorState.MISSING) availableSignals++
         }
 
-        val rhrBase = baseline.mapNotNull { it.restingHeartRate }.averageOrNull()
+        val rhrBase = baseline.mapNotNull { it.restingHeartRate }.medianOrNull()
         val rhr = latest.restingHeartRate
         if (rhr != null && rhrBase != null) {
             val diff = rhr - rhrBase
@@ -121,10 +122,67 @@ object RecoveryEngine {
             )
         }
 
+        val trendComparisons = listOfNotNull(
+            comparePersonalTrend(
+                label = "Sommeil 7 j",
+                recent = recentBaseline
+                    .mapNotNull { it.sleepMinutes?.toDouble() }
+                    .averageOrNull(),
+                longTerm = baseline
+                    .mapNotNull { it.sleepMinutes?.toDouble() }
+                    .medianOrNull(),
+                higherIsBetter = true,
+                format = { value -> formatDuration(value.roundToInt()) }
+            ),
+            comparePersonalTrend(
+                label = "HRV 7 j",
+                recent = recentBaseline
+                    .mapNotNull { it.hrvRmssdMs }
+                    .averageOrNull(),
+                longTerm = baseline
+                    .mapNotNull { it.hrvRmssdMs }
+                    .medianOrNull(),
+                higherIsBetter = true,
+                format = { value -> value.roundToInt().toString() + " ms" }
+            ),
+            comparePersonalTrend(
+                label = "FC repos 7 j",
+                recent = recentBaseline
+                    .mapNotNull { it.restingHeartRate }
+                    .averageOrNull(),
+                longTerm = baseline
+                    .mapNotNull { it.restingHeartRate }
+                    .medianOrNull(),
+                higherIsBetter = false,
+                format = { value -> value.roundToInt().toString() + " bpm" }
+            )
+        )
+
+        trendComparisons.forEach { trend ->
+            score += trend.impact
+            factors += trend.factor
+            trend.reason?.let(reasons::add)
+        }
+
         val recentExercise = days.take(3).sumOf { it.exerciseMinutes ?: 0L }
+        val exerciseDailyReference = baseline
+            .mapNotNull { it.exerciseMinutes?.toDouble() }
+            .medianOrNull()
+        val threeDayReference = exerciseDailyReference
+            ?.times(3.0)
+            ?.coerceAtLeast(30.0)
+
+        val loadRatio = threeDayReference?.takeIf { it > 0.0 }?.let {
+            recentExercise / it
+        }
         val loadImpact = when {
-            recentExercise >= 150 -> -10
-            recentExercise >= 90 -> -5
+            loadRatio == null -> when {
+                recentExercise >= 150 -> -10
+                recentExercise >= 90 -> -5
+                else -> 0
+            }
+            loadRatio >= 1.8 -> -10
+            loadRatio >= 1.3 -> -5
             else -> 0
         }
         score += loadImpact
@@ -132,7 +190,8 @@ object RecoveryEngine {
         factors += RecoveryFactor(
             label = "Charge 3 jours",
             value = recentExercise.toString() + " min",
-            reference = "< 90 min = faible",
+            reference = threeDayReference?.roundToInt()?.toString()?.plus(" min habituel")
+                ?: "Référence en construction",
             state = if (loadImpact < 0) {
                 RecoveryFactorState.NEGATIVE
             } else {
@@ -140,10 +199,15 @@ object RecoveryEngine {
             },
             impact = loadImpact
         )
-        if (recentExercise >= 150) {
-            reasons += "Charge sportive élevée sur les 3 derniers jours."
-        } else if (recentExercise >= 90) {
-            reasons += "Charge sportive récente modérée."
+        when {
+            loadRatio != null && loadRatio >= 1.8 ->
+                reasons += "Charge sportive très au-dessus de ton niveau récent habituel."
+            loadRatio != null && loadRatio >= 1.3 ->
+                reasons += "Charge sportive au-dessus de ton niveau habituel."
+            loadRatio == null && recentExercise >= 150 ->
+                reasons += "Charge sportive élevée sur les 3 derniers jours."
+            loadRatio == null && recentExercise >= 90 ->
+                reasons += "Charge sportive récente modérée."
         }
 
         if (checkIn != null) {
@@ -313,6 +377,48 @@ object RecoveryEngine {
         )
     }
 
+    private fun comparePersonalTrend(
+        label: String,
+        recent: Double?,
+        longTerm: Double?,
+        higherIsBetter: Boolean,
+        format: (Double) -> String
+    ): ComparisonResult? {
+        if (recent == null || longTerm == null || longTerm <= 0.0) return null
+
+        val ratio = recent / longTerm
+        val direction = if (higherIsBetter) ratio - 1.0 else 1.0 - ratio
+        val impact = when {
+            direction <= -0.12 -> -5
+            direction <= -0.07 -> -3
+            direction >= 0.08 -> 2
+            else -> 0
+        }
+        val state = when {
+            impact > 0 -> RecoveryFactorState.POSITIVE
+            impact < 0 -> RecoveryFactorState.NEGATIVE
+            else -> RecoveryFactorState.NEUTRAL
+        }
+        val reason = when {
+            impact <= -5 -> "$label nettement moins favorable que ta tendance longue."
+            impact < 0 -> "$label un peu moins favorable que ta tendance longue."
+            impact > 0 -> "$label évolue favorablement."
+            else -> null
+        }
+
+        return ComparisonResult(
+            impact = impact,
+            factor = RecoveryFactor(
+                label = label,
+                value = format(recent),
+                reference = format(longTerm),
+                state = state,
+                impact = impact
+            ),
+            reason = reason
+        )
+    }
+
     private fun formatDuration(minutes: Int): String {
         val hours = minutes / 60
         val rest = minutes % 60
@@ -325,4 +431,15 @@ object RecoveryEngine {
 
     private fun List<Double>.averageOrNull(): Double? =
         if (isEmpty()) null else average()
+
+    private fun List<Double>.medianOrNull(): Double? {
+        if (isEmpty()) return null
+        val sorted = sorted()
+        val middle = sorted.size / 2
+        return if (sorted.size % 2 == 0) {
+            (sorted[middle - 1] + sorted[middle]) / 2.0
+        } else {
+            sorted[middle]
+        }
+    }
 }
