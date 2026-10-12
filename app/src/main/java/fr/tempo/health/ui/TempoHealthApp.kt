@@ -74,7 +74,10 @@ import fr.tempo.health.domain.Equipment
 import fr.tempo.health.domain.Exercise
 import fr.tempo.health.domain.ExerciseCategory
 import fr.tempo.health.domain.ExerciseLibrary
+import fr.tempo.health.domain.TrainingGoal
 import fr.tempo.health.domain.TrainingPreferences
+import fr.tempo.health.domain.WeeklyProgram
+import fr.tempo.health.domain.ProgramDayKind
 import fr.tempo.health.domain.RecoveryFactorState
 import fr.tempo.health.domain.RecoveryLevel
 import fr.tempo.health.domain.RecoveryResult
@@ -136,6 +139,7 @@ fun TempoHealthApp(
     val backupState by backupViewModel.state.collectAsStateWithLifecycle()
     val reminderSettings by reminderViewModel.settings.collectAsStateWithLifecycle()
     val previewPlan = workoutViewModel.previewPlan(recovery)
+    val weeklyProgram = workoutViewModel.weeklyProgram(recovery)
 
     val context = LocalContext.current
     var notificationPermissionGranted by remember {
@@ -188,6 +192,7 @@ fun TempoHealthApp(
                                 "category-settings" -> "Catégories"
                                 "exercise-settings" -> "Exercices"
                                 "timer" -> "Minuteur"
+                                "program" -> "Mon programme"
                                 "workout" -> "Séance"
                                 else -> selectedDestination?.label ?: "Tempo Health"
                             },
@@ -198,6 +203,7 @@ fun TempoHealthApp(
                             currentRoute != "category-settings" &&
                             currentRoute != "exercise-settings" &&
                             currentRoute != "timer" &&
+                            currentRoute != "program" &&
                             currentRoute != "workout"
                         ) {
                             Text(
@@ -211,6 +217,7 @@ fun TempoHealthApp(
                 actions = {
                     if (currentRoute != "settings" &&
                         currentRoute != "exercise-settings" &&
+                        currentRoute != "program" &&
                         currentRoute != "workout"
                     ) {
                         IconButton(onClick = { navController.navigate("settings") }) {
@@ -302,6 +309,22 @@ fun TempoHealthApp(
                     recovery = recovery,
                     plan = previewPlan,
                     history = workoutHistory,
+                    goal = trainingPreferences.goal,
+                    onOpenProgram = {
+                        navController.navigate("program")
+                    },
+                    onStart = {
+                        workoutViewModel.prepare(recovery)
+                        navController.navigate("workout")
+                    }
+                )
+            }
+
+            composable("program") {
+                ProgramScreen(
+                    program = weeklyProgram,
+                    selectedGoal = trainingPreferences.goal,
+                    onGoalChange = workoutViewModel::setTrainingGoal,
                     onStart = {
                         workoutViewModel.prepare(recovery)
                         navController.navigate("workout")
@@ -994,6 +1017,8 @@ private fun TrainingScreen(
     recovery: RecoveryResult,
     plan: WorkoutPlan,
     history: List<WorkoutHistoryEntity>,
+    goal: TrainingGoal,
+    onOpenProgram: () -> Unit,
     onStart: () -> Unit
 ) {
     val last = history.firstOrNull()
@@ -1028,6 +1053,13 @@ private fun TrainingScreen(
                 Text("COMMENCER")
             }
 
+            OutlinedButton(
+                onClick = onOpenProgram,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("📅 MON PROGRAMME • " + trainingGoalLabel(goal).uppercase())
+            }
+
             if (last != null) {
                 StatusCard(
                     if (last.completed) "✅" else "⏹️",
@@ -1052,6 +1084,122 @@ private fun TrainingScreen(
                 "Programmation locale",
                 "Historique actif",
                 "Le moteur évite si possible les groupes sollicités dans les dernières 48 h."
+            )
+        }
+    }
+}
+
+@Composable
+private fun ProgramScreen(
+    program: WeeklyProgram,
+    selectedGoal: TrainingGoal,
+    onGoalChange: (TrainingGoal) -> Unit,
+    onStart: () -> Unit
+) {
+    Screen(
+        title = "Mon programme",
+        subtitle = "Une semaine adaptée à ton objectif, ton historique et ta récupération."
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text("Mon objectif", fontWeight = FontWeight.Bold)
+
+            TrainingGoal.entries.chunked(2).forEach { rowGoals ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    rowGoals.forEach { goal ->
+                        AssistChip(
+                            onClick = { onGoalChange(goal) },
+                            modifier = Modifier.weight(1f),
+                            label = {
+                                Text(
+                                    if (selectedGoal == goal) {
+                                        "• " + trainingGoalLabel(goal)
+                                    } else {
+                                        trainingGoalLabel(goal)
+                                    }
+                                )
+                            }
+                        )
+                    }
+                    if (rowGoals.size == 1) {
+                        Spacer(Modifier.weight(1f))
+                    }
+                }
+            }
+
+            StatusCard(
+                "🎯",
+                "Semaine " + program.weekNumber,
+                "Niveau " + program.level + "/4",
+                program.completedThisWeek.toString() + "/" +
+                    program.targetSessions + " séance(s) faite(s)" +
+                    if (program.missedThisWeek > 0) {
+                        " • " + program.missedThisWeek + " manquée(s)"
+                    } else {
+                        ""
+                    }
+            )
+
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(24.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer
+                )
+            ) {
+                Column(
+                    modifier = Modifier.padding(18.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        "Aujourd'hui",
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                    Text(
+                        program.todayGuidance,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                    Button(
+                        onClick = onStart,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("LANCER LA SÉANCE ADAPTÉE")
+                    }
+                }
+            }
+
+            Text("Cette semaine", fontWeight = FontWeight.Bold)
+
+            program.days.forEach { day ->
+                val icon = when {
+                    day.completed -> "✅"
+                    day.missed -> "↩️"
+                    day.kind == ProgramDayKind.SESSION -> "🏋️"
+                    day.kind == ProgramDayKind.MOBILITY -> "🤸"
+                    else -> "🌿"
+                }
+
+                StatusCard(
+                    icon,
+                    day.label + " • " + day.title,
+                    day.minutes.toString() + " min",
+                    when {
+                        day.completed -> "Terminé"
+                        day.missed -> "Manqué • pas besoin de doubler la prochaine séance"
+                        day.kind == ProgramDayKind.SESSION -> "Séance prévue"
+                        day.kind == ProgramDayKind.MOBILITY -> "Mobilité / récupération active"
+                        else -> "Récupération"
+                    }
+                )
+            }
+
+            Text(
+                "La progression monte progressivement si les séances sont régulières et bien tolérées. Une difficulté élevée réduit automatiquement le niveau suivant.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }
@@ -2828,6 +2976,15 @@ private fun WorkoutSessionScreen(
         }
     }
 }
+
+private fun trainingGoalLabel(goal: TrainingGoal): String =
+    when (goal) {
+        TrainingGoal.PAIN_FREE -> "Moins de douleurs"
+        TrainingGoal.MOBILITY -> "Mobilité"
+        TrainingGoal.FITNESS -> "Remise en forme"
+        TrainingGoal.STRENGTH -> "Renforcement"
+        TrainingGoal.RELAXATION -> "Détente"
+    }
 
 private fun categoryLabel(category: ExerciseCategory): String =
     when (category) {
