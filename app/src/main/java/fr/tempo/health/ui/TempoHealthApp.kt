@@ -1,6 +1,7 @@
 package fr.tempo.health.ui
 
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -59,6 +60,7 @@ import androidx.navigation.compose.rememberNavController
 import fr.tempo.health.BuildConfig
 import fr.tempo.health.data.DailyCheckInEntity
 import fr.tempo.health.data.DailyHealthEntity
+import fr.tempo.health.data.FullBackupManager
 import fr.tempo.health.data.HealthConnectAvailability
 import fr.tempo.health.data.WorkoutHistoryEntity
 import fr.tempo.health.domain.WorkoutPlan
@@ -72,6 +74,9 @@ import fr.tempo.health.domain.RecoveryFactorState
 import fr.tempo.health.domain.RecoveryLevel
 import fr.tempo.health.domain.RecoveryResult
 import java.text.DecimalFormat
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 private data class Destination(
     val route: String,
@@ -93,6 +98,7 @@ fun TempoHealthApp(
     healthViewModel: HealthViewModel = viewModel(),
     workoutViewModel: WorkoutViewModel = viewModel(),
     freeTimerViewModel: FreeTimerViewModel = viewModel(),
+    backupViewModel: BackupViewModel = viewModel(),
     onCheckForUpdates: () -> Unit = {}
 ) {
     val navController = rememberNavController()
@@ -120,12 +126,33 @@ fun TempoHealthApp(
     val workoutHistory by workoutViewModel.history.collectAsStateWithLifecycle()
     val trainingPreferences by workoutViewModel.trainingPreferences.collectAsStateWithLifecycle()
     val freeTimerState by freeTimerViewModel.state.collectAsStateWithLifecycle()
+    val backupState by backupViewModel.state.collectAsStateWithLifecycle()
     val previewPlan = workoutViewModel.previewPlan(recovery)
 
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = PermissionController.createRequestPermissionResultContract()
     ) { granted ->
         healthViewModel.onPermissionsResult(granted)
+    }
+
+    val backupDestinationLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/json")
+    ) { uri ->
+        if (uri != null) {
+            backupViewModel.chooseDestination(uri)
+        }
+    }
+
+    val backupRestoreLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri != null) {
+            backupViewModel.restoreFrom(uri) { restored ->
+                if (restored) {
+                    workoutViewModel.reloadFromStorage()
+                }
+            }
+        }
     }
 
     Scaffold(
@@ -306,8 +333,18 @@ fun TempoHealthApp(
                     onStartSoundEnabled = workoutViewModel::setStartSoundEnabled,
                     onMidpointSoundEnabled = workoutViewModel::setMidpointSoundEnabled,
                     onEndSoundEnabled = workoutViewModel::setEndSoundEnabled,
-                    onExportSettings = workoutViewModel::exportSettingsJson,
-                    onImportSettings = workoutViewModel::importSettingsJson,
+                    backupState = backupState,
+                    onChooseBackupDestination = {
+                        backupDestinationLauncher.launch(
+                            FullBackupManager.DEFAULT_FILE_NAME
+                        )
+                    },
+                    onBackupNow = backupViewModel::backupNow,
+                    onRestoreBackup = {
+                        backupRestoreLauncher.launch(
+                            arrayOf("application/json", "text/plain")
+                        )
+                    },
                     onDurationChange = workoutViewModel::setDurationMinutes,
                     onToggleEquipment = workoutViewModel::toggleEquipment,
                     onOpenLibrary = {
@@ -1336,17 +1373,16 @@ private fun SettingsScreen(
     onStartSoundEnabled: (Boolean) -> Unit,
     onMidpointSoundEnabled: (Boolean) -> Unit,
     onEndSoundEnabled: (Boolean) -> Unit,
-    onExportSettings: () -> String,
-    onImportSettings: (String) -> Boolean,
+    backupState: BackupUiState,
+    onChooseBackupDestination: () -> Unit,
+    onBackupNow: () -> Unit,
+    onRestoreBackup: () -> Unit,
     onDurationChange: (Int) -> Unit,
     onToggleEquipment: (Equipment) -> Unit,
     onOpenLibrary: () -> Unit,
     onOpenTimer: () -> Unit,
     onCheckForUpdates: () -> Unit
 ) {
-    var backupText by remember { mutableStateOf("") }
-    var backupMessage by remember { mutableStateOf<String?>(null) }
-
     Screen(
         title = "Paramètres",
         subtitle = "État technique, confidentialité et sons."
@@ -1546,54 +1582,84 @@ private fun SettingsScreen(
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     Text(
-                        "Sauvegarde de la configuration",
+                        "☁️ Sauvegarde complète",
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        "Inclut catégories, exercices personnalisés, favoris, matériel, sons et minuteur.",
+                        "Réglages, exercices perso, historique des séances, check-ins et cache Santé.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
 
-                    OutlinedButton(
-                        onClick = {
-                            backupText = onExportSettings()
-                            backupMessage =
-                                "Sauvegarde générée. Copie le JSON pour le conserver."
+                    Text(
+                        if (backupState.configured) {
+                            "Automatique : activée"
+                        } else {
+                            "Automatique : à configurer"
                         },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text("GÉNÉRER LA SAUVEGARDE")
-                    }
-
-                    OutlinedTextField(
-                        value = backupText,
-                        onValueChange = {
-                            backupText = it
-                            backupMessage = null
+                        color = if (backupState.configured) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
                         },
-                        label = { Text("JSON de sauvegarde") },
-                        modifier = Modifier.fillMaxWidth(),
-                        minLines = 3,
-                        maxLines = 6
+                        fontWeight = FontWeight.SemiBold
                     )
 
-                    Button(
-                        onClick = {
-                            val ok = onImportSettings(backupText)
-                            backupMessage = if (ok) {
-                                "Configuration restaurée."
-                            } else {
-                                "Sauvegarde invalide."
-                            }
-                        },
-                        enabled = backupText.isNotBlank(),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text("RESTAURER")
+                    backupState.lastBackupEpochMs?.let { timestamp ->
+                        Text(
+                            "Dernière sauvegarde : " +
+                                SimpleDateFormat(
+                                    "dd/MM/yyyy HH:mm",
+                                    Locale.getDefault()
+                                ).format(Date(timestamp)),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
 
-                    backupMessage?.let { message ->
+                    Button(
+                        onClick = onChooseBackupDestination,
+                        enabled = !backupState.busy,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            if (backupState.configured) {
+                                "CHANGER LE FICHIER DRIVE"
+                            } else {
+                                "CHOISIR LE FICHIER DRIVE"
+                            }
+                        )
+                    }
+
+                    OutlinedButton(
+                        onClick = onBackupNow,
+                        enabled = backupState.configured && !backupState.busy,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            if (backupState.busy) {
+                                "SAUVEGARDE EN COURS…"
+                            } else {
+                                "SAUVEGARDER MAINTENANT"
+                            }
+                        )
+                    }
+
+                    OutlinedButton(
+                        onClick = onRestoreBackup,
+                        enabled = !backupState.busy,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("RESTAURER DEPUIS UN FICHIER")
+                    }
+
+                    Text(
+                        "Après configuration, Tempo sauvegarde automatiquement quand l'application passe en arrière-plan.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    backupState.message?.let { message ->
                         Text(
                             message,
                             style = MaterialTheme.typography.bodySmall,
