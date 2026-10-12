@@ -1,1 +1,1 @@
-Tempo Health 1.0.0 backup restore, progress stats, sound controls and UI polish
+Tempo Health 1.1.0 full Drive-friendly backup and restore
