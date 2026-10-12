@@ -356,6 +356,19 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
         return true
     }
 
+    fun reloadFromStorage() {
+        _soundVolume.value =
+            preferences.getInt("sound-volume", 70).coerceIn(0, 100)
+        _startSoundEnabled.value =
+            preferences.getBoolean("sound-start-enabled", true)
+        _midpointSoundEnabled.value =
+            preferences.getBoolean("sound-midpoint-enabled", true)
+        _endSoundEnabled.value =
+            preferences.getBoolean("sound-end-enabled", true)
+        _trainingPreferences.value = loadTrainingPreferences()
+        rebuildToneGenerator()
+    }
+
     fun setDurationMinutes(minutes: Int) {
         updateTrainingPreferences(
             _trainingPreferences.value.copy(
