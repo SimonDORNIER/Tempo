@@ -147,11 +147,7 @@ fun TempoHealthApp(
         contract = ActivityResultContracts.OpenDocument()
     ) { uri ->
         if (uri != null) {
-            backupViewModel.restoreFrom(uri) { restored ->
-                if (restored) {
-                    workoutViewModel.reloadFromStorage()
-                }
-            }
+            backupViewModel.inspectRestore(uri)
         }
     }
 
@@ -345,6 +341,14 @@ fun TempoHealthApp(
                             arrayOf("application/json", "text/plain")
                         )
                     },
+                    onConfirmRestore = {
+                        backupViewModel.confirmRestore { restored ->
+                            if (restored) {
+                                workoutViewModel.reloadFromStorage()
+                            }
+                        }
+                    },
+                    onCancelRestore = backupViewModel::cancelRestore,
                     onDurationChange = workoutViewModel::setDurationMinutes,
                     onToggleEquipment = workoutViewModel::toggleEquipment,
                     onOpenLibrary = {
@@ -1377,6 +1381,8 @@ private fun SettingsScreen(
     onChooseBackupDestination: () -> Unit,
     onBackupNow: () -> Unit,
     onRestoreBackup: () -> Unit,
+    onConfirmRestore: () -> Unit,
+    onCancelRestore: () -> Unit,
     onDurationChange: (Int) -> Unit,
     onToggleEquipment: (Equipment) -> Unit,
     onOpenLibrary: () -> Unit,
@@ -1591,16 +1597,23 @@ private fun SettingsScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
 
+                    val backupStatusLabel = when {
+                        !backupState.configured -> "À configurer"
+                        !backupState.accessible -> "Fichier inaccessible"
+                        backupState.stale -> "Sauvegarde trop ancienne"
+                        else -> "Protégée"
+                    }
+
                     Text(
-                        if (backupState.configured) {
-                            "Automatique : activée"
-                        } else {
-                            "Automatique : à configurer"
-                        },
-                        color = if (backupState.configured) {
+                        "État : " + backupStatusLabel,
+                        color = if (
+                            backupState.configured &&
+                            backupState.accessible &&
+                            !backupState.stale
+                        ) {
                             MaterialTheme.colorScheme.primary
                         } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant
+                            MaterialTheme.colorScheme.error
                         },
                         fontWeight = FontWeight.SemiBold
                     )
@@ -1647,14 +1660,63 @@ private fun SettingsScreen(
 
                     OutlinedButton(
                         onClick = onRestoreBackup,
-                        enabled = !backupState.busy,
+                        enabled = !backupState.busy &&
+                            backupState.restorePreview == null,
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text("RESTAURER DEPUIS UN FICHIER")
                     }
 
+                    backupState.restorePreview?.let { preview ->
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceVariant
+                            )
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(14.dp),
+                                verticalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Text(
+                                    "Vérification avant restauration",
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    preview.healthDays.toString() + " jours santé • " +
+                                        preview.checkIns + " check-in(s) • " +
+                                        preview.workouts + " séance(s)",
+                                    style = MaterialTheme.typography.bodySmall
+                                )
+                                preview.appVersion?.let { version ->
+                                    Text(
+                                        "Créée avec Tempo Health " + version,
+                                        style = MaterialTheme.typography.bodySmall
+                                    )
+                                }
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    OutlinedButton(
+                                        onClick = onCancelRestore,
+                                        modifier = Modifier.weight(1f)
+                                    ) {
+                                        Text("ANNULER")
+                                    }
+                                    Button(
+                                        onClick = onConfirmRestore,
+                                        modifier = Modifier.weight(1f)
+                                    ) {
+                                        Text("RESTAURER")
+                                    }
+                                }
+                            }
+                        }
+                    }
+
                     Text(
-                        "Après configuration, Tempo sauvegarde automatiquement quand l'application passe en arrière-plan.",
+                        "Tempo sauvegarde automatiquement après les changements importants et quand l'application passe en arrière-plan.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
