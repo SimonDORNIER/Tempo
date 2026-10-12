@@ -6,6 +6,7 @@ import fr.tempo.health.data.DailyHealthEntity
 data class DailyCoachPlan(
     val emoji: String,
     val headline: String,
+    val personalSummary: String,
     val sessionGuidance: String,
     val reasons: List<String>,
     val actions: List<String>,
@@ -83,9 +84,37 @@ object DailyCoachEngine {
             actions += "Évite de rester assis trop longtemps : bouge 2 à 3 min régulièrement."
         }
 
+        val negativeFactors = recovery.factors
+            .filter { it.state == RecoveryFactorState.NEGATIVE }
+            .sortedBy { it.impact }
+
+        negativeFactors.take(2).forEach { factor ->
+            when {
+                factor.label.startsWith("Sommeil") ->
+                    actions += "Sommeil moins favorable : garde une marge sur l'intensité et protège ton prochain coucher."
+                factor.label.startsWith("HRV") ->
+                    actions += "VFC moins favorable : cherche surtout une séance fluide, sans forcer."
+                factor.label.startsWith("FC repos") ->
+                    actions += "FC de repos moins favorable : évite de transformer la séance en test de performance."
+                factor.label.startsWith("Charge") ->
+                    actions += "Charge récente haute : privilégie qualité de mouvement et récupération."
+            }
+        }
+
+        val personalSummary = when {
+            recovery.baselineDays < 7 ->
+                "Ta référence personnelle est encore en construction (" +
+                    recovery.baselineDays + " jour(s))."
+            negativeFactors.isEmpty() ->
+                "Tes principaux signaux sont proches ou meilleurs que tes habitudes récentes."
+            else ->
+                "À surveiller aujourd'hui : " +
+                    negativeFactors.take(2).joinToString(" + ") { it.label.lowercase() } + "."
+        }
+
         val reasons = recovery.reasons
             .filter { it.isNotBlank() }
-            .take(3)
+            .take(4)
             .ifEmpty {
                 listOf(
                     "La recommandation utilise tes données locales et ton historique récent."
@@ -106,6 +135,7 @@ object DailyCoachEngine {
         return DailyCoachPlan(
             emoji = emoji,
             headline = headline,
+            personalSummary = personalSummary,
             sessionGuidance = sessionGuidance,
             reasons = reasons,
             actions = actions.distinct().take(4),
