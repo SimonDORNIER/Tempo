@@ -1,5 +1,8 @@
 package fr.tempo.health.ui
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -47,8 +50,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import androidx.health.connect.client.PermissionController
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -73,6 +78,7 @@ import fr.tempo.health.domain.TrainingPreferences
 import fr.tempo.health.domain.RecoveryFactorState
 import fr.tempo.health.domain.RecoveryLevel
 import fr.tempo.health.domain.RecoveryResult
+import fr.tempo.health.reminders.ReminderSettings
 import java.text.DecimalFormat
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -99,6 +105,7 @@ fun TempoHealthApp(
     workoutViewModel: WorkoutViewModel = viewModel(),
     freeTimerViewModel: FreeTimerViewModel = viewModel(),
     backupViewModel: BackupViewModel = viewModel(),
+    reminderViewModel: ReminderViewModel = viewModel(),
     onCheckForUpdates: () -> Unit = {}
 ) {
     val navController = rememberNavController()
@@ -127,12 +134,30 @@ fun TempoHealthApp(
     val trainingPreferences by workoutViewModel.trainingPreferences.collectAsStateWithLifecycle()
     val freeTimerState by freeTimerViewModel.state.collectAsStateWithLifecycle()
     val backupState by backupViewModel.state.collectAsStateWithLifecycle()
+    val reminderSettings by reminderViewModel.settings.collectAsStateWithLifecycle()
     val previewPlan = workoutViewModel.previewPlan(recovery)
+
+    val context = LocalContext.current
+    var notificationPermissionGranted by remember {
+        mutableStateOf(
+            Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+                ContextCompat.checkSelfPermission(
+                    context,
+                    Manifest.permission.POST_NOTIFICATIONS
+                ) == PackageManager.PERMISSION_GRANTED
+        )
+    }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = PermissionController.createRequestPermissionResultContract()
     ) { granted ->
         healthViewModel.onPermissionsResult(granted)
+    }
+
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        notificationPermissionGranted = granted
     }
 
     val backupDestinationLauncher = rememberLauncherForActivityResult(
@@ -330,6 +355,25 @@ fun TempoHealthApp(
                     onMidpointSoundEnabled = workoutViewModel::setMidpointSoundEnabled,
                     onEndSoundEnabled = workoutViewModel::setEndSoundEnabled,
                     backupState = backupState,
+                    reminderSettings = reminderSettings,
+                    notificationPermissionGranted = notificationPermissionGranted,
+                    onRequestNotificationPermission = {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                            notificationPermissionLauncher.launch(
+                                Manifest.permission.POST_NOTIFICATIONS
+                            )
+                        } else {
+                            notificationPermissionGranted = true
+                        }
+                    },
+                    onMoveReminderEnabled = reminderViewModel::setMoveEnabled,
+                    onMoveIntervalHours = reminderViewModel::setMoveIntervalHours,
+                    onCheckInReminderEnabled = reminderViewModel::setCheckInEnabled,
+                    onCheckInReminderHour = reminderViewModel::setCheckInHour,
+                    onMobilityReminderEnabled = reminderViewModel::setMobilityEnabled,
+                    onMobilityReminderHour = reminderViewModel::setMobilityHour,
+                    onWorkoutReminderEnabled = reminderViewModel::setWorkoutEnabled,
+                    onWorkoutReminderHour = reminderViewModel::setWorkoutHour,
                     onChooseBackupDestination = {
                         backupDestinationLauncher.launch(
                             FullBackupManager.DEFAULT_FILE_NAME
@@ -1378,6 +1422,17 @@ private fun SettingsScreen(
     onMidpointSoundEnabled: (Boolean) -> Unit,
     onEndSoundEnabled: (Boolean) -> Unit,
     backupState: BackupUiState,
+    reminderSettings: ReminderSettings,
+    notificationPermissionGranted: Boolean,
+    onRequestNotificationPermission: () -> Unit,
+    onMoveReminderEnabled: (Boolean) -> Unit,
+    onMoveIntervalHours: (Int) -> Unit,
+    onCheckInReminderEnabled: (Boolean) -> Unit,
+    onCheckInReminderHour: (Int) -> Unit,
+    onMobilityReminderEnabled: (Boolean) -> Unit,
+    onMobilityReminderHour: (Int) -> Unit,
+    onWorkoutReminderEnabled: (Boolean) -> Unit,
+    onWorkoutReminderHour: (Int) -> Unit,
     onChooseBackupDestination: () -> Unit,
     onBackupNow: () -> Unit,
     onRestoreBackup: () -> Unit,
@@ -1587,6 +1642,104 @@ private fun SettingsScreen(
                     modifier = Modifier.padding(18.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
+                    Text("🔔 Rappels et routines", fontWeight = FontWeight.Bold)
+                    Text(
+                        if (notificationPermissionGranted) {
+                            "Notifications autorisées"
+                        } else {
+                            "Notifications non autorisées"
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (notificationPermissionGranted) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.error
+                        }
+                    )
+
+                    if (!notificationPermissionGranted) {
+                        OutlinedButton(
+                            onClick = onRequestNotificationPermission,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("AUTORISER LES NOTIFICATIONS")
+                        }
+                    }
+
+                    ReminderSettingRow(
+                        title = "Bouger",
+                        detail = "Toutes les " +
+                            reminderSettings.moveIntervalHours + " h • 8h–21h",
+                        enabled = reminderSettings.moveEnabled,
+                        onToggle = onMoveReminderEnabled
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        listOf(1, 2, 3, 4).forEach { hours ->
+                            AssistChip(
+                                onClick = { onMoveIntervalHours(hours) },
+                                modifier = Modifier.weight(1f),
+                                label = {
+                                    Text(
+                                        if (reminderSettings.moveIntervalHours == hours) {
+                                            "• " + hours + "h"
+                                        } else {
+                                            hours.toString() + "h"
+                                        }
+                                    )
+                                }
+                            )
+                        }
+                    }
+
+                    ReminderSettingRow(
+                        title = "Check-in",
+                        detail = "Tous les jours à " +
+                            reminderSettings.checkInHour + "h",
+                        enabled = reminderSettings.checkInEnabled,
+                        onToggle = onCheckInReminderEnabled
+                    )
+                    HourSelector(
+                        hour = reminderSettings.checkInHour,
+                        onHourChange = onCheckInReminderHour
+                    )
+
+                    ReminderSettingRow(
+                        title = "Mobilité / étirements",
+                        detail = "Tous les jours à " +
+                            reminderSettings.mobilityHour + "h",
+                        enabled = reminderSettings.mobilityEnabled,
+                        onToggle = onMobilityReminderEnabled
+                    )
+                    HourSelector(
+                        hour = reminderSettings.mobilityHour,
+                        onHourChange = onMobilityReminderHour
+                    )
+
+                    ReminderSettingRow(
+                        title = "Séance",
+                        detail = "Lun / mer / ven à " +
+                            reminderSettings.workoutHour + "h",
+                        enabled = reminderSettings.workoutEnabled,
+                        onToggle = onWorkoutReminderEnabled
+                    )
+                    HourSelector(
+                        hour = reminderSettings.workoutHour,
+                        onHourChange = onWorkoutReminderHour
+                    )
+                }
+            }
+
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(24.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(18.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
                     Text(
                         "☁️ Sauvegarde complète",
                         fontWeight = FontWeight.Bold
@@ -1739,6 +1892,45 @@ private fun SettingsScreen(
             )
         }
     }
+}
+
+@Composable
+private fun ReminderSettingRow(
+    title: String,
+    detail: String,
+    enabled: Boolean,
+    onToggle: (Boolean) -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(title, fontWeight = FontWeight.SemiBold)
+            Text(
+                detail,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        AssistChip(
+            onClick = { onToggle(!enabled) },
+            label = { Text(if (enabled) "• Actif" else "Inactif") }
+        )
+    }
+}
+
+@Composable
+private fun HourSelector(
+    hour: Int,
+    onHourChange: (Int) -> Unit
+) {
+    Slider(
+        value = hour.toFloat(),
+        onValueChange = { onHourChange(it.toInt()) },
+        valueRange = 6f..22f,
+        steps = 15
+    )
 }
 
 @Composable
