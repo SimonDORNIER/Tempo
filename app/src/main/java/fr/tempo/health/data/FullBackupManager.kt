@@ -14,6 +14,21 @@ data class BackupResult(
     val timestampEpochMs: Long? = null
 )
 
+data class BackupStatus(
+    val configured: Boolean,
+    val accessible: Boolean,
+    val lastBackupEpochMs: Long?,
+    val stale: Boolean
+)
+
+data class BackupPreview(
+    val createdAtEpochMs: Long?,
+    val appVersion: String?,
+    val healthDays: Int,
+    val checkIns: Int,
+    val workouts: Int
+)
+
 class FullBackupManager(
     private val context: Context
 ) {
@@ -29,6 +44,29 @@ class FullBackupManager(
 
     fun lastBackupEpochMs(): Long? =
         preferences.getLong(PREF_LAST_BACKUP, 0L).takeIf { it > 0L }
+
+    fun status(maxAgeDays: Long = 3): BackupStatus {
+        val configured = hasDestination()
+        val accessible = if (configured) canAccessDestination() else false
+        val last = lastBackupEpochMs()
+        val stale = last == null ||
+            System.currentTimeMillis() - last >
+                maxAgeDays.coerceAtLeast(1) * 24L * 60L * 60L * 1000L
+
+        return BackupStatus(
+            configured = configured,
+            accessible = accessible,
+            lastBackupEpochMs = last,
+            stale = configured && stale
+        )
+    }
+
+    fun canAccessDestination(): Boolean {
+        val raw = preferences.getString(PREF_BACKUP_URI, null) ?: return false
+        return runCatching {
+            resolver.openFileDescriptor(Uri.parse(raw), "rw")?.use { true } ?: false
+        }.getOrDefault(false)
+    }
 
     fun rememberDestination(uri: Uri): Boolean {
         runCatching {
@@ -54,8 +92,19 @@ class FullBackupManager(
     suspend fun backupToSavedLocation(): BackupResult {
         val raw = preferences.getString(PREF_BACKUP_URI, null)
             ?: return BackupResult(false, "Aucun emplacement de sauvegarde configuré.")
+
+        if (!canAccessDestination()) {
+            return BackupResult(
+                false,
+                "Le fichier de sauvegarde n'est plus accessible. Choisis-le à nouveau."
+            )
+        }
+
         return backupTo(Uri.parse(raw))
     }
+
+    suspend fun backupIfConfigured(): BackupResult? =
+        if (hasDestination()) backupToSavedLocation() else null
 
     suspend fun backupTo(uri: Uri): BackupResult =
         runCatching {
@@ -83,6 +132,25 @@ class FullBackupManager(
                     (error.message ?: "erreur inconnue")
             )
         }
+
+    fun inspect(uri: Uri): BackupPreview? =
+        runCatching {
+            val raw = resolver.openInputStream(uri)?.bufferedReader().use { reader ->
+                requireNotNull(reader) { "Impossible d'ouvrir la sauvegarde." }
+                reader.readText()
+            }
+            val root = JSONObject(raw)
+            require(root.optString("app") == "Tempo Health")
+
+            BackupPreview(
+                createdAtEpochMs = root.optLong("createdAtEpochMs", 0L)
+                    .takeIf { it > 0L },
+                appVersion = root.optString("appVersion").takeIf { it.isNotBlank() },
+                healthDays = root.optJSONArray("dailyHealth")?.length() ?: 0,
+                checkIns = root.optJSONArray("checkIns")?.length() ?: 0,
+                workouts = root.optJSONArray("workoutHistory")?.length() ?: 0
+            )
+        }.getOrNull()
 
     suspend fun restoreFrom(uri: Uri): BackupResult =
         runCatching {
