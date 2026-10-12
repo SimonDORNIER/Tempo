@@ -1339,6 +1339,13 @@ private fun CoachScreen(
             )
 
             StatusCard(
+                "📊",
+                "Par rapport à tes habitudes",
+                if (recovery.baselineDays >= 7) "Référence personnelle" else "En construction",
+                advice.personalSummary
+            )
+
+            StatusCard(
                 "🏋️",
                 "Activité conseillée",
                 plan.title,
