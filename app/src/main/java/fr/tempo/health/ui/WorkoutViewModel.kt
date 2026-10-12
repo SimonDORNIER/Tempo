@@ -51,6 +51,7 @@ data class WorkoutUiState(
 class WorkoutViewModel(application: Application) : AndroidViewModel(application) {
     private val app = application as TempoHealthApplication
     private val repository = app.workoutRepository
+    private val backupManager = app.fullBackupManager
 
     private val preferences = application.getSharedPreferences(
         "tempo-health-settings",
@@ -256,6 +257,7 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
         if (historyId != null) {
             viewModelScope.launch {
                 repository.setDifficulty(historyId, safe)
+                backupManager.requestAutoBackup()
             }
         }
     }
@@ -264,6 +266,7 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
         val safe = volume.coerceIn(0, 100)
         _soundVolume.value = safe
         preferences.edit().putInt("sound-volume", safe).apply()
+        backupManager.requestAutoBackup()
         rebuildToneGenerator()
         playMidpointTone()
     }
@@ -273,6 +276,7 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
         preferences.edit()
             .putBoolean("sound-start-enabled", enabled)
             .apply()
+        backupManager.requestAutoBackup()
         if (enabled) playStartTone()
     }
 
@@ -281,6 +285,7 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
         preferences.edit()
             .putBoolean("sound-midpoint-enabled", enabled)
             .apply()
+        backupManager.requestAutoBackup()
         if (enabled) playMidpointTone()
     }
 
@@ -289,6 +294,7 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
         preferences.edit()
             .putBoolean("sound-end-enabled", enabled)
             .apply()
+        backupManager.requestAutoBackup()
         if (enabled) playEndTone()
     }
 
@@ -599,6 +605,8 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
                 exercisesToJson(value.customExercises)
             )
             .apply()
+
+        backupManager.requestAutoBackup()
     }
 
     private fun loadTrainingPreferences(): TrainingPreferences {
@@ -898,6 +906,7 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
             }
 
             _state.value = _state.value.copy(historyId = id)
+            backupManager.requestAutoBackup(delayMillis = 0L)
         }
     }
 
