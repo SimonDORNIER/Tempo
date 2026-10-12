@@ -11,7 +11,10 @@ import fr.tempo.health.domain.Exercise
 import fr.tempo.health.domain.ExerciseCategory
 import fr.tempo.health.domain.ExerciseLibrary
 import fr.tempo.health.domain.Equipment
+import fr.tempo.health.domain.TrainingGoal
 import fr.tempo.health.domain.TrainingPreferences
+import fr.tempo.health.domain.ProgramEngine
+import fr.tempo.health.domain.WeeklyProgram
 import fr.tempo.health.domain.RecoveryResult
 import fr.tempo.health.domain.WorkoutHistoryHint
 import fr.tempo.health.domain.WorkoutPlan
@@ -111,6 +114,14 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
             recovery = recovery,
             history = history.value.map { it.toHint() },
             preferences = _trainingPreferences.value
+        )
+
+    fun weeklyProgram(recovery: RecoveryResult): WeeklyProgram =
+        ProgramEngine.build(
+            goal = _trainingPreferences.value.goal,
+            history = history.value,
+            preferredMinutes = _trainingPreferences.value.durationMinutes,
+            recovery = recovery
         )
 
     fun prepare(recovery: RecoveryResult) {
@@ -375,6 +386,12 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
         rebuildToneGenerator()
     }
 
+    fun setTrainingGoal(goal: TrainingGoal) {
+        updateTrainingPreferences(
+            _trainingPreferences.value.copy(goal = goal)
+        )
+    }
+
     fun setDurationMinutes(minutes: Int) {
         updateTrainingPreferences(
             _trainingPreferences.value.copy(
@@ -596,6 +613,7 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
                     it.key + "=" + it.value
                 }
             )
+            .putString("training-goal", value.goal.name)
             .putString(
                 "training-exercise-overrides",
                 exercisesToJson(value.exerciseOverrides.values.toList())
@@ -683,6 +701,13 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
             ).orEmpty()
         )
 
+        val goal = preferences.getString(
+            "training-goal",
+            TrainingGoal.FITNESS.name
+        )?.let { raw ->
+            runCatching { TrainingGoal.valueOf(raw) }.getOrNull()
+        } ?: TrainingGoal.FITNESS
+
         return TrainingPreferences(
             durationMinutes = preferences
                 .getInt("training-duration", 20)
@@ -693,6 +718,7 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
             disabledCategories = disabledCategories,
             categoryIcons = categoryIcons,
             exerciseWorkSeconds = exerciseWorkSeconds,
+            goal = goal,
             exerciseOverrides = exerciseOverrides,
             customExercises = customExercises
         )
