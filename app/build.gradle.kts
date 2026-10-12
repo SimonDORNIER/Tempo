@@ -65,6 +65,7 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.10.0")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.10.0")
     implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.10.0")
+    implementation("androidx.work:work-runtime-ktx:2.11.2")
 
     implementation("androidx.health.connect:connect-client:1.1.0")
 
