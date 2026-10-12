@@ -1,1 +1,1 @@
-Tempo Health 1.1.0 full Drive-friendly backup and restore
+Tempo Health 1.2.0 reliable automatic backup and safe restore preview
