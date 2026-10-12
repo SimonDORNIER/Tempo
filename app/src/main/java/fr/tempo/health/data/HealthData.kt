@@ -70,6 +70,12 @@ interface DailyHealthDao {
 
     @Query("SELECT MAX(syncedAtEpochMs) FROM daily_health")
     suspend fun getLastSyncEpochMs(): Long?
+
+    @Query("SELECT * FROM daily_health ORDER BY date ASC")
+    suspend fun getAll(): List<DailyHealthEntity>
+
+    @Query("DELETE FROM daily_health")
+    suspend fun clearAll()
 }
 
 @Dao
@@ -77,8 +83,17 @@ interface DailyCheckInDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(checkIn: DailyCheckInEntity)
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertAll(checkIns: List<DailyCheckInEntity>)
+
     @Query("SELECT * FROM daily_checkin WHERE date = :date LIMIT 1")
     fun observeByDate(date: String): Flow<DailyCheckInEntity?>
+
+    @Query("SELECT * FROM daily_checkin ORDER BY date ASC")
+    suspend fun getAll(): List<DailyCheckInEntity>
+
+    @Query("DELETE FROM daily_checkin")
+    suspend fun clearAll()
 }
 
 @Dao
@@ -86,11 +101,20 @@ interface WorkoutHistoryDao {
     @Insert
     suspend fun insert(history: WorkoutHistoryEntity): Long
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertAll(history: List<WorkoutHistoryEntity>)
+
     @Query("UPDATE workout_history SET perceivedDifficulty = :difficulty WHERE id = :id")
     suspend fun updateDifficulty(id: Long, difficulty: Int)
 
     @Query("SELECT * FROM workout_history ORDER BY startedAtEpochMs DESC LIMIT :limit")
     fun observeRecent(limit: Int = 30): Flow<List<WorkoutHistoryEntity>>
+
+    @Query("SELECT * FROM workout_history ORDER BY startedAtEpochMs ASC")
+    suspend fun getAll(): List<WorkoutHistoryEntity>
+
+    @Query("DELETE FROM workout_history")
+    suspend fun clearAll()
 }
 
 @Database(
