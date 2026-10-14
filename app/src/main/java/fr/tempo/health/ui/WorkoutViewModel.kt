@@ -1071,6 +1071,7 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
             ExerciseCategory.LOWER_BODY -> "🦵"
             ExerciseCategory.MOBILITY -> "🤸"
             ExerciseCategory.STRETCHING -> "🧘"
+            ExerciseCategory.BREATHING -> "🫁"
         }
 
     companion object {
