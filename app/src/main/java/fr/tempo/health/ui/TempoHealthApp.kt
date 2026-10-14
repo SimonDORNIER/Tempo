@@ -129,7 +129,7 @@ private data class Destination(
 )
 
 private val mainDestinations = listOf(
-    Destination("today", "Aujourd'hui", "🏠"),
+    Destination("today", "Mon jour", "🏠"),
     Destination("health", "Santé", "❤️"),
     Destination("training", "Séance", "🏋️"),
     Destination("progress", "Progression", "📈"),
@@ -241,7 +241,7 @@ fun TempoHealthApp(
                                 "timer" -> "Minuteur"
                                 "program" -> "Mon programme"
                                 "workout" -> "Séance"
-                                else -> selectedDestination?.label ?: "Tempo Health"
+                                else -> selectedDestination?.label ?: "Tempo Coach"
                             },
                             fontWeight = FontWeight.SemiBold
                         )
@@ -254,7 +254,7 @@ fun TempoHealthApp(
                             currentRoute != "workout"
                         ) {
                             Text(
-                                text = "Tempo Health v" + BuildConfig.VERSION_NAME,
+                                text = "Tempo Coach v" + BuildConfig.VERSION_NAME,
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -336,7 +336,17 @@ fun TempoHealthApp(
                     onOpenTraining = { navController.navigate("training") },
                     onOpenTimer = { navController.navigate("timer") },
                     onOpenHealth = { navController.navigate("health") },
-                    onOpenLibrary = { navController.navigate("library-settings") }
+                    onOpenLibrary = { navController.navigate("library-settings") },
+                    weeklyProgram = weeklyProgram,
+                    routine = routineProgress,
+                    history = workoutHistory,
+                    onToggleRoutine = workoutViewModel::toggleRoutineStep,
+                    onOpenCoach = { navController.navigate("coach") },
+                    onOpenProgram = { navController.navigate("program") },
+                    onStartWorkout = {
+                        workoutViewModel.prepare(recovery)
+                        navController.navigate("workout")
+                    }
                 )
             }
 
@@ -623,7 +633,14 @@ private fun TodayScreen(
     onOpenTraining: () -> Unit,
     onOpenTimer: () -> Unit,
     onOpenHealth: () -> Unit,
-    onOpenLibrary: () -> Unit
+    onOpenLibrary: () -> Unit,
+    weeklyProgram: WeeklyProgram,
+    routine: RoutineProgress,
+    history: List<WorkoutHistoryEntity>,
+    onToggleRoutine: (Int) -> Unit,
+    onOpenCoach: () -> Unit,
+    onOpenProgram: () -> Unit,
+    onStartWorkout: () -> Unit
 ) {
     val energy = checkIn?.energy ?: 3
     val pain = checkIn?.pain ?: 0
@@ -631,8 +648,8 @@ private fun TodayScreen(
     val painLabels = listOf("Aucune", "Légère", "Moyenne", "Importante")
 
     Screen(
-        title = "Aujourd'hui",
-        subtitle = "Récupération, ressenti et décision du jour."
+        title = "Mon tableau de bord",
+        subtitle = "La santé, les séances et les habitudes au même endroit."
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
             Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp)) {
@@ -666,6 +683,17 @@ private fun TodayScreen(
                 }
             }
             RecoveryCard(recovery)
+            CoachDashboardCard(
+                recovery = recovery,
+                plan = plan,
+                weeklyProgram = weeklyProgram,
+                history = history,
+                routine = routine,
+                onToggleRoutine = onToggleRoutine,
+                onOpenCoach = onOpenCoach,
+                onOpenProgram = onOpenProgram,
+                onStartWorkout = onStartWorkout
+            )
             RecoveryFactorsCard(recovery)
 
             if (latest == null) {
@@ -787,6 +815,118 @@ private fun TodayScreen(
             }
 
             SessionRecommendationCard(recovery, plan)
+        }
+    }
+}
+
+@Composable
+private fun CoachDashboardCard(
+    recovery: RecoveryResult,
+    plan: WorkoutPlan,
+    weeklyProgram: WeeklyProgram,
+    history: List<WorkoutHistoryEntity>,
+    routine: RoutineProgress,
+    onToggleRoutine: (Int) -> Unit,
+    onOpenCoach: () -> Unit,
+    onOpenProgram: () -> Unit,
+    onStartWorkout: () -> Unit
+) {
+    val today = java.time.LocalDate.now().toString()
+    val done = if (routine.date == today) routine.completed else emptySet()
+    val dailyHabits = listOf(
+        "Bouger régulièrement",
+        if (recovery.level == RecoveryLevel.RED) "Mobilité très douce ou repos"
+        else "Séance ou mobilité",
+        "Préparer un coucher régulier"
+    )
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.primaryContainer
+        )
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Text(
+                "🎯 Mon plan du jour",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onPrimaryContainer
+            )
+            Text(
+                weeklyProgram.todayGuidance,
+                color = MaterialTheme.colorScheme.onPrimaryContainer
+            )
+            Text(
+                "Séance proposée : " + plan.title +
+                    " • " + plan.estimatedMinutes + " min",
+                color = MaterialTheme.colorScheme.onPrimaryContainer
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Button(onClick = onStartWorkout, modifier = Modifier.weight(1f)) {
+                    Text("▶ Démarrer")
+                }
+                OutlinedButton(onClick = onOpenCoach, modifier = Modifier.weight(1f)) {
+                    Text("🧠 Mon coach")
+                }
+            }
+
+            Text(
+                "Semaine : " + weeklyProgram.completedThisWeek + "/" +
+                    weeklyProgram.targetSessions + " séances",
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onPrimaryContainer
+            )
+            LinearProgressIndicator(
+                progress = {
+                    (weeklyProgram.completedThisWeek.toFloat() /
+                        weeklyProgram.targetSessions.coerceAtLeast(1).toFloat())
+                        .coerceIn(0f, 1f)
+                },
+                modifier = Modifier.fillMaxWidth()
+            )
+            OutlinedButton(onClick = onOpenProgram, modifier = Modifier.fillMaxWidth()) {
+                Text("📅 VOIR MON PROGRAMME")
+            }
+
+            Text(
+                "Habitudes : " + done.size + "/3",
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onPrimaryContainer
+            )
+            dailyHabits.forEachIndexed { index, label ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Checkbox(
+                        checked = index in done,
+                        onCheckedChange = { onToggleRoutine(index) }
+                    )
+                    Text(
+                        label,
+                        modifier = Modifier.weight(1f),
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                }
+            }
+
+            history.firstOrNull()?.let { last ->
+                Text(
+                    "Dernière séance : " + last.title +
+                        " • " + formatClock(last.durationSeconds) +
+                        if (last.completed) " ✓" else " • interrompue",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                )
+            }
         }
     }
 }
