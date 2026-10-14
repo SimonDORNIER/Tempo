@@ -23,7 +23,7 @@
     <application
         android:name=".TempoHealthApplication"
         android:allowBackup="true"
-        android:label="Tempo Health"
+        android:label="Tempo Coach"
         android:supportsRtl="true"
         android:theme="@style/Theme.TempoHealth">
 
