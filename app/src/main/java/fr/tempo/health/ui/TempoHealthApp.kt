@@ -23,6 +23,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -41,6 +42,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -2097,6 +2099,7 @@ private fun LibrarySettingsScreen(
 ) {
     val disabledExercises = preferences.avoidedExerciseIds.size
     val customDurations = preferences.exerciseWorkSeconds.size
+    var showResetConfirmation by remember { mutableStateOf(false) }
 
     Screen(
         title = "Bibliothèque",
@@ -2134,7 +2137,7 @@ private fun LibrarySettingsScreen(
             }
 
             OutlinedButton(
-                onClick = onReset,
+                onClick = { showResetConfirmation = true },
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text("RÉINITIALISER LES PERSONNALISATIONS")
@@ -2147,8 +2150,36 @@ private fun LibrarySettingsScreen(
             )
         }
     }
+    if (showResetConfirmation) {
+        AlertDialog(
+            onDismissRequest = { showResetConfirmation = false },
+            title = { Text("Réinitialiser les personnalisations ?") },
+            text = {
+                Text(
+                    "Les catégories seront réactivées, leurs icônes et les durées " +
+                        "personnalisées seront réinitialisées. " +
+                        "Les exercices créés ou modifiés, les favoris et les exercices " +
+                        "à éviter seront conservés."
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showResetConfirmation = false
+                        onReset()
+                    }
+                ) {
+                    Text("RÉINITIALISER")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showResetConfirmation = false }) {
+                    Text("ANNULER")
+                }
+            }
+        )
+    }
 }
-
 @Composable
 private fun CategorySettingsScreen(
     preferences: TrainingPreferences,
@@ -2405,28 +2436,62 @@ private fun ExercisePreferencesScreen(
     onWorkSecondsChange: (String, Int) -> Unit,
     onResetWorkSeconds: (String) -> Unit,
     onSaveExercise: (Exercise) -> Unit,
-    onAddExercise: () -> String,
+    onAddExercise: () -> Exercise,
     onDeleteExercise: (String) -> Unit,
     onResetExercise: (String) -> Unit
 ) {
-    var selectedCategory by remember {
-        mutableStateOf<ExerciseCategory?>(null)
-    }
+    var selectedCategory by remember { mutableStateOf<ExerciseCategory?>(null) }
     var editingId by remember { mutableStateOf<String?>(null) }
+    var newExerciseDraft by remember { mutableStateOf<Exercise?>(null) }
 
     val allExercises = ExerciseLibrary.effective(preferences)
+    val editedExercise = newExerciseDraft?.takeIf { it.id == editingId }
+        ?: allExercises.firstOrNull { it.id == editingId }
+
+    if (editedExercise != null) {
+        // Écran dédié : la saisie commence toujours en haut, même après avoir parcouru la liste.
+        ExerciseDraftScreen(
+            exercise = editedExercise,
+            isNew = newExerciseDraft?.id == editedExercise.id,
+            hasOverride = editedExercise.id in preferences.exerciseOverrides,
+            onSave = { exercise ->
+                onSaveExercise(exercise)
+                editingId = null
+                newExerciseDraft = null
+            },
+            onCancel = {
+                // Ne jamais persister un brouillon fermé ou annulé.
+                editingId = null
+                newExerciseDraft = null
+            },
+            onDelete = {
+                onDeleteExercise(editedExercise.id)
+                editingId = null
+                newExerciseDraft = null
+            },
+            onReset = {
+                onResetExercise(editedExercise.id)
+                editingId = null
+                newExerciseDraft = null
+            }
+        )
+        return
+    }
+
     val visibleExercises = allExercises.filter { exercise ->
         selectedCategory == null || exercise.category == selectedCategory
     }
 
     Screen(
         title = "Modifier les exercices",
-        subtitle = "Crée, modifie ou exclus des exercices. Les changements sont locaux."
+        subtitle = "Crée, modifie ou exclus des exercices. Enregistrement uniquement sur validation."
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Button(
                 onClick = {
-                    editingId = onAddExercise()
+                    val draft = onAddExercise()
+                    newExerciseDraft = draft
+                    editingId = draft.id
                     selectedCategory = null
                 },
                 modifier = Modifier.fillMaxWidth()
@@ -2484,223 +2549,193 @@ private fun ExercisePreferencesScreen(
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-
                         Spacer(Modifier.height(8.dp))
 
-                        if (editingId == exercise.id) {
-                            var name by remember(exercise.id, exercise.name) {
-                                mutableStateOf(exercise.name)
-                            }
-                            var instructions by remember(
-                                exercise.id,
-                                exercise.instructions
-                            ) {
-                                mutableStateOf(exercise.instructions)
-                            }
-                            var cue by remember(exercise.id, exercise.cue) {
-                                mutableStateOf(exercise.cue)
-                            }
-                            var category by remember(
-                                exercise.id,
-                                exercise.category
-                            ) {
-                                mutableStateOf(exercise.category)
-                            }
-                            var equipment by remember(
-                                exercise.id,
-                                exercise.requiredEquipment
-                            ) {
-                                mutableStateOf(exercise.requiredEquipment)
-                            }
-                            var seconds by remember(
-                                exercise.id,
-                                exercise.defaultWorkSeconds
-                            ) {
-                                mutableStateOf(exercise.defaultWorkSeconds)
-                            }
+                        val workSeconds = preferences.exerciseWorkSeconds[exercise.id]
+                            ?: exercise.defaultWorkSeconds
 
-                            OutlinedTextField(
-                                value = name,
-                                onValueChange = { name = it },
-                                label = { Text("Nom") },
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                            OutlinedTextField(
-                                value = instructions,
-                                onValueChange = { instructions = it },
-                                label = { Text("Explications") },
-                                modifier = Modifier.fillMaxWidth(),
-                                minLines = 3
-                            )
-                            OutlinedTextField(
-                                value = cue,
-                                onValueChange = { cue = it },
-                                label = { Text("Conseil coach") },
-                                modifier = Modifier.fillMaxWidth(),
-                                minLines = 2
-                            )
-
-                            Text("Catégorie", fontWeight = FontWeight.SemiBold)
-                            ExerciseCategory.entries.chunked(2).forEach { row ->
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                ) {
-                                    row.forEach { item ->
-                                        AssistChip(
-                                            onClick = { category = item },
-                                            modifier = Modifier.weight(1f),
-                                            label = {
-                                                Text(
-                                                    if (category == item) {
-                                                        "• " + categoryLabel(item)
-                                                    } else {
-                                                        categoryLabel(item)
-                                                    }
-                                                )
-                                            }
-                                        )
-                                    }
-                                    if (row.size == 1) Spacer(Modifier.weight(1f))
-                                }
-                            }
-
-                            Text("Matériel", fontWeight = FontWeight.SemiBold)
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                listOf<Equipment?>(null, Equipment.MAT, Equipment.CHAIR)
-                                    .forEach { item ->
-                                        AssistChip(
-                                            onClick = { equipment = item },
-                                            modifier = Modifier.weight(1f),
-                                            label = {
-                                                val label = when (item) {
-                                                    null -> "Aucun"
-                                                    Equipment.MAT -> "Tapis"
-                                                    Equipment.CHAIR -> "Chaise"
-                                                }
-                                                Text(
-                                                    if (equipment == item) "• " + label else label
-                                                )
-                                            }
-                                        )
-                                    }
-                            }
-
-                            Text(
-                                "Durée : " + seconds + " s",
-                                fontWeight = FontWeight.SemiBold
-                            )
-                            Slider(
-                                value = seconds.toFloat(),
-                                onValueChange = { seconds = it.toInt() },
-                                valueRange = 15f..120f,
-                                steps = 20
-                            )
-
-                            Button(
-                                onClick = {
-                                    onSaveExercise(
-                                        exercise.copy(
-                                            name = name.trim().ifBlank { "Exercice" },
-                                            category = category,
-                                            defaultWorkSeconds = seconds,
-                                            instructions = instructions.trim(),
-                                            cue = cue.trim(),
-                                            requiredEquipment = equipment
-                                        )
-                                    )
-                                    editingId = null
+                        Text(
+                            workSeconds.toString() + " s • " +
+                                when (exercise.requiredEquipment) {
+                                    null -> "sans matériel"
+                                    Equipment.MAT -> "tapis"
+                                    Equipment.CHAIR -> "chaise"
                                 },
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Text("ENREGISTRER")
-                            }
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
 
-                            OutlinedButton(
-                                onClick = { editingId = null },
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Text("ANNULER")
-                            }
-
-                            if (exercise.id.startsWith("user-")) {
-                                OutlinedButton(
-                                    onClick = {
-                                        onDeleteExercise(exercise.id)
-                                        editingId = null
-                                    },
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    Text("SUPPRIMER CET EXERCICE")
-                                }
-                            } else if (exercise.id in preferences.exerciseOverrides) {
-                                OutlinedButton(
-                                    onClick = {
-                                        onResetExercise(exercise.id)
-                                        editingId = null
-                                    },
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    Text("REVENIR À LA VERSION D'ORIGINE")
-                                }
-                            }
-                        } else {
-                            val workSeconds =
-                                preferences.exerciseWorkSeconds[exercise.id]
-                                    ?: exercise.defaultWorkSeconds
-
-                            Text(
-                                workSeconds.toString() + " s • " +
-                                    when (exercise.requiredEquipment) {
-                                        null -> "sans matériel"
-                                        Equipment.MAT -> "tapis"
-                                        Equipment.CHAIR -> "chaise"
-                                    },
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                AssistChip(
-                                    onClick = { editingId = exercise.id },
-                                    modifier = Modifier.weight(1f),
-                                    label = { Text("✏ Modifier") }
-                                )
-                                AssistChip(
-                                    onClick = { onFavorite(exercise.id) },
-                                    modifier = Modifier.weight(1f),
-                                    label = {
-                                        Text(
-                                            if (exercise.id in preferences.favoriteExerciseIds) {
-                                                "★ Favori"
-                                            } else {
-                                                "☆ Favori"
-                                            }
-                                        )
-                                    }
-                                )
-                            }
-
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
                             AssistChip(
-                                onClick = { onAvoid(exercise.id) },
+                                onClick = { editingId = exercise.id },
+                                modifier = Modifier.weight(1f),
+                                label = { Text("✏ Modifier") }
+                            )
+                            AssistChip(
+                                onClick = { onFavorite(exercise.id) },
+                                modifier = Modifier.weight(1f),
                                 label = {
                                     Text(
-                                        if (exercise.id in preferences.avoidedExerciseIds) {
-                                            "⛔ Évité"
+                                        if (exercise.id in preferences.favoriteExerciseIds) {
+                                            "★ Favori"
                                         } else {
-                                            "Éviter"
+                                            "☆ Favori"
                                         }
                                     )
                                 }
                             )
                         }
+
+                        AssistChip(
+                            onClick = { onAvoid(exercise.id) },
+                            label = {
+                                Text(
+                                    if (exercise.id in preferences.avoidedExerciseIds) {
+                                        "⛔ Évité"
+                                    } else {
+                                        "Éviter"
+                                    }
+                                )
+                            }
+                        )
                     }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ExerciseDraftScreen(
+    exercise: Exercise,
+    isNew: Boolean,
+    hasOverride: Boolean,
+    onSave: (Exercise) -> Unit,
+    onCancel: () -> Unit,
+    onDelete: () -> Unit,
+    onReset: () -> Unit
+) {
+    // Ces états restent dans l'éditeur et ne sont écrits en base qu'après ENREGISTRER.
+    var name by remember(exercise.id) { mutableStateOf(exercise.name) }
+    var instructions by remember(exercise.id) { mutableStateOf(exercise.instructions) }
+    var cue by remember(exercise.id) { mutableStateOf(exercise.cue) }
+    var category by remember(exercise.id) { mutableStateOf(exercise.category) }
+    var equipment by remember(exercise.id) { mutableStateOf(exercise.requiredEquipment) }
+    var seconds by remember(exercise.id) { mutableStateOf(exercise.defaultWorkSeconds) }
+
+    Screen(
+        title = if (isNew) "Ajouter un exercice" else "Modifier l'exercice",
+        subtitle = "Les changements ne sont conservés que si tu appuies sur Enregistrer."
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            OutlinedTextField(
+                value = name,
+                onValueChange = { name = it },
+                label = { Text("Nom") },
+                modifier = Modifier.fillMaxWidth()
+            )
+            OutlinedTextField(
+                value = instructions,
+                onValueChange = { instructions = it },
+                label = { Text("Explications") },
+                modifier = Modifier.fillMaxWidth(),
+                minLines = 3
+            )
+            OutlinedTextField(
+                value = cue,
+                onValueChange = { cue = it },
+                label = { Text("Conseil coach") },
+                modifier = Modifier.fillMaxWidth(),
+                minLines = 2
+            )
+
+            Text("Catégorie", fontWeight = FontWeight.SemiBold)
+            ExerciseCategory.entries.chunked(2).forEach { row ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    row.forEach { item ->
+                        AssistChip(
+                            onClick = { category = item },
+                            modifier = Modifier.weight(1f),
+                            label = {
+                                Text(
+                                    if (category == item) {
+                                        "• " + categoryLabel(item)
+                                    } else {
+                                        categoryLabel(item)
+                                    }
+                                )
+                            }
+                        )
+                    }
+                    if (row.size == 1) Spacer(Modifier.weight(1f))
+                }
+            }
+
+            Text("Matériel", fontWeight = FontWeight.SemiBold)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                listOf<Equipment?>(null, Equipment.MAT, Equipment.CHAIR)
+                    .forEach { item ->
+                        AssistChip(
+                            onClick = { equipment = item },
+                            modifier = Modifier.weight(1f),
+                            label = {
+                                val label = when (item) {
+                                    null -> "Aucun"
+                                    Equipment.MAT -> "Tapis"
+                                    Equipment.CHAIR -> "Chaise"
+                                }
+                                Text(if (equipment == item) "• " + label else label)
+                            }
+                        )
+                    }
+            }
+
+            Text("Durée : " + seconds + " s", fontWeight = FontWeight.SemiBold)
+            Slider(
+                value = seconds.toFloat(),
+                onValueChange = { seconds = it.toInt() },
+                valueRange = 15f..120f,
+                steps = 20
+            )
+
+            Button(
+                onClick = {
+                    onSave(
+                        exercise.copy(
+                            name = name.trim().ifBlank { "Exercice" },
+                            category = category,
+                            defaultWorkSeconds = seconds,
+                            instructions = instructions.trim(),
+                            cue = cue.trim(),
+                            requiredEquipment = equipment
+                        )
+                    )
+                },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("ENREGISTRER")
+            }
+
+            OutlinedButton(onClick = onCancel, modifier = Modifier.fillMaxWidth()) {
+                Text("ANNULER SANS ENREGISTRER")
+            }
+
+            if (!isNew && exercise.id.startsWith("user-")) {
+                OutlinedButton(onClick = onDelete, modifier = Modifier.fillMaxWidth()) {
+                    Text("SUPPRIMER CET EXERCICE")
+                }
+            } else if (!isNew && hasOverride) {
+                OutlinedButton(onClick = onReset, modifier = Modifier.fillMaxWidth()) {
+                    Text("REVENIR À LA VERSION D'ORIGINE")
                 }
             }
         }
