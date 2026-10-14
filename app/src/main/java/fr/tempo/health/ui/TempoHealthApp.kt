@@ -217,6 +217,17 @@ fun TempoHealthApp(
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
+                navigationIcon = {
+                    if (currentRoute in setOf(
+                            "settings", "library-settings", "category-settings",
+                            "timer", "program"
+                        )
+                    ) {
+                        IconButton(onClick = { navController.popBackStack() }) {
+                            Text("‹", style = MaterialTheme.typography.headlineMedium)
+                        }
+                    }
+                },
                 title = {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
@@ -319,7 +330,11 @@ fun TempoHealthApp(
                         permissionLauncher.launch(healthViewModel.requiredPermissions)
                     },
                     sync = healthViewModel::sync,
-                    saveCheckIn = healthViewModel::saveCheckIn
+                    saveCheckIn = healthViewModel::saveCheckIn,
+                    onOpenTraining = { navController.navigate("training") },
+                    onOpenTimer = { navController.navigate("timer") },
+                    onOpenHealth = { navController.navigate("health") },
+                    onOpenLibrary = { navController.navigate("library-settings") }
                 )
             }
 
@@ -530,10 +545,13 @@ private fun Screen(
                 fontWeight = FontWeight.Bold
             )
             Spacer(Modifier.height(4.dp))
-            Text(
-                text = subtitle,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            if (subtitle.isNotBlank()) {
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
         item { content() }
         item { Spacer(Modifier.height(18.dp)) }
@@ -597,7 +615,11 @@ private fun TodayScreen(
     syncing: Boolean,
     requestPermissions: () -> Unit,
     sync: () -> Unit,
-    saveCheckIn: (Int, Int) -> Unit
+    saveCheckIn: (Int, Int) -> Unit,
+    onOpenTraining: () -> Unit,
+    onOpenTimer: () -> Unit,
+    onOpenHealth: () -> Unit,
+    onOpenLibrary: () -> Unit
 ) {
     val energy = checkIn?.energy ?: 3
     val pain = checkIn?.pain ?: 0
@@ -609,6 +631,36 @@ private fun TodayScreen(
         subtitle = "Récupération, ressenti et décision du jour."
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp)) {
+                Column(
+                    modifier = Modifier.padding(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text("Accès rapide", fontWeight = FontWeight.Bold)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Button(onClick = onOpenTraining, modifier = Modifier.weight(1f)) {
+                            Text("🏋️ Séance")
+                        }
+                        OutlinedButton(onClick = onOpenTimer, modifier = Modifier.weight(1f)) {
+                            Text("⏱️ Minuteur")
+                        }
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        OutlinedButton(onClick = onOpenHealth, modifier = Modifier.weight(1f)) {
+                            Text("❤️ Santé")
+                        }
+                        OutlinedButton(onClick = onOpenLibrary, modifier = Modifier.weight(1f)) {
+                            Text("📚 Exercices")
+                        }
+                    }
+                }
+            }
             RecoveryCard(recovery)
             RecoveryFactorsCard(recovery)
 
