@@ -1,0 +1,74 @@
+# Tempo Coach — Backlog UX, santé et entraînement
+Mis à jour : 14 octobre 2026. État : préparation / discussion, PAS encore développé.
+Source design : docs/CHARTE_GRAPHIQUE_TEMPO_COACH.md.
+
+## Choix utilisateur actés
+- Style A4 : hybride sport + santé, premium et professionnel.
+- Accueil B3 : mix statistiques quotidiennes + coaching/séance.
+- Densité C1 : très compact, adapté à Pixel 7a.
+- Graphiques de suivi réels ; peu de texte ; icônes cohérentes ; code et UI normalisés.
+- L'utilisateur valide les idées suivantes comme base de discussion. Ne pas les traiter comme détails techniques définitivement figés.
+- Conserver le fonctionnement 100 % téléphone, gratuit au-delà de l'abonnement ChatGPT actuel, sans API payante obligatoire, stockage et sauvegardes fiables.
+- Ne pas coder une nouvelle version sur la seule base de ce document sans prioriser avec l'utilisateur si une question produit reste ouverte.
+
+## 2.1 — Design system professionnel (priorité haute)
+- Centraliser tokens de couleur, typographies, espacements, rayons et tailles.
+- Famille d'icônes vectorielles cohérentes pour navigation, catégories et statistiques.
+- Composants réutilisables : MetricCard, CoachAction, RecoveryCard, EmptyState, ConfirmDialog, chart.
+- Dark mode soigné + light mode accessible, support police élargie, descriptions TalkBack.
+- Remplacer progressivement emojis et textes superflus par pictogrammes accompagnés de labels.
+
+## 2.2 — Accueil / Aujourd'hui refondu (priorité haute)
+- Au sommet : date, fraîcheur de synchronisation.
+- KPIs 2x2 : **dernière nuit**, récupération Tempo, **pas du jour**, **minutes actives**.
+- Détails FC repos, VFC, architecture du sommeil au toucher (pas tout à l'accueil).
+- Une seule action contextuelle (séance normale, mobilité douce ou bilan).
+- Mini-conseil coach en une phrase, 3 habitudes ultra compactes.
+- 2 à 3 mini-tendances 7j sous la zone principale.
+- Si l'utilisateur clique sur un KPI, ouvrir le détail dans l'onglet de suivi.
+- Reprendre le principe visuel de la capture fournie (infos chiffrées, occupation compacte de l'écran) sans copier des marques ni métriques propriétaires.
+- Dernière nuit = dernière session réellement achevée et datée (pas forcément « aujourd'hui »).
+
+## 2.3 — Graphiques de suivi interactifs (priorité haute)
+- Santé : sommeil, stade de sommeil fiable, nombre de pas, FC repos, VFC, minutes activité, poids et VO2max si source.
+- Entraînement : séances effectuées, temps total, intensité perçue, groupes travaillés, mobilité vs renforcement.
+- Habitudes : taux de complétion, calendrier léger, constance hebdo.
+- Courbes 7/28j, barres pour quantités, sélection de point pour date et valeur.
+- Masquer/indiquer données absentes (pas inventer ou joindre les points à tort).
+- Comparer 7 jours à 21 précédents, au moins 4 mesures récentes et 7 historiques pour tendance robuste.
+- Si période 90j envisagée, étendre d'abord l'historique synchronisé/conservé.
+
+## 2.4 — Coach plus pertinent (priorité moyenne)
+- Une recommandation concise fondée sur sommeil, VFC, FC repos, activité, douleurs, énergie et récupération disponible.
+- Conseils contextuels : pause active, mobilité, entraînement, détente, retour au calme.
+- Expliquer « pourquoi » sur écran secondaire, données utilisées et incertitude.
+- Personnalisation progressive avec l'historique des séances et difficultés, ne pas inférer de diagnostic.
+- Planification intelligente respectant jours d'effort, récupération et préférences.
+- Tester qualité rédactionnelle et absence de faux messages positifs liés à des données manquantes.
+
+## 2.5 — Qualité, sécurité et compatibilité (en continu)
+- Pixel 7a : vérifier lisibilité, densité, respect barres système et confort tactile.
+- Petits écrans, grand texte, TalkBack, thème clair/sombre, fonctionnement sans Internet.
+- Sync Health Connect : autorisations partielles, erreurs, sources concurrentes, données futures/obsolètes.
+- Sauvegarde/restauration complète Drive sur un autre téléphone.
+- Migrations Room et préférences sans pertes, conserver exercices personnalisés.
+- Toutes actions destructives explicitement confirmées, sauvegarde d'exercice manuelle.
+- Tests automatisés UI et logique + checklist fonctionnelle avant Release.
+- Versionner les changements un par un, vérifier le build GitHub Actions et l'APK signé.
+
+## Pistes à discuter plus tard
+- Objectifs quotidiens personnalisables (pas/activité/sommeil), pas d'objectifs imposés.
+- Organisation détaillée de la navigation « Accueil / Séance / Sommeil / Santé / Suivi / Coach » selon tests d'usage.
+- Rappel subtil et personnalisable de bouger ; ne pas inonder de notifications.
+- Options de filtrage des graphiques, comparaison par semaine et mensuelle.
+- Routines type 2 min / 5 min / 15 min selon disponibilité et récupération.
+- Cartes modifiables / tableau de bord configurable à l'avenir, pas en priorité.
+- Long terme : stabilité, suivi des habitudes sans culpabilisation ni fausses alertes.
+
+## Critères d'acceptation transversaux
+- Compréhension en moins de 3 secondes : sommeil, forme, pas, action.
+- Dans la première zone visible, 4 chiffres importants + une action ; autres détails accessibles au tap.
+- Aucun débordement Pixel 7a, grand texte ni disparition d'éléments.
+- Pas de dépendance à un service payant, aucune transmission santé non sollicitée.
+- Pas de régression des paramètres, exercices, sauvegarde et mise à jour automatique.
+- Chaque livraison compilée et signée ; l'utilisateur teste avant d'engager un chantier majeur.
