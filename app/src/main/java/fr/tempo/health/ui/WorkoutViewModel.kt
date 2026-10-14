@@ -507,28 +507,32 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
 
     fun saveExercise(exercise: Exercise) {
         val current = _trainingPreferences.value
-        val isCustom = current.customExercises.any { it.id == exercise.id }
 
-        val updated = if (isCustom) {
+        val updated = if (exercise.id.startsWith("user-")) {
+            // Création différée : seul ENREGISTRER insère un nouvel exercice.
+            val alreadySaved = current.customExercises.any { it.id == exercise.id }
             current.copy(
-                customExercises = current.customExercises.map {
-                    if (it.id == exercise.id) exercise else it
+                customExercises = if (alreadySaved) {
+                    current.customExercises.map {
+                        if (it.id == exercise.id) exercise else it
+                    }
+                } else {
+                    current.customExercises + exercise
                 }
             )
         } else {
             current.copy(
-                exerciseOverrides =
-                    current.exerciseOverrides + (exercise.id to exercise)
+                exerciseOverrides = current.exerciseOverrides + (exercise.id to exercise)
             )
         }
 
         updateTrainingPreferences(updated)
     }
 
-    fun addCustomExercise(): String {
-        val id = "user-" + System.currentTimeMillis()
-        val exercise = Exercise(
-            id = id,
+    fun addCustomExercise(): Exercise {
+        // Un brouillon non enregistré n'entre ni dans les préférences ni dans la sauvegarde.
+        return Exercise(
+            id = "user-" + java.util.UUID.randomUUID().toString(),
             name = "Nouvel exercice",
             category = ExerciseCategory.MOBILITY,
             defaultWorkSeconds = 40,
@@ -536,14 +540,6 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
             cue = "Ajoute un conseil simple d'exécution.",
             requiredEquipment = null
         )
-
-        updateTrainingPreferences(
-            _trainingPreferences.value.copy(
-                customExercises =
-                    _trainingPreferences.value.customExercises + exercise
-            )
-        )
-        return id
     }
 
     fun deleteCustomExercise(id: String) {
