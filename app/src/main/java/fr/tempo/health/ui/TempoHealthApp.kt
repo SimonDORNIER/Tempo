@@ -29,6 +29,7 @@ import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -169,6 +170,7 @@ fun TempoHealthApp(
         workoutViewModel.endSoundEnabled.collectAsStateWithLifecycle()
     val workoutHistory by workoutViewModel.history.collectAsStateWithLifecycle()
     val trainingPreferences by workoutViewModel.trainingPreferences.collectAsStateWithLifecycle()
+    val routineProgress by workoutViewModel.routineProgress.collectAsStateWithLifecycle()
     val freeTimerState by freeTimerViewModel.state.collectAsStateWithLifecycle()
     val backupState by backupViewModel.state.collectAsStateWithLifecycle()
     val reminderSettings by reminderViewModel.settings.collectAsStateWithLifecycle()
@@ -408,7 +410,9 @@ fun TempoHealthApp(
                     recovery = recovery,
                     latest = recentDays.firstOrNull(),
                     checkIn = checkIn,
-                    plan = previewPlan
+                    plan = previewPlan,
+                    routine = routineProgress,
+                    onToggleRoutine = workoutViewModel::toggleRoutineStep
                 )
             }
 
@@ -1607,7 +1611,9 @@ private fun CoachScreen(
     recovery: RecoveryResult,
     latest: DailyHealthEntity?,
     checkIn: DailyCheckInEntity?,
-    plan: WorkoutPlan
+    plan: WorkoutPlan,
+    routine: RoutineProgress,
+    onToggleRoutine: (Int) -> Unit
 ) {
     val advice = DailyCoachEngine.build(
         recovery = recovery,
@@ -1628,6 +1634,57 @@ private fun CoachScreen(
                 "Confiance " + recovery.confidence + "% • " +
                     recovery.baselineDays + " jour(s) de référence"
             )
+
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(24.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    val steps = listOf(
+                        "Bouger 2 minutes plusieurs fois dans la journée",
+                        if (recovery.level == RecoveryLevel.RED) {
+                            "Faire 5 minutes de mobilité douce ou de repos"
+                        } else {
+                            "Prendre un moment pour une séance ou 5 minutes de mobilité"
+                        },
+                        "Préparer un coucher régulier et un moment sans écran"
+                    )
+                    val completedToday = if (routine.date == java.time.LocalDate.now().toString()) {
+                        routine.completed
+                    } else {
+                        emptySet()
+                    }
+                    Text(
+                        "Mes 3 habitudes du jour • " + completedToday.size + "/3",
+                        fontWeight = FontWeight.Bold
+                    )
+                    LinearProgressIndicator(
+                        progress = { completedToday.size / 3f },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    steps.forEachIndexed { index, label ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Checkbox(
+                                checked = index in completedToday,
+                                onCheckedChange = { onToggleRoutine(index) }
+                            )
+                            Text(label, modifier = Modifier.weight(1f))
+                        }
+                    }
+                    Text(
+                        "Une nouvelle liste commence chaque jour. " +
+                            "Les coches sont conservées dans tes sauvegardes.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
 
             StatusCard(
                 "📊",
