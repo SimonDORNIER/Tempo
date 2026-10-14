@@ -1,9 +1,11 @@
 # Tempo Coach — Backlog UX, santé et entraînement
 Mis à jour : 14 octobre 2026. État : préparation / discussion, PAS encore développé.
-Source design : docs/CHARTE_GRAPHIQUE_TEMPO_COACH.md.
+Sources design : docs/CHARTE_GRAPHIQUE_TEMPO_COACH.md et docs/COMPONENTS_TEMPO_COACH.md.
 
 ## Choix utilisateur actés
-- Style A4 : hybride sport + santé, premium et professionnel.
+- Style actualisé : **santé + détente**, premium, un peu dynamique, sans codes sportifs agressifs.
+- Palette **Prune & Rose poudré** validée : fond #1A1D1F, prune #5B2D58, rose #D99BB6, crème #F0DDD6, sauge #8CA899.
+- **Pas d'image de fond**, ni couleurs électriques. Dégradés subtils dans les cartes et boutons.
 - Accueil B3 : mix statistiques quotidiennes + coaching/séance.
 - Densité C1 : très compact, adapté à Pixel 7a.
 - Graphiques de suivi réels ; peu de texte ; icônes cohérentes ; code et UI normalisés.
@@ -12,7 +14,7 @@ Source design : docs/CHARTE_GRAPHIQUE_TEMPO_COACH.md.
 - Ne pas coder une nouvelle version sur la seule base de ce document sans prioriser avec l'utilisateur si une question produit reste ouverte.
 
 ## 2.1 — Design system professionnel (priorité haute)
-- Centraliser tokens de couleur, typographies, espacements, rayons et tailles.
+- Centraliser tokens de couleur, typographies, espacements, rayons et tailles selon la palette Prune & Rose poudré validée.
 - Famille d'icônes vectorielles cohérentes pour navigation, catégories et statistiques.
 - Composants réutilisables : MetricCard, CoachAction, RecoveryCard, EmptyState, ConfirmDialog, chart.
 - Dark mode soigné + light mode accessible, support police élargie, descriptions TalkBack.
