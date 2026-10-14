@@ -71,8 +71,19 @@ class FullBackupManager(
 
     fun canAccessDestination(): Boolean {
         val raw = preferences.getString(PREF_BACKUP_URI, null) ?: return false
+        val uri = Uri.parse(raw)
+
+        val persistedPermission = resolver.persistedUriPermissions
+            .firstOrNull { permission -> permission.uri == uri }
+
+        if (persistedPermission?.isReadPermission == true ||
+            persistedPermission?.isWritePermission == true
+        ) {
+            return true
+        }
+
         return runCatching {
-            resolver.openFileDescriptor(Uri.parse(raw), "rw")?.use { true } ?: false
+            resolver.openFileDescriptor(uri, "r")?.use { true } ?: false
         }.getOrDefault(false)
     }
 
@@ -100,13 +111,6 @@ class FullBackupManager(
     suspend fun backupToSavedLocation(): BackupResult {
         val raw = preferences.getString(PREF_BACKUP_URI, null)
             ?: return BackupResult(false, "Aucun emplacement de sauvegarde configuré.")
-
-        if (!canAccessDestination()) {
-            return BackupResult(
-                false,
-                "Le fichier de sauvegarde n'est plus accessible. Choisis-le à nouveau."
-            )
-        }
 
         return backupTo(Uri.parse(raw))
     }
