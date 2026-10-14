@@ -19,7 +19,6 @@ import fr.tempo.health.domain.WeeklyProgram
 import fr.tempo.health.domain.RecoveryResult
 import fr.tempo.health.domain.WorkoutHistoryHint
 import fr.tempo.health.domain.WorkoutPlan
-import fr.tempo.health.domain.WorkoutExercise
 import fr.tempo.health.domain.WorkoutPlanner
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
