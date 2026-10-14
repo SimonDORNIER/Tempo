@@ -241,6 +241,7 @@ fun TempoHealthApp(
                                 "timer" -> "Minuteur"
                                 "program" -> "Mon programme"
                                 "workout" -> "Séance"
+                                "breathing" -> "Respiration"
                                 else -> selectedDestination?.label ?: "Tempo Coach"
                             },
                             fontWeight = FontWeight.SemiBold
@@ -251,7 +252,8 @@ fun TempoHealthApp(
                             currentRoute != "exercise-settings" &&
                             currentRoute != "timer" &&
                             currentRoute != "program" &&
-                            currentRoute != "workout"
+                            currentRoute != "workout" &&
+                            currentRoute != "breathing"
                         ) {
                             Text(
                                 text = "Tempo Coach v" + BuildConfig.VERSION_NAME,
@@ -265,7 +267,8 @@ fun TempoHealthApp(
                     if (currentRoute != "settings" &&
                         currentRoute != "exercise-settings" &&
                         currentRoute != "program" &&
-                        currentRoute != "workout"
+                        currentRoute != "workout" &&
+                        currentRoute != "breathing"
                     ) {
                         IconButton(onClick = { navController.navigate("settings") }) {
                             Icon(Icons.Default.Settings, contentDescription = "Paramètres")
@@ -371,6 +374,7 @@ fun TempoHealthApp(
                     plan = previewPlan,
                     history = workoutHistory,
                     goal = trainingPreferences.goal,
+                    onOpenBreathing = { navController.navigate("breathing") },
                     onOpenProgram = {
                         navController.navigate("program")
                     },
@@ -390,6 +394,13 @@ fun TempoHealthApp(
                         workoutViewModel.prepare(recovery)
                         navController.navigate("workout")
                     }
+                )
+            }
+
+            composable("breathing") {
+                GuidedBreathingScreen(
+                    onExit = { navController.popBackStack() },
+                    onRecord = workoutViewModel::recordBreathingSession
                 )
             }
 
@@ -940,18 +951,23 @@ private fun RecoveryCard(recovery: RecoveryResult) {
         RecoveryLevel.UNKNOWN -> "⚪"
     }
 
+    val formLevel = when (recovery.level) {
+        RecoveryLevel.GREEN -> "Forme favorable"
+        RecoveryLevel.ORANGE -> "Forme moyenne"
+        RecoveryLevel.RED -> "Récupération prioritaire"
+        RecoveryLevel.UNKNOWN -> "Données insuffisantes"
+    }
     StatusCard(
         emoji = emoji,
-        title = "Récupération",
-        value = recovery.score?.let { it.toString() + " / 100" } ?: "À calibrer",
-        detail = (
-            recovery.reasons.joinToString(" • ") +
-                if (recovery.score != null) {
-                    " • confiance " + recovery.confidence + "%"
-                } else {
-                    ""
-                }
-            )
+        title = "Forme & préparation",
+        value = recovery.score?.let { it.toString() + " / 100" } ?: "— / 100",
+        detail = formLevel +
+            if (recovery.score != null) {
+                " • fiabilité " + recovery.confidence + "% • " +
+                    recovery.baselineDays + " j de référence"
+            } else {
+                " • Synchronise Santé Connect pour calculer le score"
+            }
     )
 }
 
@@ -968,7 +984,7 @@ private fun RecoveryFactorsCard(recovery: RecoveryResult) {
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Text(
-                "Pourquoi ce score ?",
+                "Comment est calculé le score de forme ?",
                 fontWeight = FontWeight.Bold
             )
 
@@ -1251,6 +1267,7 @@ private fun TrainingScreen(
     history: List<WorkoutHistoryEntity>,
     goal: TrainingGoal,
     onOpenProgram: () -> Unit,
+    onOpenBreathing: () -> Unit,
     onStart: () -> Unit
 ) {
     val last = history.firstOrNull()
@@ -1283,6 +1300,13 @@ private fun TrainingScreen(
                     .height(56.dp)
             ) {
                 Text("COMMENCER")
+            }
+
+            OutlinedButton(
+                onClick = onOpenBreathing,
+                modifier = Modifier.fillMaxWidth().height(52.dp)
+            ) {
+                Text("🫁 RESPIRATION GUIDÉE • 2 À 4 MIN")
             }
 
             OutlinedButton(
@@ -3563,6 +3587,7 @@ private fun categoryLabel(category: ExerciseCategory): String =
         ExerciseCategory.LOWER_BODY -> "Bas du corps"
         ExerciseCategory.MOBILITY -> "Mobilité"
         ExerciseCategory.STRETCHING -> "Étirements"
+        ExerciseCategory.BREATHING -> "Respiration"
     }
 
 private fun categoryIcon(
@@ -3577,6 +3602,7 @@ private fun categoryIcon(
         ExerciseCategory.LOWER_BODY -> "🦵"
         ExerciseCategory.MOBILITY -> "🤸"
         ExerciseCategory.STRETCHING -> "🧘"
+        ExerciseCategory.BREATHING -> "🫁"
     }
 
 private fun recoveryEmoji(recovery: RecoveryResult): String =
