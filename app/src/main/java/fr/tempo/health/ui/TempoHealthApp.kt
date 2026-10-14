@@ -3,6 +3,7 @@ package fr.tempo.health.ui
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -2736,6 +2737,27 @@ private fun ExerciseDraftScreen(
     var equipment by remember(exercise.id) { mutableStateOf(exercise.requiredEquipment) }
     var seconds by remember(exercise.id) { mutableStateOf(exercise.defaultWorkSeconds) }
 
+    val requestCancel = {
+        val hasChanges = name != exercise.name ||
+            instructions != exercise.instructions ||
+            cue != exercise.cue ||
+            category != exercise.category ||
+            equipment != exercise.requiredEquipment ||
+            seconds != exercise.defaultWorkSeconds
+        if (hasChanges) {
+            pendingConfirmation = ConfirmationRequest(
+                title = "Abandonner les modifications ?",
+                message = "Les changements non enregistrés de « " +
+                    exercise.name + " » seront perdus.",
+                confirmLabel = "ABANDONNER",
+                action = onCancel
+            )
+        } else {
+            onCancel()
+        }
+    }
+    BackHandler(onBack = requestCancel)
+
     Screen(
         title = if (isNew) "Ajouter un exercice" else "Modifier l'exercice",
         subtitle = "Les changements ne sont conservés que si tu appuies sur Enregistrer."
@@ -2836,25 +2858,7 @@ private fun ExerciseDraftScreen(
             }
 
             OutlinedButton(
-                onClick = {
-                    val hasChanges = name != exercise.name ||
-                        instructions != exercise.instructions ||
-                        cue != exercise.cue ||
-                        category != exercise.category ||
-                        equipment != exercise.requiredEquipment ||
-                        seconds != exercise.defaultWorkSeconds
-                    if (hasChanges) {
-                        pendingConfirmation = ConfirmationRequest(
-                            title = "Abandonner les modifications ?",
-                            message = "Les changements non enregistrés de « " +
-                                exercise.name + " » seront perdus.",
-                            confirmLabel = "ABANDONNER",
-                            action = onCancel
-                        )
-                    } else {
-                        onCancel()
-                    }
-                },
+                onClick = requestCancel,
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text("ANNULER SANS ENREGISTRER")
@@ -2912,6 +2916,19 @@ private fun WorkoutSessionScreen(
 ) {
     val plan = state.plan
     var pendingConfirmation by remember { mutableStateOf<ConfirmationRequest?>(null) }
+    BackHandler(enabled = plan != null) {
+        if (state.phase == WorkoutPhase.COMPLETE || state.phase == WorkoutPhase.READY) {
+            onExit()
+        } else {
+            pendingConfirmation = ConfirmationRequest(
+                title = "Quitter la séance ?",
+                message = "La séance en cours sera arrêtée. " +
+                    "Tu perdras la progression restante.",
+                confirmLabel = "QUITTER",
+                action = onExit
+            )
+        }
+    }
 
     if (plan == null) {
         Screen(
