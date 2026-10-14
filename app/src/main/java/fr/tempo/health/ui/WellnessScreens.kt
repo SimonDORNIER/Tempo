@@ -289,7 +289,7 @@ fun TodayV21Screen(
                         if (night == null) "Données manquantes" else "Dernière nuit",
                         Icons.Rounded.Bedtime, C.rose, Color(0xFF54324E),
                         Color(0xFF302731), Modifier.weight(1f), onTracking)
-                    MetricTile("Forme & préparation", readiness?.let { "$it / 100" } ?: "—",
+                    MetricTile("Préparation", readiness?.let { "$it / 100" } ?: "—",
                         if (readiness == null) "Fiabilité insuffisante" else "Fiabilité ${recovery.confidence} %",
                         Icons.Rounded.Favorite, C.sage, Color(0xFF415246),
                         Color(0xFF2C3430), Modifier.weight(1f), onCoach)
