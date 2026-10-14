@@ -14,6 +14,13 @@ Sources design : docs/CHARTE_GRAPHIQUE_TEMPO_COACH.md, docs/COMPONENTS_TEMPO_COA
 - Conserver le fonctionnement 100 % téléphone, gratuit au-delà de l'abonnement ChatGPT actuel, sans API payante obligatoire, stockage et sauvegardes fiables.
 - Ne pas coder une nouvelle version sur la seule base de ce document sans prioriser avec l'utilisateur si une question produit reste ouverte.
 
+## 2.0.1 — Forme et respiration (développé, APK en attente de validation)
+- Score **« Forme & préparation » / 100** : **renommage et mise en avant** du score RecoveryEngine existant, sans score contradictoire. Conserve le niveau de confiance, la référence personnelle et les explications.
+- Nouvelle catégorie bibliothèque **Respiration** : respiration abdominale 360°, expiration douce 4/6, respiration équilibrée 4/4, retour au calme 3/5, pause du soir 4/6.
+- Écran de respiration guidée depuis Séance : choix d'un exercice, préparation 5 s, phases Inspirer/Expirer, durée 2–4 min, pause/reprise, sortie confirmée, historique et sauvegarde.
+- Rythmes indicatifs, pas de rétention forcée du souffle, utilisateur libre de revenir à un souffle naturel.
+- **Ne pas confondre ce palier ciblé avec la refonte graphique complète et les 4 onglets**, qui restent prévus dans 2.1–2.4.
+
 ## 2.1 — Design system professionnel (priorité haute)
 - Centraliser tokens de couleur, typographies, espacements, rayons et tailles selon la palette Prune & Rose poudré validée.
 - Famille d'icônes vectorielles cohérentes pour navigation, catégories et statistiques.
