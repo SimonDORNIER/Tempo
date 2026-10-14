@@ -27,6 +27,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.time.LocalDate
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -37,6 +38,11 @@ enum class WorkoutPhase {
     REST,
     COMPLETE
 }
+
+data class RoutineProgress(
+    val date: String,
+    val completed: Set<Int>
+)
 
 data class WorkoutUiState(
     val plan: WorkoutPlan? = null,
@@ -98,6 +104,9 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
     private val _trainingPreferences = MutableStateFlow(loadTrainingPreferences())
     val trainingPreferences: StateFlow<TrainingPreferences> =
         _trainingPreferences.asStateFlow()
+
+    private val _routineProgress = MutableStateFlow(readRoutineProgress())
+    val routineProgress: StateFlow<RoutineProgress> = _routineProgress.asStateFlow()
 
     private var timerJob: Job? = null
     private var toneGenerator: ToneGenerator? = null
@@ -369,6 +378,7 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
         _endSoundEnabled.value =
             preferences.getBoolean("sound-end-enabled", true)
         _trainingPreferences.value = loadTrainingPreferences()
+        _routineProgress.value = readRoutineProgress()
         rebuildToneGenerator()
         return true
     }
@@ -383,7 +393,36 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
         _endSoundEnabled.value =
             preferences.getBoolean("sound-end-enabled", true)
         _trainingPreferences.value = loadTrainingPreferences()
+        _routineProgress.value = readRoutineProgress()
         rebuildToneGenerator()
+    }
+
+    fun toggleRoutineStep(index: Int) {
+        if (index !in 0..2) return
+        val today = LocalDate.now().toString()
+        val current = _routineProgress.value.takeIf { it.date == today }
+            ?.completed ?: emptySet()
+        val updated = if (index in current) current - index else current + index
+        preferences.edit()
+            .putString("routine-day", today)
+            .putString("routine-completed", updated.sorted().joinToString(","))
+            .apply()
+        _routineProgress.value = RoutineProgress(today, updated)
+        backupManager.requestAutoBackup()
+    }
+
+    private fun readRoutineProgress(): RoutineProgress {
+        val today = LocalDate.now().toString()
+        val savedDay = preferences.getString("routine-day", "").orEmpty()
+        val completed = if (savedDay == today) {
+            preferences.getString("routine-completed", "").orEmpty()
+                .split(",")
+                .mapNotNull { it.toIntOrNull()?.takeIf { index -> index in 0..2 } }
+                .toSet()
+        } else {
+            emptySet()
+        }
+        return RoutineProgress(today, completed)
     }
 
     fun setTrainingGoal(goal: TrainingGoal) {
