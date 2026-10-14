@@ -1,12 +1,13 @@
 # Instructions permanentes — Projet Tempo Coach
 
-Ce dépôt contient l'app Android native Tempo Health / Tempo Coach et des composants historiques. Pour les versions Android Health, travailler depuis la branche active issue de health/v2.0-coach-dashboard, PAS depuis le code legacy main par défaut.
+Ce dépôt contient l'app Android native Tempo Health / Tempo Coach et des composants historiques. Pour les évolutions de Tempo Coach, repartir de **health/v2.1.1-wellness-ui** ou de son tag **health-v2.1.1** ; ne pas repartir du code legacy `main` ni d'une ancienne branche de release.
 
 ## Références obligatoires
 - docs/CHARTE_GRAPHIQUE_TEMPO_COACH.md : identité santé + détente et palette choisie.
 - docs/COMPONENTS_TEMPO_COACH.md : six composants réutilisables, tailles, variantes et états.
 - docs/ROADMAP_TEMPO_COACH.md : décisions du propriétaire et futures fonctionnalités.
-- docs/NAVIGATION_TEMPO_COACH.md : navigation validée à 4 onglets et parcours UX ; respecter les décisions, ne pas créer de nouveau cinquième onglet Coach.
+- docs/NAVIGATION_TEMPO_COACH.md : navigation à 4 onglets implémentée et évolutions ; pas de cinquième onglet Coach.
+- docs/TESTS_TEMPO_2_1.md : tests de régression et vérifications sur appareil.
 
 ## Directions déjà validées
 - **Style santé / détente premium** (plus sport) ; palette **Prune & Rose poudré** (#1A1D1F, #5B2D58, #D99BB6, #F0DDD6, #8CA899), **aucune image de fond**, dégradés doux dans cartes/CTA seulement ; accueil mixte santé/coaching ; densité **très compacte**.
