@@ -19,6 +19,7 @@ import fr.tempo.health.domain.WeeklyProgram
 import fr.tempo.health.domain.RecoveryResult
 import fr.tempo.health.domain.WorkoutHistoryHint
 import fr.tempo.health.domain.WorkoutPlan
+import fr.tempo.health.domain.WorkoutExercise
 import fr.tempo.health.domain.WorkoutPlanner
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -144,6 +145,25 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
             exerciseIndex = 0,
             phase = WorkoutPhase.READY,
             remainingSeconds = 0
+        )
+    }
+
+    /** Préparer un seul exercice consulté depuis Pratiquer, sans modifier les préférences. */
+    fun prepareSingleExercise(exercise: Exercise) {
+        timerJob?.cancel()
+        sessionStartedAtEpochMs = null
+        sessionRecorded = false
+        val effective = ExerciseLibrary.resolve(exercise.id, _trainingPreferences.value) ?: exercise
+        val duration = (_trainingPreferences.value.exerciseWorkSeconds[effective.id]
+            ?: effective.defaultWorkSeconds).coerceIn(15, 120)
+        _state.value = WorkoutUiState(
+            plan = WorkoutPlan(
+                title = effective.name,
+                intensity = 2,
+                items = listOf(WorkoutExercise(effective, workSeconds = duration, restSeconds = 0))
+            ),
+            exerciseIndex = 0,
+            phase = WorkoutPhase.READY
         )
     }
 
