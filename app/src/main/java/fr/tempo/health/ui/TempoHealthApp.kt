@@ -24,6 +24,11 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.rounded.Home
+import androidx.compose.material.icons.rounded.Spa
+import androidx.compose.material.icons.rounded.BarChart
+import androidx.compose.material.icons.rounded.Person
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
@@ -125,15 +130,14 @@ private fun ConfirmSensitiveAction(
 private data class Destination(
     val route: String,
     val label: String,
-    val emoji: String
+    val icon: ImageVector
 )
 
 private val mainDestinations = listOf(
-    Destination("today", "Mon jour", "🏠"),
-    Destination("health", "Santé", "❤️"),
-    Destination("training", "Séance", "🏋️"),
-    Destination("progress", "Progression", "📈"),
-    Destination("coach", "Coach", "🧠")
+    Destination("today", "Aujourd'hui", Icons.Rounded.Home),
+    Destination("practice", "Pratiquer", Icons.Rounded.Spa),
+    Destination("tracking", "Suivi", Icons.Rounded.BarChart),
+    Destination("me", "Moi", Icons.Rounded.Person)
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -218,11 +222,13 @@ fun TempoHealthApp(
 
     Scaffold(
         topBar = {
+            if (selectedDestination == null) {
             CenterAlignedTopAppBar(
                 navigationIcon = {
                     if (currentRoute in setOf(
                             "settings", "library-settings", "category-settings",
-                            "timer", "program"
+                            "exercise-settings", "timer", "program", "health", "training",
+                            "progress", "coach", "practice-library/{category}"
                         )
                     ) {
                         IconButton(onClick = { navController.popBackStack() }) {
@@ -279,6 +285,7 @@ fun TempoHealthApp(
                     containerColor = MaterialTheme.colorScheme.surface
                 )
             )
+            }
         },
         bottomBar = {
             if (selectedDestination != null) {
@@ -297,10 +304,7 @@ fun TempoHealthApp(
                                 }
                             },
                             icon = {
-                                Text(
-                                    text = destination.emoji,
-                                    style = MaterialTheme.typography.titleLarge
-                                )
+                                Icon(destination.icon, contentDescription = destination.label)
                             },
                             label = {
                                 Text(
@@ -324,32 +328,80 @@ fun TempoHealthApp(
             modifier = Modifier.padding(padding)
         ) {
             composable("today") {
-                TodayScreen(
-                    latest = recentDays.firstOrNull(),
+                TodayV21Screen(
+                    days = recentDays,
                     checkIn = checkIn,
                     recovery = recovery,
                     plan = previewPlan,
-                    hasPermissions = hasPermissions,
+                    routine = routineProgress,
                     syncing = syncing,
-                    requestPermissions = {
+                    hasPermissions = hasPermissions,
+                    onSync = healthViewModel::sync,
+                    onPermissions = {
                         permissionLauncher.launch(healthViewModel.requiredPermissions)
                     },
-                    sync = healthViewModel::sync,
-                    saveCheckIn = healthViewModel::saveCheckIn,
-                    onOpenTraining = { navController.navigate("training") },
-                    onOpenTimer = { navController.navigate("timer") },
-                    onOpenHealth = { navController.navigate("health") },
-                    onOpenLibrary = { navController.navigate("library-settings") },
-                    weeklyProgram = weeklyProgram,
-                    routine = routineProgress,
-                    history = workoutHistory,
-                    onToggleRoutine = workoutViewModel::toggleRoutineStep,
-                    onOpenCoach = { navController.navigate("coach") },
-                    onOpenProgram = { navController.navigate("program") },
-                    onStartWorkout = {
+                    onCheckIn = healthViewModel::saveCheckIn,
+                    onToggleHabit = workoutViewModel::toggleRoutineStep,
+                    onStart = {
                         workoutViewModel.prepare(recovery)
                         navController.navigate("workout")
+                    },
+                    onCoach = { navController.navigate("coach") },
+                    onHealth = { navController.navigate("health") },
+                    onTracking = { navController.navigate("tracking") },
+                    onPractice = { navController.navigate("practice") }
+                )
+            }
+
+            composable("practice") {
+                PracticeHubV21Screen(
+                    plan = previewPlan,
+                    onStart = {
+                        workoutViewModel.prepare(recovery)
+                        navController.navigate("workout")
+                    },
+                    onBreathing = { navController.navigate("breathing") },
+                    onExplore = { category ->
+                        navController.navigate("practice-library/" + category.name)
+                    },
+                    onProgram = { navController.navigate("program") },
+                    onTimer = { navController.navigate("timer") },
+                    onManage = { navController.navigate("library-settings") }
+                )
+            }
+
+            composable("practice-library/{category}") { entry ->
+                val category = entry.arguments?.getString("category")?.let {
+                    runCatching { ExerciseCategory.valueOf(it) }.getOrNull()
+                }
+                ExerciseExploreV21Screen(
+                    category = category,
+                    preferences = trainingPreferences,
+                    onStart = { exercise ->
+                        workoutViewModel.prepareSingleExercise(exercise)
+                        navController.navigate("workout")
                     }
+                )
+            }
+
+            composable("tracking") {
+                TrackingHubV21Screen(
+                    days = recentDays,
+                    history = workoutHistory,
+                    recovery = recovery,
+                    onHealth = { navController.navigate("health") },
+                    onProgress = { navController.navigate("progress") }
+                )
+            }
+
+            composable("me") {
+                MeHubV21Screen(
+                    onSettings = { navController.navigate("settings") },
+                    onCategories = { navController.navigate("category-settings") },
+                    onExercises = { navController.navigate("exercise-settings") },
+                    onHealth = { navController.navigate("health") },
+                    onTimer = { navController.navigate("timer") },
+                    onUpdates = onCheckForUpdates
                 )
             }
 
