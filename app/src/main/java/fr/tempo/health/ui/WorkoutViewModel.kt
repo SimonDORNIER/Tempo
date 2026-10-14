@@ -10,6 +10,7 @@ import fr.tempo.health.data.WorkoutHistoryEntity
 import fr.tempo.health.domain.Exercise
 import fr.tempo.health.domain.ExerciseCategory
 import fr.tempo.health.domain.ExerciseLibrary
+import fr.tempo.health.domain.WorkoutExercise
 import fr.tempo.health.domain.Equipment
 import fr.tempo.health.domain.TrainingGoal
 import fr.tempo.health.domain.TrainingPreferences
@@ -267,6 +268,42 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
         recordSessionIfNeeded(completed = false)
         _state.value = WorkoutUiState()
         sessionStartedAtEpochMs = null
+    }
+
+    /** Enregistre une session de respiration terminée ou arrêtée après démarrage. */
+    fun recordBreathingSession(
+        exerciseId: String,
+        elapsedSeconds: Int,
+        completed: Boolean
+    ) {
+        if (elapsedSeconds < 10) return
+        val exercise = ExerciseLibrary.resolve(exerciseId, _trainingPreferences.value)
+            ?: return
+        if (exercise.category != ExerciseCategory.BREATHING) return
+
+        val duration = elapsedSeconds.coerceIn(10, 3600)
+        val endedAt = System.currentTimeMillis()
+        viewModelScope.launch {
+            repository.saveSession(
+                plan = WorkoutPlan(
+                    title = exercise.name,
+                    intensity = 1,
+                    items = listOf(
+                        WorkoutExercise(
+                            exercise = exercise,
+                            workSeconds = duration,
+                            restSeconds = 0
+                        )
+                    )
+                ),
+                startedAtEpochMs = endedAt - duration * 1000L,
+                endedAtEpochMs = endedAt,
+                durationSeconds = duration,
+                completedExercises = if (completed) 1 else 0,
+                completed = completed
+            )
+            backupManager.requestAutoBackup()
+        }
     }
 
     fun rateDifficulty(difficulty: Int) {
