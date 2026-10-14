@@ -1,6 +1,14 @@
-# Tempo Health
+# Tempo Coach (anciennement Tempo Health)
 
 Application Android personnelle santé / récupération / entraînement.
+
+## Références de conception pour les prochaines versions
+
+- **[Charte graphique et UX](docs/CHARTE_GRAPHIQUE_TEMPO_COACH.md)** : style hybride premium sport/santé, accueil mixte, interface très compacte Pixel 7a.
+- **[Feuille de route et backlog](docs/ROADMAP_TEMPO_COACH.md)** : écran d'accueil, graphiques, coaching, sécurité et tests à discuter pour les versions suivantes.
+- **[Instructions de développement](AGENTS.md)** : règles à respecter dans les futurs développements.
+
+La version Android publiée est Tempo Coach 2.0.0 ; les notes historiques 0.6.1 ci-dessous restent conservées pour référence.
 
 ## Version 0.6.1
 
