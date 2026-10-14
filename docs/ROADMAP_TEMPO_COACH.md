@@ -1,11 +1,12 @@
 # Tempo Coach — Backlog UX, santé et entraînement
 Mis à jour : 14 octobre 2026. État : préparation / discussion, PAS encore développé.
-Sources design : docs/CHARTE_GRAPHIQUE_TEMPO_COACH.md et docs/COMPONENTS_TEMPO_COACH.md.
+Sources design : docs/CHARTE_GRAPHIQUE_TEMPO_COACH.md, docs/COMPONENTS_TEMPO_COACH.md et **docs/NAVIGATION_TEMPO_COACH.md**.
 
 ## Choix utilisateur actés
 - Style actualisé : **santé + détente**, premium, un peu dynamique, sans codes sportifs agressifs.
 - Palette **Prune & Rose poudré** validée : fond #1A1D1F, prune #5B2D58, rose #D99BB6, crème #F0DDD6, sauge #8CA899.
 - **Pas d'image de fond**, ni couleurs électriques. Dégradés subtils dans les cartes et boutons.
+- **Navigation confirmée : 4 onglets Aujourd'hui / Pratiquer / Suivi / Moi ; Coach intégré à l'accueil, sans onglet indépendant ; détente et mouvement regroupés dans Pratiquer.**
 - Accueil B3 : mix statistiques quotidiennes + coaching/séance.
 - Densité C1 : très compact, adapté à Pixel 7a.
 - Graphiques de suivi réels ; peu de texte ; icônes cohérentes ; code et UI normalisés.
@@ -62,12 +63,11 @@ Sources design : docs/CHARTE_GRAPHIQUE_TEMPO_COACH.md et docs/COMPONENTS_TEMPO_C
 
 **Identité validée** : santé / détente, prune & rose poudré, fond uni sans illustration, gradients discrets, UI compacte Pixel 7a, pas de service payant imposé. Référence absolue : `docs/CHARTE_GRAPHIQUE_TEMPO_COACH.md` et `docs/COMPONENTS_TEMPO_COACH.md`.
 
-**Points encore ouverts (ne pas considérer la maquette comme un cahier des charges intégral) :**
-1. **Navigation** : actuelle 5 onglets `Mon jour / Santé / Séance / Progression / Coach`. Maquette 5 onglets `Aujourd'hui / Détente / Suivi / Santé / Profil`. Définir où se trouvent séance, bibliothèque, Coach et réglages/profil avant refonte globale. Option provisoire : garder toutes les routes et fonctions existantes en réorganisant la navigation sans suppression.
-2. **Statistiques réellement disponibles** : `DailyHealthEntity` stocke sommeil (durée et stades), FC repos, VFC, pas, distance, calories, minutes d'exercice, etc., mais **pas l'hydratation** ni un score natif de qualité du sommeil Fitbit. Le moteur Recovery produit `score: Int?` et `confidence` distincts d'un score Fitbit. Afficher uniquement des données disponibles, avec date/unité et état « — » sinon. La carte Activité correspond aux minutes d'exercice réelles, pas à une mesure fantaisiste « activité douce ». Objectif de pas uniquement si configuré.
-3. **Habitudes** : actuellement 3 coches quotidiennes sauvegardées avec un jour, **sans historique multi-jours**. Pour un graphe de régularité 7/28 jours, créer un historique daté (avec migration/sauvegarde compatibles) et préciser les habitudes que l'utilisateur veut suivre. Ne pas inventer des litres d'eau ou des objectifs non instrumentés.
-4. **MVP du nouveau design** : proposer `2.1 thème et six composants`, `2.2 accueil compact + navigation`, `2.3 graphiques de suivi`, `2.4 autres écrans + qualité`. Chaque étape compilée/signée, testable sur Pixel 7a et rétrocompatible, sans refonte totale d'un seul coup.
-5. **Comportements** : clic d'une carte -> véritable écran de détail ; conseil en 1-2 lignes + explication si besoin ; une seule action primaire contextualisée ; état sans données/permissions/Internet ; graphiques cliquables avec dates, valeurs et trous visibles ; retour Android et dialogues conservés.
+**Navigation désormais validée (voir NAVIGATION_TEMPO_COACH.md). Les points restants ne doivent pas faire passer les sous-écrans suggérés pour des fonctionnalités déjà développées.**
+1. **Statistiques réellement disponibles** : `DailyHealthEntity` stocke sommeil (durée et stades), FC repos, VFC, pas, distance, calories, minutes d'exercice, etc., mais **pas l'hydratation** ni un score natif de qualité du sommeil Fitbit. Le moteur Recovery produit `score: Int?` et `confidence` distincts d'un score Fitbit. Afficher uniquement des données disponibles, avec date/unité et état « — » sinon. La carte Activité correspond aux minutes d'exercice réelles, pas à une mesure fantaisiste « activité douce ». Objectif de pas uniquement si configuré.
+2. **Habitudes** : actuellement 3 coches quotidiennes sauvegardées avec un jour, **sans historique multi-jours**. Pour un graphe de régularité 7/28 jours, créer un historique daté (avec migration/sauvegarde compatibles) et préciser les habitudes que l'utilisateur veut suivre. Ne pas inventer des litres d'eau ou des objectifs non instrumentés.
+3. **MVP du nouveau design** : proposer `2.1 thème et six composants`, `2.2 accueil compact + navigation`, `2.3 graphiques de suivi`, `2.4 autres écrans + qualité`. Chaque étape compilée/signée, testable sur Pixel 7a et rétrocompatible, sans refonte totale d'un seul coup.
+4. **Comportements** : clic d'une carte -> véritable écran de détail ; conseil en 1-2 lignes + explication si besoin ; une seule action primaire contextualisée ; état sans données/permissions/Internet ; graphiques cliquables avec dates, valeurs et trous visibles ; retour Android et dialogues conservés.
 
 **Points qu'on peut résoudre sans bloquer l'utilisateur** : police native Roboto, 16dp de marge, 48dp de zone tactile, support de police agrandie, thème sombre prioritaire et clair ultérieurement, animation réduite et pas de fond illustré.
 
