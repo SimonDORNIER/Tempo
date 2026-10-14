@@ -2603,6 +2603,8 @@ private fun ExercisePreferencesScreen(
     onResetExercise: (String) -> Unit
 ) {
     var selectedCategory by remember { mutableStateOf<ExerciseCategory?>(null) }
+    var searchQuery by remember { mutableStateOf("") }
+    var favoritesOnly by remember { mutableStateOf(false) }
     var editingId by remember { mutableStateOf<String?>(null) }
     var newExerciseDraft by remember { mutableStateOf<Exercise?>(null) }
 
@@ -2641,7 +2643,10 @@ private fun ExercisePreferencesScreen(
     }
 
     val visibleExercises = allExercises.filter { exercise ->
-        selectedCategory == null || exercise.category == selectedCategory
+        (selectedCategory == null || exercise.category == selectedCategory) &&
+            (searchQuery.isBlank() ||
+                exercise.name.contains(searchQuery.trim(), ignoreCase = true)) &&
+            (!favoritesOnly || exercise.id in preferences.favoriteExerciseIds)
     }
 
     Screen(
@@ -2661,6 +2666,19 @@ private fun ExercisePreferencesScreen(
                 Text("＋ AJOUTER UN EXERCICE")
             }
 
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = { searchQuery = it },
+                label = { Text("Rechercher un exercice") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+            AssistChip(
+                onClick = { favoritesOnly = !favoritesOnly },
+                label = {
+                    Text(if (favoritesOnly) "★ Favoris uniquement" else "☆ Voir mes favoris")
+                }
+            )
             Text("Filtrer par catégorie", fontWeight = FontWeight.Bold)
 
             val filterOptions = listOf<ExerciseCategory?>(null) +
