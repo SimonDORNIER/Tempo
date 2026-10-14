@@ -7,7 +7,8 @@ enum class ExerciseCategory {
     CORE,
     LOWER_BODY,
     MOBILITY,
-    STRETCHING
+    STRETCHING,
+    BREATHING
 }
 
 enum class Equipment {
@@ -384,10 +385,42 @@ object ExerciseLibrary {
         exercise(
             "breathing-360",
             "Respiration diaphragmatique 360°",
-            ExerciseCategory.STRETCHING,
+            ExerciseCategory.BREATHING,
             60,
             "Assis ou allongé, pose une main sur le ventre et une sur les côtes. Inspire doucement par le nez en laissant les côtes s'ouvrir, puis expire sans pousser.",
             "Garde les épaules souples. Ne retiens pas ton souffle et arrête en cas de vertige."
+        ),
+        exercise(
+            "breath-calm-46",
+            "Expiration douce 4/6",
+            ExerciseCategory.BREATHING,
+            60,
+            "Assieds-toi confortablement. Inspire sans forcer par le nez pendant 4 secondes, puis expire doucement pendant 6 secondes. Recommence à ton rythme.",
+            "Épaules relâchées. Raccourcis les temps si besoin, sans chercher à prendre plus d'air."
+        ),
+        exercise(
+            "breath-balanced-44",
+            "Respiration équilibrée 4/4",
+            ExerciseCategory.BREATHING,
+            60,
+            "Inspire tranquillement pendant 4 secondes, puis expire pendant 4 secondes. Garde une respiration naturelle, sans pause imposée.",
+            "Ne retiens pas ton souffle. Ralentis ou reviens à ton rythme spontané si nécessaire."
+        ),
+        exercise(
+            "breath-light-35",
+            "Retour au calme 3/5",
+            ExerciseCategory.BREATHING,
+            60,
+            "Pose les pieds au sol. Inspire pendant 3 secondes, puis laisse sortir l'air pendant 5 secondes, le visage et le ventre détendus.",
+            "Une respiration petite et confortable suffit. Arrête si tu te sens étourdi."
+        ),
+        exercise(
+            "breath-night-46",
+            "Pause respiratoire du soir 4/6",
+            ExerciseCategory.BREATHING,
+            60,
+            "Assis ou allongé dans une position confortable, inspire pendant 4 secondes et expire pendant 6 secondes. Laisse les épaules se relâcher.",
+            "Évite de forcer l'expiration. Ce rituel n'est pas un traitement de l'insomnie."
         ),
         exercise(
             "pelvic-tilt",
