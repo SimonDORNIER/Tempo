@@ -89,6 +89,37 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+private data class ConfirmationRequest(
+    val title: String,
+    val message: String,
+    val confirmLabel: String,
+    val action: () -> Unit
+)
+
+@Composable
+private fun ConfirmSensitiveAction(
+    request: ConfirmationRequest?,
+    onDismiss: () -> Unit
+) {
+    if (request == null) return
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(request.title) },
+        text = { Text(request.message) },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    onDismiss()
+                    request.action()
+                }
+            ) { Text(request.confirmLabel) }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("ANNULER") }
+        }
+    )
+}
+
 private data class Destination(
     val route: String,
     val label: String,
@@ -1601,6 +1632,8 @@ private fun SettingsScreen(
     onOpenTimer: () -> Unit,
     onCheckForUpdates: () -> Unit
 ) {
+    var pendingConfirmation by remember { mutableStateOf<ConfirmationRequest?>(null) }
+
     Screen(
         title = "Paramètres",
         subtitle = "État technique, confidentialité et sons."
@@ -1941,7 +1974,19 @@ private fun SettingsScreen(
                     }
 
                     Button(
-                        onClick = onChooseBackupDestination,
+                        onClick = {
+                            if (backupState.configured) {
+                                pendingConfirmation = ConfirmationRequest(
+                                    title = "Changer le fichier Drive ?",
+                                    message = "La prochaine sauvegarde utilisera le nouveau fichier. " +
+                                        "Le fichier actuel restera présent sur Drive.",
+                                    confirmLabel = "CHANGER",
+                                    action = onChooseBackupDestination
+                                )
+                            } else {
+                                onChooseBackupDestination()
+                            }
+                        },
                         enabled = !backupState.busy,
                         modifier = Modifier.fillMaxWidth()
                     ) {
@@ -1955,7 +2000,15 @@ private fun SettingsScreen(
                     }
 
                     OutlinedButton(
-                        onClick = onBackupNow,
+                        onClick = {
+                            pendingConfirmation = ConfirmationRequest(
+                                title = "Remplacer la sauvegarde actuelle ?",
+                                message = "Une nouvelle sauvegarde sera écrite dans le fichier " +
+                                    "sélectionné. Son contenu précédent pourra être remplacé.",
+                                confirmLabel = "SAUVEGARDER",
+                                action = onBackupNow
+                            )
+                        },
                         enabled = backupState.configured && !backupState.busy,
                         modifier = Modifier.fillMaxWidth()
                     ) {
@@ -2015,7 +2068,20 @@ private fun SettingsScreen(
                                         Text("ANNULER")
                                     }
                                     Button(
-                                        onClick = onConfirmRestore,
+                                        onClick = {
+                                            pendingConfirmation = ConfirmationRequest(
+                                                title = "Restaurer cette sauvegarde ?",
+                                                message = "Cette opération remplacera les données " +
+                                                    "actuelles par celles du fichier sélectionné (" +
+                                                    preview.healthDays + " jours santé, " +
+                                                    preview.checkIns + " check-ins et " +
+                                                    preview.workouts + " séances). " +
+                                                    "Les modifications locales plus récentes " +
+                                                    "pourraient être perdues.",
+                                                confirmLabel = "RESTAURER",
+                                                action = onConfirmRestore
+                                            )
+                                        },
                                         modifier = Modifier.weight(1f)
                                     ) {
                                         Text("RESTAURER")
@@ -2049,6 +2115,10 @@ private fun SettingsScreen(
             )
         }
     }
+    ConfirmSensitiveAction(
+        request = pendingConfirmation,
+        onDismiss = { pendingConfirmation = null }
+    )
 }
 
 @Composable
@@ -2187,6 +2257,8 @@ private fun CategorySettingsScreen(
     onSetIcon: (ExerciseCategory, String) -> Unit,
     onResetIcon: (ExerciseCategory) -> Unit
 ) {
+    var pendingConfirmation by remember { mutableStateOf<ConfirmationRequest?>(null) }
+
     Screen(
         title = "Modifier les catégories",
         subtitle = "Active, désactive ou change l'icône de chaque catégorie."
@@ -2274,7 +2346,15 @@ private fun CategorySettingsScreen(
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             OutlinedButton(
-                                onClick = { onResetIcon(category) },
+                                onClick = {
+                                    pendingConfirmation = ConfirmationRequest(
+                                        title = "Réinitialiser l'icône ?",
+                                        message = "L'icône de « " + categoryLabel(category) +
+                                            " » sera remplacée par l'icône par défaut.",
+                                        confirmLabel = "RÉINITIALISER",
+                                        action = { onResetIcon(category) }
+                                    )
+                                },
                                 modifier = Modifier.weight(1f),
                                 enabled = category in preferences.categoryIcons
                             ) {
@@ -2282,7 +2362,20 @@ private fun CategorySettingsScreen(
                             }
 
                             Button(
-                                onClick = { onToggle(category) },
+                                onClick = {
+                                    if (active) {
+                                        pendingConfirmation = ConfirmationRequest(
+                                            title = "Désactiver cette catégorie ?",
+                                            message = "« " + categoryLabel(category) + " » ne sera " +
+                                                "plus utilisée pour générer des séances. " +
+                                                "Tu pourras la réactiver plus tard.",
+                                            confirmLabel = "DÉSACTIVER",
+                                            action = { onToggle(category) }
+                                        )
+                                    } else {
+                                        onToggle(category)
+                                    }
+                                },
                                 modifier = Modifier.weight(1f)
                             ) {
                                 Text(if (active) "DÉSACTIVER" else "ACTIVER")
@@ -2293,6 +2386,10 @@ private fun CategorySettingsScreen(
             }
         }
     }
+    ConfirmSensitiveAction(
+        request = pendingConfirmation,
+        onDismiss = { pendingConfirmation = null }
+    )
 }
 
 @Composable
@@ -2302,6 +2399,7 @@ private fun FreeTimerScreen(
     onToggle: () -> Unit,
     onReset: () -> Unit
 ) {
+    var pendingConfirmation by remember { mutableStateOf<ConfirmationRequest?>(null) }
     val total = state.durationSeconds.coerceAtLeast(1)
     val progress = (state.remainingSeconds.toFloat() / total.toFloat())
         .coerceIn(0f, 1f)
@@ -2413,7 +2511,14 @@ private fun FreeTimerScreen(
             }
 
             OutlinedButton(
-                onClick = onReset,
+                onClick = {
+                    pendingConfirmation = ConfirmationRequest(
+                        title = "Réinitialiser le minuteur ?",
+                        message = "La durée restante et la progression du minuteur seront perdues.",
+                        confirmLabel = "RÉINITIALISER",
+                        action = onReset
+                    )
+                },
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text("RÉINITIALISER")
@@ -2426,6 +2531,10 @@ private fun FreeTimerScreen(
             )
         }
     }
+    ConfirmSensitiveAction(
+        request = pendingConfirmation,
+        onDismiss = { pendingConfirmation = null }
+    )
 }
 
 @Composable
@@ -2619,6 +2728,7 @@ private fun ExerciseDraftScreen(
     onReset: () -> Unit
 ) {
     // Ces états restent dans l'éditeur et ne sont écrits en base qu'après ENREGISTRER.
+    var pendingConfirmation by remember(exercise.id) { mutableStateOf<ConfirmationRequest?>(null) }
     var name by remember(exercise.id) { mutableStateOf(exercise.name) }
     var instructions by remember(exercise.id) { mutableStateOf(exercise.instructions) }
     var cue by remember(exercise.id) { mutableStateOf(exercise.cue) }
@@ -2725,21 +2835,69 @@ private fun ExerciseDraftScreen(
                 Text("ENREGISTRER")
             }
 
-            OutlinedButton(onClick = onCancel, modifier = Modifier.fillMaxWidth()) {
+            OutlinedButton(
+                onClick = {
+                    val hasChanges = name != exercise.name ||
+                        instructions != exercise.instructions ||
+                        cue != exercise.cue ||
+                        category != exercise.category ||
+                        equipment != exercise.requiredEquipment ||
+                        seconds != exercise.defaultWorkSeconds
+                    if (hasChanges) {
+                        pendingConfirmation = ConfirmationRequest(
+                            title = "Abandonner les modifications ?",
+                            message = "Les changements non enregistrés de « " +
+                                exercise.name + " » seront perdus.",
+                            confirmLabel = "ABANDONNER",
+                            action = onCancel
+                        )
+                    } else {
+                        onCancel()
+                    }
+                },
+                modifier = Modifier.fillMaxWidth()
+            ) {
                 Text("ANNULER SANS ENREGISTRER")
             }
 
             if (!isNew && exercise.id.startsWith("user-")) {
-                OutlinedButton(onClick = onDelete, modifier = Modifier.fillMaxWidth()) {
+                OutlinedButton(
+                    onClick = {
+                        pendingConfirmation = ConfirmationRequest(
+                            title = "Supprimer cet exercice ?",
+                            message = "« " + exercise.name + " » sera définitivement supprimé " +
+                                "de ta bibliothèque. Cette action est irréversible.",
+                            confirmLabel = "SUPPRIMER",
+                            action = onDelete
+                        )
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
                     Text("SUPPRIMER CET EXERCICE")
                 }
             } else if (!isNew && hasOverride) {
-                OutlinedButton(onClick = onReset, modifier = Modifier.fillMaxWidth()) {
+                OutlinedButton(
+                    onClick = {
+                        pendingConfirmation = ConfirmationRequest(
+                            title = "Revenir à la version d'origine ?",
+                            message = "Les personnalisations enregistrées de « " +
+                                exercise.name + " » seront effacées. " +
+                                "Les valeurs d'origine seront restaurées.",
+                            confirmLabel = "RÉINITIALISER",
+                            action = onReset
+                        )
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
                     Text("REVENIR À LA VERSION D'ORIGINE")
                 }
             }
         }
     }
+    ConfirmSensitiveAction(
+        request = pendingConfirmation,
+        onDismiss = { pendingConfirmation = null }
+    )
 }
 
 @Composable
@@ -2753,6 +2911,7 @@ private fun WorkoutSessionScreen(
     onExit: () -> Unit
 ) {
     val plan = state.plan
+    var pendingConfirmation by remember { mutableStateOf<ConfirmationRequest?>(null) }
 
     if (plan == null) {
         Screen(
@@ -2806,7 +2965,14 @@ private fun WorkoutSessionScreen(
                     }
 
                     OutlinedButton(
-                        onClick = onReplace,
+                        onClick = {
+                                pendingConfirmation = ConfirmationRequest(
+                                    title = "Remplacer cet exercice ?",
+                                    message = "L'exercice sélectionné sera remplacé dans la séance.",
+                                    confirmLabel = "REMPLACER",
+                                    action = onReplace
+                                )
+                            },
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text("🔄 REMPLACER LE PREMIER EXERCICE")
@@ -2984,7 +3150,14 @@ private fun WorkoutSessionScreen(
                         }
 
                         OutlinedButton(
-                            onClick = onSkip,
+                            onClick = {
+                                pendingConfirmation = ConfirmationRequest(
+                                    title = "Passer cet exercice ?",
+                                    message = "L'exercice en cours sera passé et la séance avancera.",
+                                    confirmLabel = "PASSER",
+                                    action = onSkip
+                                )
+                            },
                             modifier = Modifier.weight(1f)
                         ) {
                             Text("PASSER")
@@ -2993,7 +3166,14 @@ private fun WorkoutSessionScreen(
 
                     if (state.phase != WorkoutPhase.REST) {
                         OutlinedButton(
-                            onClick = onReplace,
+                            onClick = {
+                                pendingConfirmation = ConfirmationRequest(
+                                    title = "Remplacer cet exercice ?",
+                                    message = "L'exercice sélectionné sera remplacé dans la séance.",
+                                    confirmLabel = "REMPLACER",
+                                    action = onReplace
+                                )
+                            },
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Text("🔄 REMPLACER CET EXERCICE")
@@ -3001,7 +3181,15 @@ private fun WorkoutSessionScreen(
                     }
 
                     OutlinedButton(
-                        onClick = onExit,
+                        onClick = {
+                            pendingConfirmation = ConfirmationRequest(
+                                title = "Quitter la séance ?",
+                                message = "La séance en cours sera arrêtée. " +
+                                    "Tu perdras la progression restante.",
+                                confirmLabel = "QUITTER",
+                                action = onExit
+                            )
+                        },
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text("QUITTER LA SÉANCE")
@@ -3010,6 +3198,10 @@ private fun WorkoutSessionScreen(
             }
         }
     }
+    ConfirmSensitiveAction(
+        request = pendingConfirmation,
+        onDismiss = { pendingConfirmation = null }
+    )
 }
 
 private fun trainingGoalLabel(goal: TrainingGoal): String =
