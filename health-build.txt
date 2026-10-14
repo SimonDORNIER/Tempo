@@ -1,1 +1,1 @@
-Tempo Health 1.5.2 Éditeur en haut, brouillons non enregistrés et confirmation
+Tempo Health 1.5.3 Confirmations de sécurité et protection contre les mauvais clics
