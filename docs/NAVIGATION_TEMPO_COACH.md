@@ -1,4 +1,6 @@
-# Tempo Coach — Navigation et parcours (cadrage)
+# Tempo Coach — Navigation et parcours (implémentation 2.1.1 et évolutions)
+
+Version 2.1.1 : 4 racines et les accès utiles sont codés et publiés. Ceci ne vaut pas confirmation du rendu réel sur Pixel 7a.
 
 ## Décisions validées le 14 octobre 2026
 - Navigation principale à **4 onglets** : **Aujourd'hui**, **Pratiquer**, **Suivi**, **Moi**.
@@ -10,14 +12,14 @@
 ## Aujourd'hui (tableau de bord)
 1. Bandeau date + dernier état de synchronisation.
 2. Grille 2x2 : dernière nuit terminée, récupération Tempo + confiance, pas aujourd'hui, minutes d'exercice aujourd'hui.
-3. Un seul CTA : séance adaptée ou mobilité douce selon données et ressenti.
+3. Un seul CTA : séance recommandée (libellé plus doux si récupération défavorable).
 4. Check-in express énergie et douleurs ; conseil Coach sur une ou deux lignes avec lien « Pourquoi ? ».
-5. Trois habitudes cochables ; mini-graphiques sommeil/pas/récupération 7j.
-6. Tap KPI ouvre sa vraie fiche dans Suivi.
+5. Trois habitudes cochables ; deux mini-graphiques réels : sommeil et pas, sur 7 jours.
+6. Tap sur les KPI : navigation vers Suivi ou les explications du Coach ; la navigation vers une métrique directement filtrée pourra être perfectionnée.
 Pas de score Fitbit ou hydratation fictifs.
 
 ## Respiration guidée — état de développement 2.0.2
-- Cinq exercices de respiration disponibles dans la catégorie dédiée et depuis l'écran actuel « Séance ».
+- Cinq exercices de respiration disponibles dans la catégorie dédiée et depuis l'onglet « Pratiquer ».
 - Guide visuel Inspirer/Expirer, chronométré, avec pause et confirmation d'arrêt ; sessions historisées.
 - Les autres catégories de détente restent au programme de refonte de « Pratiquer ».
 - Score « Forme & préparation » lié au moteur RecoveryEngine, aucun algorithme parallèle.
