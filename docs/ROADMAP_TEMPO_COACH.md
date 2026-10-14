@@ -1,5 +1,5 @@
 # Tempo Coach — Backlog UX, santé et entraînement
-Mis à jour : 14 octobre 2026. État : préparation / discussion, PAS encore développé.
+Mis à jour : 14 octobre 2026. État : refonte visuelle 2.1.1 publiée, tests visuels sur Pixel 7a restant à faire.
 Sources design : docs/CHARTE_GRAPHIQUE_TEMPO_COACH.md, docs/COMPONENTS_TEMPO_COACH.md et **docs/NAVIGATION_TEMPO_COACH.md**.
 
 ## Choix utilisateur actés
@@ -14,12 +14,23 @@ Sources design : docs/CHARTE_GRAPHIQUE_TEMPO_COACH.md, docs/COMPONENTS_TEMPO_COA
 - Conserver le fonctionnement 100 % téléphone, gratuit au-delà de l'abonnement ChatGPT actuel, sans API payante obligatoire, stockage et sauvegardes fiables.
 - Ne pas coder une nouvelle version sur la seule base de ce document sans prioriser avec l'utilisateur si une question produit reste ouverte.
 
-## 2.0.2 — Forme et respiration (développé, APK en attente de validation)
+## 2.0.2 — Forme et respiration (publié, test sur téléphone restant)
 - Score **« Forme & préparation » / 100** : **renommage et mise en avant** du score RecoveryEngine existant, sans score contradictoire. Conserve le niveau de confiance, la référence personnelle et les explications.
 - Nouvelle catégorie bibliothèque **Respiration** : respiration abdominale 360°, expiration douce 4/6, respiration équilibrée 4/4, retour au calme 3/5, pause du soir 4/6.
 - Écran de respiration guidée depuis Séance : choix d'un exercice, préparation 5 s, phases Inspirer/Expirer, durée 2–4 min, pause/reprise, sortie confirmée, historique et sauvegarde.
 - Rythmes indicatifs, pas de rétention forcée du souffle, utilisateur libre de revenir à un souffle naturel.
 - **Ne pas confondre ce palier ciblé avec la refonte graphique complète et les 4 onglets**, qui restent prévus dans 2.1–2.4.
+
+## 2.1.1 — Refonte visuelle publiée (à tester sur téléphone)
+- Design global sombre **Prune & Rose poudré**, boutons crème, tableaux de bord et surfaces cohérents, aucun fond photo.
+- **4 onglets** avec icônes vectorielles : Aujourd'hui, Pratiquer, Suivi, Moi. Coach accessible depuis Aujourd'hui (fiche dédiée), pas cinquième onglet.
+- Accueil compact : sommeil, préparation, pas, minutes d'exercice, check-in, coach, 3 habitudes, 2 aperçus 7 jours.
+- Pratiquer : séance, respiration, mobilité, étirements et renforcement. Consultation séparée de l'éditeur ; possibilité de lancer 1 exercice.
+- Suivi : nouveau hub avec données réelles et liens vers les pages détaillées existantes. Moi : liens vers préférences, personnalisation, Santé Connect et sauvegardes.
+- Tous les écrans anciens héritent du nouveau thème ; harmonisation graphique approfondie de certains écrans secondaires possible plus tard.
+- Sauvegardes, exercices personnels, minuterie, sons, rappels, Health Connect et mise à jour automatique non supprimés.
+- Source : `app/src/main/java/fr/tempo/health/ui/WellnessScreens.kt`, `theme/Theme.kt` ; checklist : `docs/TESTS_TEMPO_2_1.md`.
+- **À ne pas confondre avec une validation visuelle sur appareil** : build et signature CI réussis, installation et rendu restent à contrôler.
 
 ## 2.1 — Design system professionnel (priorité haute)
 - Centraliser tokens de couleur, typographies, espacements, rayons et tailles selon la palette Prune & Rose poudré validée.
