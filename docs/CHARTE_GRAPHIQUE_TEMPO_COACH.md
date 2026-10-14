@@ -1,9 +1,12 @@
 # Tempo Coach — Charte graphique et UX
-Version 1.0 — 14 octobre 2026
-Statut : directions validées, détails chromatiques proposés pour approbation visuelle.
+Version 1.1 — 14 octobre 2026
+Statut : **identité et palette validées**. Contrastes et composants à tester en implémentation.
+Bibliothèque officielle : [COMPONENTS_TEMPO_COACH.md](COMPONENTS_TEMPO_COACH.md).
 
 ## 1. Décisions utilisateur définitives
-- **A.4 : hybride sport + santé**, sobre, premium, professionnel.
+- **Direction actualisée : santé + détente**, premium, moderne, sobre et légèrement dynamique ; **pas de style sport**.
+- **Palette choisie par l'utilisateur : Prune & Rose poudré**, sur fond sombre, nuances douces et dégradés subtils.
+- **Aucune image de fond**, photographie ou paysage décoratif.
 - **B.3 : accueil mixte** : statistiques santé + séance/coaching.
 - **C.1 : très compact**, conçu pour un Pixel 7a ; comprendre la journée en trois secondes.
 - Priorité aux icônes claires, données chiffrées et courts libellés, sans textes envahissants.
@@ -18,25 +21,26 @@ Statut : directions validées, détails chromatiques proposés pour approbation 
 - Animations discrètes, aucun effet gratuit, aucune carte ou bannière inutile.
 - Ne jamais afficher une donnée inventée ou une indication médicale catégorique.
 
-## 3. Palette sombre — proposition
+## 3. Palette sombre — Prune & Rose poudré (validée)
 | Rôle | Hex | Utilisation |
 |---|---|---|
-| Fond | #10151C | arrière-plan |
-| Carte | #19222D | surface des indicateurs |
-| Carte élevée | #22303D | dialogues et sélection |
-| Trait | #354452 | séparateurs discrets |
-| Texte principal | #F2F6FA | titres et chiffres |
-| Texte secondaire | #B0BFCC | unités et légendes |
-| Primaire | #5CBDF0 | boutons, navigation active |
-| Sur primaire | #0B1B27 | texte sur bouton principal |
-| Activité | #4BD2C1 | pas, exercice, mouvement |
-| Sommeil | #B5A3FF | sommeil, nuit |
-| Cardio | #FF849B | FC repos, VFC, cœur |
-| Favorable | #57D5A1 | bonne récupération / succès |
-| Vigilance | #FFC070 | récupération moyenne / incertitude |
-| Défavorable | #FF8190 | alerte / actions destructives |
+| Fond | #1A1D1F | arrière-plan uni |
+| Carte | #252A31 | panneaux neutres |
+| Carte élevée | #22262C | menus, navigation |
+| Trait | #323842 | séparateurs discrets |
+| Texte principal | #F7F3F1 | titres, chiffres |
+| Texte secondaire | #CFC4C8 | valeurs secondaires, unités |
+| Texte discret | #9D959A | légendes |
+| Prune principal | #5B2D58 | sommeil, coach, identité |
+| Rose poudré | #D99BB6 | sélection, indicateurs, graphes |
+| Crème rosé | #F0DDD6 | bouton principal |
+| Vert doux | #8CA899 | récupération, habitudes, succès |
+| Vigilance | #D9B49B | prudence |
+| Erreur | #B86D84 | suppression / erreur — distinct du rose graphique |
 
-Règle : les couleurs des métriques sont fixes (sommeil violet, activité turquoise, cardio corail), les couleurs vert-orange-rouge décrivent seulement un **état**. Toujours distinguer score Tempo et scores propriétaires de Fitbit. Respecter contraste WCAG AA : >= 4,5:1 texte normal, >= 3:1 gros texte et éléments fonctionnels. Prévoir aussi thème clair cohérent.
+Dégradés autorisés **uniquement dans les surfaces** : sommeil #5B2D58 vers #3C273E ; récupération #415246 vers #2C3430 ; coach #4E324D vers #352A3F ; CTA #F0DDD6 vers #E9D5CC. **Pas d'images de fond**, ni effet fluo, bleu électrique ou couleur saturée. Un fond d'application uni, lisible et neutre.
+
+La couleur sommeil reste prune/rose, récupération vert doux, activité palette neutre/vert ; un statut favorable ou défavorable doit rester distinguable d'une catégorie de donnée. Contraste WCAG AA à **vérifier sur Android** (>= 4,5:1 texte normal, >= 3:1 gros texte/éléments actifs). Prévoir une variante claire.
 
 ## 4. Typographie et mesures
 - Typographie : police Android native, chiffres tabulaires pour les comparaisons.
@@ -47,6 +51,7 @@ Règle : les couleurs des métriques sont fixes (sommeil violet, activité turqu
 - Cible : largeur utile 360-420 dp, et adaptation à plus petit et plus grand.
 - Marges horizontales 12-16 dp, espacement 8 dp, cartes arrondies 16-20 dp.
 - Deux colonnes pour les KPI, jamais quatre colonnes illisibles.
+- Mini-graphiques : largeur minimale 132dp, prévoir un défilement horizontal ou deux cartes plutôt que 3 minuscules.
 - Touches interactives >= 48 x 48 dp ; bouton principal 52-56 dp de haut.
 - Ne jamais utiliser les dimensions physiques en pixels pour positionner les éléments.
 - Tester police agrandie (1,3 et 1,5), barres système, clavier, navigation gestuelle.
@@ -56,6 +61,7 @@ Règle : les couleurs des métriques sont fixes (sommeil violet, activité turqu
 - Pictogrammes 20-24 dp et même épaisseur de trait.
 - Sémantique stable : lune=sommeil, pas=activité, cœur=cardio, batterie/bouclier=récupération, haltère=séance, courbe=suivi, rouage=paramètres.
 - Icône et petit libellé ensemble, avec description TalkBack.
+- Réutiliser les contrats exacts, dimensions, états et signatures dans [COMPONENTS_TEMPO_COACH.md](COMPONENTS_TEMPO_COACH.md).
 - Éviter les emojis hétérogènes comme pictogrammes structurants et les illustrations décoratives.
 
 ## 6. Composants réutilisables
