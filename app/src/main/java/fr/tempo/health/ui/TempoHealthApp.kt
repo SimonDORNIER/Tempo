@@ -937,7 +937,7 @@ private fun HealthScreen(
 ) {
     val latest = days.firstOrNull()
     val week = days.take(7)
-    val month = days.take(28)
+    val month = days.drop(7).take(21)
 
     Screen(
         title = "Santé",
@@ -1032,9 +1032,11 @@ private fun HealthScreen(
                 "VO₂ max " + (latest?.vo2Max?.let(::oneDecimal) ?: "—")
             )
 
+            PersonalTrendInsightsCard(days)
+
             HealthAverageComparisonCard(
                 emoji = "😴",
-                title = "Sommeil • 7 j vs 28 j",
+                title = "Sommeil • 7 j vs 21 j précédents",
                 weekValues = week.mapNotNull {
                     it.sleepMinutes?.toDouble()
                 },
@@ -1048,7 +1050,7 @@ private fun HealthScreen(
 
             HealthAverageComparisonCard(
                 emoji = "❤️",
-                title = "VFC • 7 j vs 28 j",
+                title = "VFC • 7 j vs 21 j précédents",
                 weekValues = week.mapNotNull { it.hrvRmssdMs },
                 monthValues = month.mapNotNull { it.hrvRmssdMs },
                 valueText = { value ->
@@ -1058,7 +1060,7 @@ private fun HealthScreen(
 
             HealthAverageComparisonCard(
                 emoji = "💓",
-                title = "FC repos • 7 j vs 28 j",
+                title = "FC repos • 7 j vs 21 j précédents",
                 weekValues = week.mapNotNull { it.restingHeartRate },
                 monthValues = month.mapNotNull { it.restingHeartRate },
                 valueText = { value ->
@@ -1069,7 +1071,7 @@ private fun HealthScreen(
 
             HealthAverageComparisonCard(
                 emoji = "🚶",
-                title = "Pas • 7 j vs 28 j",
+                title = "Pas • 7 j vs 21 j précédents",
                 weekValues = week.mapNotNull {
                     it.steps?.toDouble()
                 },
@@ -1425,6 +1427,54 @@ private fun ProgressScreen(
 }
 
 @Composable
+private fun PersonalTrendInsightsCard(days: List<DailyHealthEntity>) {
+    val recent = days.take(7)
+    val previous = days.drop(7).take(21)
+    fun averageOrNull(values: List<Double>, minimum: Int): Double? =
+        values.takeIf { it.size >= minimum }?.average()
+
+    val recentSleep = averageOrNull(recent.mapNotNull { it.sleepMinutes?.toDouble() }, 4)
+    val previousSleep = averageOrNull(previous.mapNotNull { it.sleepMinutes?.toDouble() }, 7)
+    val recentHrv = averageOrNull(recent.mapNotNull { it.hrvRmssdMs }, 4)
+    val previousHrv = averageOrNull(previous.mapNotNull { it.hrvRmssdMs }, 7)
+    val recentPulse = averageOrNull(recent.mapNotNull { it.restingHeartRate }, 4)
+    val previousPulse = averageOrNull(previous.mapNotNull { it.restingHeartRate }, 7)
+
+    val unusualSleep = recentSleep != null && previousSleep != null &&
+        recentSleep < previousSleep - 35
+    val unusualHrv = recentHrv != null && previousHrv != null &&
+        previousHrv > 0 && recentHrv < previousHrv * 0.85
+    val unusualPulse = recentPulse != null && previousPulse != null &&
+        recentPulse >= previousPulse + 5
+
+    val guidance = when {
+        listOf(recentSleep, previousSleep, recentHrv, previousHrv, recentPulse, previousPulse)
+            .count { it != null } < 4 ->
+            "Données encore limitées : synchronise régulièrement pour obtenir une tendance fiable."
+        unusualSleep && (unusualHrv || unusualPulse) ->
+            "Sommeil réduit et signaux cardio moins favorables : allège temporairement " +
+                "l'entraînement et suis ton ressenti."
+        unusualSleep ->
+            "Ton sommeil a diminué : protège les nuits à venir et ajuste l'intensité selon ton énergie."
+        unusualHrv && unusualPulse ->
+            "VFC plus basse et fréquence cardiaque de repos plus haute : privilégie " +
+                "une activité facile et surveille l'évolution sur plusieurs jours."
+        unusualHrv || unusualPulse ->
+            "Un signal cardio s'écarte de ton niveau habituel. Une journée isolée " +
+                "ne suffit pas à conclure : observe la tendance."
+        else ->
+            "Pas de variation défavorable marquée parmi les indicateurs disponibles. " +
+                "Continue à écouter ton ressenti."
+    }
+    StatusCard(
+        emoji = "🧭",
+        title = "Bilan des tendances personnelles",
+        value = "7 derniers jours",
+        detail = guidance + " Analyse indicative, pas un diagnostic."
+    )
+}
+
+@Composable
 private fun HealthAverageComparisonCard(
     emoji: String,
     title: String,
@@ -1433,7 +1483,13 @@ private fun HealthAverageComparisonCard(
     valueText: (Double) -> String,
     lowerIsBetter: Boolean = false
 ) {
-    if (weekValues.isEmpty() || monthValues.isEmpty()) return
+    if (weekValues.size < 4 || monthValues.size < 7) {
+        StatusCard(
+            emoji, title, "Référence en construction",
+            "Au moins 4 mesures récentes et 7 mesures précédentes nécessaires."
+        )
+        return
+    }
 
     val weekAverage = weekValues.average()
     val monthAverage = monthValues.average()
@@ -1451,7 +1507,8 @@ private fun HealthAverageComparisonCard(
         emoji,
         title,
         valueText(weekAverage),
-        "Référence 28 j : " + valueText(monthAverage) + " • " + trend
+        "21 j précédents : " + valueText(monthAverage) + " • " + trend +
+            " • " + weekValues.size + "/" + monthValues.size + " mesures"
     )
 }
 
