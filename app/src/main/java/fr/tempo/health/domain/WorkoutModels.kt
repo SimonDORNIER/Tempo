@@ -380,6 +380,73 @@ object ExerciseLibrary {
             "Depuis quatre pattes, recule les hanches vers les talons et allonge les bras. Décale légèrement les mains pour étirer chaque côté.",
             "Laisse la respiration relâcher progressivement le dos.",
             Equipment.MAT
+        ),
+        exercise(
+            "breathing-360",
+            "Respiration diaphragmatique 360°",
+            ExerciseCategory.STRETCHING,
+            60,
+            "Assis ou allongé, pose une main sur le ventre et une sur les côtes. Inspire doucement par le nez en laissant les côtes s'ouvrir, puis expire sans pousser.",
+            "Garde les épaules souples. Ne retiens pas ton souffle et arrête en cas de vertige."
+        ),
+        exercise(
+            "pelvic-tilt",
+            "Bascule douce du bassin",
+            ExerciseCategory.MOBILITY,
+            45,
+            "Allongé sur le dos, genoux fléchis et pieds au sol, bascule lentement le bassin pour rapprocher le bas du dos du tapis, puis relâche.",
+            "Une petite amplitude suffit. Évite de pousser avec les pieds.",
+            Equipment.MAT
+        ),
+        exercise(
+            "side-clamshell",
+            "Ouverture de hanche sur le côté",
+            ExerciseCategory.LOWER_BODY,
+            40,
+            "Sur le côté, genoux fléchis et pieds superposés, lève doucement le genou du dessus sans rouler le bassin. Change de côté à mi-parcours.",
+            "Garde les pieds en contact et le bassin stable.",
+            Equipment.MAT
+        ),
+        exercise(
+            "wrist-rocks",
+            "Mobilité des poignets",
+            ExerciseCategory.WARMUP,
+            35,
+            "Paumes face à face, mobilise les poignets lentement en flexion et extension. En appui léger sur une table si confortable, déplace doucement le poids.",
+            "Pas de compression douloureuse : réduis la charge ou fais le mouvement sans appui."
+        ),
+        exercise(
+            "neck-small-range",
+            "Mobilité cervicale douce",
+            ExerciseCategory.MOBILITY,
+            40,
+            "Assis, grandis-toi et tourne lentement la tête à droite puis à gauche, sans chercher à aller au maximum. Ajoute de petits hochements confortables.",
+            "Ne tire pas sur la tête. Arrête en cas de vertige, douleur ou fourmillement."
+        ),
+        exercise(
+            "quadruped-rockback",
+            "Recul des hanches à quatre pattes",
+            ExerciseCategory.MOBILITY,
+            45,
+            "À quatre pattes, mains sous les épaules et genoux sous les hanches, recule doucement le bassin vers les talons puis reviens.",
+            "Garde le dos long et cherche un mouvement fluide, sans forcer.",
+            Equipment.MAT
+        ),
+        exercise(
+            "calf-stretch-wall",
+            "Étirement du mollet au mur",
+            ExerciseCategory.STRETCHING,
+            40,
+            "Face au mur, recule un pied en gardant le talon au sol. Fléchis doucement la jambe avant jusqu'à une tension légère dans le mollet arrière. Change de côté à mi-parcours.",
+            "Les pieds pointent vers l'avant. Pas d'à-coups."
+        ),
+        exercise(
+            "wall-hip-hinge",
+            "Charnière des hanches au mur",
+            ExerciseCategory.LOWER_BODY,
+            45,
+            "Debout dos au mur à un petit pas de distance, fléchis légèrement les genoux et recule les fesses pour toucher le mur, puis redresse-toi.",
+            "Le mouvement vient des hanches, pas d'un dos arrondi. Respire naturellement."
         )
     )
 
@@ -685,14 +752,19 @@ object WorkoutPlanner {
         val exercises = chooseExercises(
             ids = listOf(
                 "arm-circles",
+                "neck-small-range",
+                "wrist-rocks",
                 "cat-cow",
                 "thoracic-rotation",
                 "seated-thoracic-rotation",
                 "hip-90-90",
+                "pelvic-tilt",
+                "quadruped-rockback",
                 "ankle-rocks",
                 "world-stretch",
                 "single-leg-balance",
                 "hip-flexor-stretch",
+                "calf-stretch-wall",
                 "hamstring-hinge",
                 "chest-opener",
                 "child-pose-reach"
@@ -723,6 +795,7 @@ object WorkoutPlanner {
             ids = listOf(
                 "bird-dog",
                 "dead-bug",
+                "side-clamshell",
                 "glute-bridge",
                 "chair-sit-stand",
                 "wall-pushups",
