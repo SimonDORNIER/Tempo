@@ -222,7 +222,7 @@ fun TempoHealthApp(
 
     Scaffold(
         topBar = {
-            if (selectedDestination == null) {
+            if (selectedDestination == null && currentRoute != "workout" && currentRoute != "breathing") {
             CenterAlignedTopAppBar(
                 navigationIcon = {
                     if (currentRoute in setOf(
