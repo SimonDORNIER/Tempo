@@ -4,7 +4,8 @@ Application Android personnelle santé / récupération / entraînement.
 
 ## Références de conception pour les prochaines versions
 
-- **[Charte graphique et UX](docs/CHARTE_GRAPHIQUE_TEMPO_COACH.md)** : style hybride premium sport/santé, accueil mixte, interface très compacte Pixel 7a.
+- **[Charte graphique et UX](docs/CHARTE_GRAPHIQUE_TEMPO_COACH.md)** : style santé/détente et palette Prune & Rose poudré, sans image de fond, interface compacte Pixel 7a.
+- **[Bibliothèque de composants](docs/COMPONENTS_TEMPO_COACH.md)** : spécification des boutons, cartes, habitudes, mini-graphes et dialogues.
 - **[Feuille de route et backlog](docs/ROADMAP_TEMPO_COACH.md)** : écran d'accueil, graphiques, coaching, sécurité et tests à discuter pour les versions suivantes.
 - **[Instructions de développement](AGENTS.md)** : règles à respecter dans les futurs développements.
 
