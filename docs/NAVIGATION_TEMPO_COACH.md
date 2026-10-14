@@ -16,6 +16,12 @@
 6. Tap KPI ouvre sa vraie fiche dans Suivi.
 Pas de score Fitbit ou hydratation fictifs.
 
+## Respiration guidée — état de développement 2.0.1
+- Cinq exercices de respiration disponibles dans la catégorie dédiée et depuis l'écran actuel « Séance ».
+- Guide visuel Inspirer/Expirer, chronométré, avec pause et confirmation d'arrêt ; sessions historisées.
+- Les autres catégories de détente restent au programme de refonte de « Pratiquer ».
+- Score « Forme & préparation » lié au moteur RecoveryEngine, aucun algorithme parallèle.
+
 ## Pratiquer
 1. Proposition du jour en haut avec durée et bouton de démarrage.
 2. Catégories proposées : respiration, relaxation, mobilité, étirements, renforcement, pause active.
