@@ -24,6 +24,11 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.FitnessCenter
+import androidx.compose.material.icons.filled.ShowChart
+import androidx.compose.material.icons.filled.Person
+import fr.tempo.health.ui.theme.TempoPalette
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
@@ -129,11 +134,10 @@ private data class Destination(
 )
 
 private val mainDestinations = listOf(
-    Destination("today", "Mon jour", "🏠"),
-    Destination("health", "Santé", "❤️"),
-    Destination("training", "Séance", "🏋️"),
-    Destination("progress", "Progression", "📈"),
-    Destination("coach", "Coach", "🧠")
+    Destination("today", "Aujourd'hui", "home"),
+    Destination("training", "Pratiquer", "practice"),
+    Destination("progress", "Suivi", "trend"),
+    Destination("settings", "Moi", "person")
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -221,7 +225,7 @@ fun TempoHealthApp(
             CenterAlignedTopAppBar(
                 navigationIcon = {
                     if (currentRoute in setOf(
-                            "settings", "library-settings", "category-settings",
+                            "library-settings", "category-settings", "exercise-settings",
                             "timer", "program"
                         )
                     ) {
@@ -282,7 +286,7 @@ fun TempoHealthApp(
         },
         bottomBar = {
             if (selectedDestination != null) {
-                NavigationBar {
+                NavigationBar(containerColor = TempoPalette.elevated, tonalElevation = 0.dp) {
                     mainDestinations.forEach { destination ->
                         val selected = currentEntry?.destination?.hierarchy
                             ?.any { it.route == destination.route } == true
@@ -297,9 +301,14 @@ fun TempoHealthApp(
                                 }
                             },
                             icon = {
-                                Text(
-                                    text = destination.emoji,
-                                    style = MaterialTheme.typography.titleLarge
+                                Icon(
+                                    imageVector = when (destination.emoji) {
+                                        "home" -> Icons.Default.Home
+                                        "practice" -> Icons.Default.FitnessCenter
+                                        "trend" -> Icons.Default.ShowChart
+                                        else -> Icons.Default.Person
+                                    },
+                                    contentDescription = destination.label
                                 )
                             },
                             label = {
@@ -310,7 +319,11 @@ fun TempoHealthApp(
                                 )
                             },
                             colors = NavigationBarItemDefaults.colors(
-                                indicatorColor = MaterialTheme.colorScheme.primaryContainer
+                                selectedIconColor = TempoPalette.cream,
+                                selectedTextColor = TempoPalette.cream,
+                                unselectedIconColor = TempoPalette.muted,
+                                unselectedTextColor = TempoPalette.muted,
+                                indicatorColor = TempoPalette.prune
                             )
                         )
                     }
