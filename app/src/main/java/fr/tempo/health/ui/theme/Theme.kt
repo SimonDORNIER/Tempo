@@ -1,42 +1,50 @@
 package fr.tempo.health.ui.theme
 
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.lightColorScheme
+import androidx.compose.material3.Typography
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 
-private val LightColors = lightColorScheme(
-    primary = Color(0xFF006B57),
-    onPrimary = Color.White,
-    primaryContainer = Color(0xFF9EF2D8),
-    onPrimaryContainer = Color(0xFF002019),
-    secondary = Color(0xFF4B635B),
-    secondaryContainer = Color(0xFFCDE8DD),
-    background = Color(0xFFF6FBF8),
-    surface = Color(0xFFF6FBF8),
-    surfaceVariant = Color(0xFFDCE5E0),
-    error = Color(0xFFBA1A1A)
-)
+object TempoPalette {
+    val background = Color(0xFF1A1D1F)
+    val surface = Color(0xFF252A31)
+    val elevated = Color(0xFF22262C)
+    val outline = Color(0xFF40404A)
+    val cream = Color(0xFFF0DDD6)
+    val text = Color(0xFFF7F3F1)
+    val muted = Color(0xFFCFC4C8)
+    val prune = Color(0xFF5B2D58)
+    val rose = Color(0xFFD99BB6)
+    val sage = Color(0xFF8CA899)
+    val caution = Color(0xFFD9B49B)
+}
 
-private val DarkColors = darkColorScheme(
-    primary = Color(0xFF82D6BC),
-    onPrimary = Color(0xFF00382B),
-    primaryContainer = Color(0xFF005140),
-    onPrimaryContainer = Color(0xFF9EF2D8),
-    secondary = Color(0xFFB1CCC1),
-    secondaryContainer = Color(0xFF344B43),
-    background = Color(0xFF0F1512),
-    surface = Color(0xFF0F1512),
-    surfaceVariant = Color(0xFF404945),
-    error = Color(0xFFFFB4AB)
+private val TempoColors = darkColorScheme(
+    primary = TempoPalette.cream,
+    onPrimary = TempoPalette.background,
+    primaryContainer = TempoPalette.prune,
+    onPrimaryContainer = TempoPalette.text,
+    secondary = TempoPalette.rose,
+    onSecondary = TempoPalette.background,
+    secondaryContainer = Color(0xFF433043),
+    onSecondaryContainer = TempoPalette.text,
+    tertiary = TempoPalette.sage,
+    onTertiary = TempoPalette.background,
+    background = TempoPalette.background,
+    onBackground = TempoPalette.text,
+    surface = TempoPalette.background,
+    onSurface = TempoPalette.text,
+    surfaceVariant = TempoPalette.surface,
+    onSurfaceVariant = TempoPalette.muted,
+    surfaceContainer = TempoPalette.surface,
+    surfaceContainerLow = TempoPalette.elevated,
+    outline = TempoPalette.outline,
+    error = Color(0xFFDB91A4),
+    onError = TempoPalette.background
 )
 
 @Composable
 fun TempoHealthTheme(content: @Composable () -> Unit) {
-    MaterialTheme(
-        colorScheme = if (isSystemInDarkTheme()) DarkColors else LightColors,
-        content = content
-    )
+    MaterialTheme(colorScheme = TempoColors, typography = Typography(), content = content)
 }
