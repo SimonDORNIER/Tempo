@@ -607,7 +607,7 @@ private fun StatusCard(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f)
+            containerColor = TempoPalette.surface
         )
     ) {
         Row(
@@ -672,8 +672,8 @@ private fun TodayScreen(
     val painLabels = listOf("Aucune", "Légère", "Moyenne", "Importante")
 
     Screen(
-        title = "Mon tableau de bord",
-        subtitle = "La santé, les séances et les habitudes au même endroit."
+        title = "Ta journée",
+        subtitle = "Ton équilibre, en un regard."
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
             Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp)) {
