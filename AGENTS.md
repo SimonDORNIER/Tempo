@@ -1,5 +1,8 @@
 # Instructions permanentes — Projet Tempo Coach
 
+> **Décision de design du 16/10/2026** : le propriétaire a sélectionné le visuel **Option B** (Suivi sombre, cartes encadrées en violet et vert forêt, accents plus saturés et graphiques lumineux). Il **remplace les teintes trop fades** de l'ancienne charte comme cible pour le prochain développement. Lire d'abord la section « Direction graphique approuvée — option B » dans `docs/CHARTE_GRAPHIQUE_TEMPO_COACH.md`. Les changements n'ont pas encore été implémentés et ne doivent pas être revendiqués comme une release publiée.
+
+
 Ce dépôt contient l'app Android native Tempo Health / Tempo Coach et des composants historiques. Pour les évolutions de Tempo Coach, repartir de **health/v2.1.1-wellness-ui** ou de son tag **health-v2.1.1** ; ne pas repartir du code legacy `main` ni d'une ancienne branche de release.
 
 ## Références obligatoires
