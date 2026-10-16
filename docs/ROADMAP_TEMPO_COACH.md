@@ -1,4 +1,13 @@
 # Tempo Coach — Backlog UX, santé et entraînement
+
+## Validation de la future DA — 16 octobre 2026
+- **Option B validée par le propriétaire** (capture sélectionnée dans la conversation Tempo Coach du 16/10/2026).
+- Nouveau repère : fond sombre uni, **violet plus affirmé**, **vert forêt lumineux**, **encadrés violets et verts** bien visibles, dégradés internes fins, graphiques mieux contrastés et état actif de la barre inférieure violet.
+- Cette décision **remplace la palette trop pâle initiale comme cible graphique**. Voir les consignes actualisées dans `docs/CHARTE_GRAPHIQUE_TEMPO_COACH.md`.
+- **Aucun nouveau build lancé** du seul fait de cette validation : la release installable vérifiée reste la 2.1.1 tant qu'une nouvelle version n'est pas développée, compilée, signée et publiée.
+
+---
+
 Mis à jour : 14 octobre 2026. État : refonte visuelle 2.1.1 publiée, tests visuels sur Pixel 7a restant à faire.
 Sources design : docs/CHARTE_GRAPHIQUE_TEMPO_COACH.md, docs/COMPONENTS_TEMPO_COACH.md et **docs/NAVIGATION_TEMPO_COACH.md**.
 
