@@ -1,4 +1,40 @@
 # Tempo Coach — Charte graphique et UX
+
+## Direction graphique approuvée — option B (16 octobre 2026)
+
+**Décision utilisateur la plus récente, PRIORITAIRE sur la palette « Prune & Rose poudré » historique.**
+Le visuel de référence est la capture envoyée dans la conversation le 16/10/2026 intitulée **« Option B »**, montrant l'écran **Suivi** en mode sombre avec grands encadrés violets et verts, légers dégradés internes, graphiques colorés et une capsule violette active dans la navigation.
+
+### Critères visuels validés
+- Fond charbon très sombre, **uni** ; aucun paysage, photo, trame ni illustration en fond.
+- **Violet saturé et prononcé** : sommeil, sélection, composants clés et bordures ; tons violets plus lumineux que dans la version 2.1.1.
+- **Vert forêt plus lumineux, naturel et identifiable** : pas, activité et graphiques ; éviter le sauge grisé de la version 2.1.1.
+- **Encadrés fins colorés** autour des cartes importantes (violet pour sommeil, vert pour activité) ; c'est un aspect explicitement apprécié.
+- **Dégradés doux à l'intérieur des cartes** pour donner du relief, sans envahir toute l'application. L'option B montre aussi un motif graphique géométrique subtil à l'intérieur des cartes : garder seulement s'il ne nuit pas à la lecture.
+- Chiffres importants très contrastés, textes principaux clairs, sous-titres gris-lavande lisibles ; graphes violet/vert vifs ; bas de l'application avec capsule active violette bien distincte.
+- L'organisation 4 onglets Aujourd'hui / Pratiquer / Suivi / Moi reste la même, le Coach reste intégré à Aujourd'hui, les exercices sont regroupés dans Pratiquer.
+- La direction est **validée comme référence de design**, **pas encore implémentée** dans la release 2.1.1. Ne pas annoncer de mise à jour avant compilation et tests.
+
+### Tokens proposés pour mise en œuvre (à calibrer visuellement sur Pixel 7a)
+| Rôle | Proposition initiale |
+|---|---|
+| Arrière-plan | `#10151C` |
+| Surface neutre | `#1B2230` |
+| Surface élevée | `#232A39` |
+| Texte fort | `#F8F7FD` |
+| Texte secondaire | `#C9CADB` |
+| Violet principal | `#8A35E6` |
+| Violet lumineux | `#B865FF` |
+| Violet clair pour chiffre | `#DEA8FF` |
+| Vert forêt | `#147D4D` |
+| Vert lumineux | `#56E49A` |
+| Vert clair chiffres | `#A6F7CA` |
+| Bordure neutre | `#354056` |
+
+Ces hex sont **des propositions de traduction visuelle**, pas des couleurs mesurées exactement sur l'image. Les états texte et accessibilité doivent passer les seuils de contraste ; ne pas peindre toutes les cartes en violet/vert et éviter le rendu fluo. Différencier les couleurs par icône et libellé, pas seulement par la couleur.
+
+---
+
 Version 1.1 — 14 octobre 2026
 Statut : **identité et palette validées**. Contrastes et composants à tester en implémentation.
 Bibliothèque officielle : [COMPONENTS_TEMPO_COACH.md](COMPONENTS_TEMPO_COACH.md).
