@@ -78,7 +78,6 @@ import fr.tempo.health.domain.TrainingPreferences
 import fr.tempo.health.domain.WorkoutPlan
 import fr.tempo.health.ui.theme.TempoColors as C
 import java.time.LocalDate
-import java.time.format.TextStyle
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 import kotlin.math.roundToInt
@@ -168,7 +167,7 @@ private fun MetricTile(
                     overflow = TextOverflow.Ellipsis, color = C.text)
             }
             Text(value, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold,
-                maxLines = 1, color = if (accent == C.greenGlow) C.greenGlow else C.violetPale)
+                maxLines = 1, color = if (accent == C.violetGlow) C.violetPale else accent)
             Text(subtitle, style = MaterialTheme.typography.labelSmall, maxLines = 1,
                 overflow = TextOverflow.Ellipsis, color = C.textSecondary)
         }
@@ -214,58 +213,6 @@ private fun dayLabel(): String =
         .replaceFirstChar { it.uppercase() }
 
 @Composable
-private fun MiniBars(
-    days: List<DailyHealthEntity>,
-    color: Color,
-    metric: (DailyHealthEntity) -> Number?
-) {
-    // Sept dates calendaires et non sept lignes de base : les jours sans mesure restent vides.
-    val map = days.associateBy { it.date }
-    val dates = (6L downTo 0L).map { LocalDate.now().minusDays(it) }
-    val points = dates.map { date ->
-        map[date.toString()]?.let(metric)?.toFloat()?.takeIf { it >= 0f }
-    }
-    val max = points.filterNotNull().maxOrNull()?.coerceAtLeast(1f) ?: 1f
-    Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
-        Row(
-            modifier = Modifier.fillMaxWidth().height(68.dp),
-            horizontalArrangement = Arrangement.spacedBy(7.dp),
-            verticalAlignment = Alignment.Bottom
-        ) {
-            points.forEach { point ->
-                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.Bottom) {
-                    val height = if (point == null) 3.dp else (5f + 61f * point / max).dp
-                    Box(
-                        modifier = Modifier.fillMaxWidth().height(height)
-                            .background(
-                                if (point == null) {
-                                    Brush.verticalGradient(listOf(C.border, C.border.copy(alpha = 0.3f)))
-                                } else {
-                                    Brush.verticalGradient(listOf(color, color.copy(alpha = 0.55f)))
-                                },
-                                RoundedCornerShape(topStart = 5.dp, topEnd = 5.dp)
-                            )
-                    )
-                }
-            }
-        }
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-            dates.forEach { date ->
-                Text(
-                    date.dayOfWeek.getDisplayName(TextStyle.NARROW, Locale.FRANCE)
-                        .uppercase(Locale.FRANCE).take(1),
-                    modifier = Modifier.weight(1f),
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                    color = C.textMuted,
-                    style = MaterialTheme.typography.labelSmall,
-                    maxLines = 1
-                )
-            }
-        }
-    }
-}
-
-@Composable
 private fun TinyTrend(
     title: String,
     summary: String,
@@ -274,29 +221,49 @@ private fun TinyTrend(
     days: List<DailyHealthEntity>,
     metric: (DailyHealthEntity) -> Number?,
     modifier: Modifier,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    kind: TempoMetricKind = TempoMetricKind.OTHER
 ) {
-    val isGreen = color == C.greenGlow
+    val points = metricByCalendarDay(days, 7) { metric(it)?.toDouble() }
+    val usual = TempoHealthSignals.reference(
+        days.drop(7).mapNotNull { metric(it)?.toDouble() }
+    )
+    val lastValue = points.lastOrNull { it != null }
+    val signal = TempoHealthSignals.assess(kind, lastValue, usual)
+    val isActivity = kind == TempoMetricKind.STEPS || kind == TempoMetricKind.ACTIVE_MINUTES
+    val accent = if (isActivity) C.greenGlow
+        else if (signal == TempoSignal.UNKNOWN) color else TempoHealthSignals.color(signal)
     TintedCard(
         modifier = modifier,
-        colorStart = if (isGreen) C.greenDeep else C.violetDeep,
+        colorStart = if (isActivity) C.greenDeep
+            else if (signal == TempoSignal.LOW) C.surfaceAlt else C.violetDeep,
         colorEnd = C.surface,
         onClick = onClick,
-        accent = color
+        accent = accent
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                SmallIcon(icon, color)
+                SmallIcon(icon, accent)
                 Text(title, modifier = Modifier.weight(1f), fontWeight = FontWeight.SemiBold,
                     style = MaterialTheme.typography.bodyMedium, maxLines = 1)
                 Icon(Icons.Rounded.ChevronRight, "Voir le détail", tint = C.text,
                     modifier = Modifier.size(19.dp))
             }
-            Text(summary, color = if (isGreen) C.text else C.violetPale,
-                style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold,
-                maxLines = 1, overflow = TextOverflow.Ellipsis)
-            MiniBars(days, color, metric)
-            Text("7 derniers jours", style = MaterialTheme.typography.labelSmall, color = C.textSecondary)
+            Text(summary, color = accent, style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            TempoTrendGraph(
+                values = points, metric = kind, usual = usual,
+                kind = if (kind == TempoMetricKind.SLEEP || isActivity) TempoChartKind.BARS
+                       else TempoChartKind.LINE,
+                height = 73.dp
+            )
+            Text(
+                if (isActivity) "7 derniers jours"
+                else TempoHealthSignals.label(kind, signal),
+                style = MaterialTheme.typography.labelSmall,
+                color = if (signal == TempoSignal.UNKNOWN) C.textSecondary else accent,
+                maxLines = 1, overflow = TextOverflow.Ellipsis
+            )
         }
     }
 }
@@ -359,8 +326,10 @@ fun TodayV21Screen(
                         C.surface, Modifier.weight(1f), onTracking)
                     MetricTile("Préparation", readiness?.let { "$it / 100" } ?: "—",
                         if (readiness == null) "Fiabilité insuffisante" else "Fiabilité ${recovery.confidence} %",
-                        Icons.Rounded.Favorite, C.sage, C.greenDeep,
-                        C.surface, Modifier.weight(1f), onCoach)
+                        Icons.Rounded.Favorite,
+                        if (readiness == null) C.textMuted
+                        else TempoHealthSignals.recoveryColor(recovery.level),
+                        C.greenDeep, C.surface, Modifier.weight(1f), onCoach)
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
                     MetricTile("Pas", current?.steps?.toString() ?: "—", "Aujourd'hui",
@@ -461,9 +430,11 @@ fun TodayV21Screen(
                 SectionTitle("Mes tendances", "Voir tout", onTracking)
                 Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
                     TinyTrend("Sommeil", sleepText(days.take(7).mapNotNull { it.sleepMinutes }.takeIf { it.isNotEmpty() }?.average()?.toLong()),
-                        Icons.Rounded.Bedtime, C.rose, days, { it.sleepMinutes }, Modifier.weight(1f), onTracking)
+                        Icons.Rounded.Bedtime, C.rose, days, { it.sleepMinutes }, Modifier.weight(1f), onTracking,
+                        TempoMetricKind.SLEEP)
                     TinyTrend("Pas", days.take(7).mapNotNull { it.steps }.takeIf { it.isNotEmpty() }?.average()?.roundToInt()?.toString() ?: "—",
-                        Icons.Rounded.DirectionsWalk, C.sage, days, { it.steps }, Modifier.weight(1f), onTracking)
+                        Icons.Rounded.DirectionsWalk, C.sage, days, { it.steps }, Modifier.weight(1f), onTracking,
+                        TempoMetricKind.STEPS)
                 }
             }
         }
@@ -586,9 +557,26 @@ fun TrackingHubV21Screen(
                 SectionTitle("Aperçu des 7 jours")
                 Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
                     TinyTrend("Sommeil", sleepText(weekDays.mapNotNull { it.sleepMinutes }.takeIf { it.isNotEmpty() }?.average()?.toLong()),
-                        Icons.Rounded.Bedtime, C.rose, days, { it.sleepMinutes }, Modifier.weight(1f), onHealth)
+                        Icons.Rounded.Bedtime, C.rose, days, { it.sleepMinutes }, Modifier.weight(1f), onHealth,
+                        TempoMetricKind.SLEEP)
                     TinyTrend("Pas", weekDays.mapNotNull { it.steps }.takeIf { it.isNotEmpty() }?.average()?.roundToInt()?.toString() ?: "—",
-                        Icons.Rounded.DirectionsWalk, C.sage, days, { it.steps }, Modifier.weight(1f), onHealth)
+                        Icons.Rounded.DirectionsWalk, C.sage, days, { it.steps }, Modifier.weight(1f), onHealth,
+                        TempoMetricKind.STEPS)
+                }
+            }
+        }
+        item {
+            Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                SectionTitle("Tendances cardio")
+                Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                    TinyTrend("VFC", days.firstOrNull { it.hrvRmssdMs != null }
+                        ?.hrvRmssdMs?.let { "${it.roundToInt()} ms" } ?: "—",
+                        Icons.Rounded.Favorite, C.violetGlow, days, { it.hrvRmssdMs },
+                        Modifier.weight(1f), onHealth, TempoMetricKind.HRV)
+                    TinyTrend("FC repos", days.firstOrNull { it.restingHeartRate != null }
+                        ?.restingHeartRate?.let { "${it.roundToInt()} bpm" } ?: "—",
+                        Icons.Rounded.Favorite, C.violetGlow, days, { it.restingHeartRate },
+                        Modifier.weight(1f), onHealth, TempoMetricKind.RESTING_PULSE)
                 }
             }
         }
