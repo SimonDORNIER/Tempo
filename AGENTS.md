@@ -1,9 +1,9 @@
 # Instructions permanentes — Projet Tempo Coach
 
-> **Décision de design du 16/10/2026** : le propriétaire a sélectionné le visuel **Option B** (Suivi sombre, cartes encadrées en violet et vert forêt, accents plus saturés et graphiques lumineux). Il **remplace les teintes trop fades** de l'ancienne charte comme cible pour le prochain développement. Lire d'abord la section « Direction graphique approuvée — option B » dans `docs/CHARTE_GRAPHIQUE_TEMPO_COACH.md`. Les changements n'ont pas encore été implémentés et ne doivent pas être revendiqués comme une release publiée.
+> **Décision de design du 16/10/2026** : le propriétaire a sélectionné le visuel **Option B** (Suivi sombre, cartes encadrées en violet et vert forêt, accents plus saturés et graphiques lumineux). Il **remplace les teintes trop fades** de l'ancienne charte comme cible pour le prochain développement. Lire d'abord la section « Direction graphique approuvée — option B » dans `docs/CHARTE_GRAPHIQUE_TEMPO_COACH.md`. Implémentation Option B sur la branche `health/v2.2.0-option-b` (statut de publication à vérifier dans GitHub Actions et les Releases).
 
 
-Ce dépôt contient l'app Android native Tempo Health / Tempo Coach et des composants historiques. Pour les évolutions de Tempo Coach, repartir de **health/v2.1.1-wellness-ui** ou de son tag **health-v2.1.1** ; ne pas repartir du code legacy `main` ni d'une ancienne branche de release.
+Ce dépôt contient l'app Android native Tempo Health / Tempo Coach et des composants historiques. Pour les évolutions de Tempo Coach, repartir de **health/v2.2.0-option-b** pour les prochaines évolutions, conserver la branche **health/v2.1.1-wellness-ui** comme base de comparaison ; ne pas repartir du code legacy `main` ni d'une ancienne branche de release.
 
 ## Références obligatoires
 - docs/CHARTE_GRAPHIQUE_TEMPO_COACH.md : identité santé + détente et palette choisie.
@@ -13,7 +13,7 @@ Ce dépôt contient l'app Android native Tempo Health / Tempo Coach et des compo
 - docs/TESTS_TEMPO_2_1.md : tests de régression et vérifications sur appareil.
 
 ## Directions déjà validées
-- **Style santé / détente premium** (plus sport) ; palette **Prune & Rose poudré** (#1A1D1F, #5B2D58, #D99BB6, #F0DDD6, #8CA899), **aucune image de fond**, dégradés doux dans cartes/CTA seulement ; accueil mixte santé/coaching ; densité **très compacte**.
+- **Style santé / détente premium** (plus sport) ; palette **Option B Violet & Vert forêt** (#0C1118, #9638E8, #C06CFF, #127E51, #50E49A), **aucune image de fond**, dégradés doux dans cartes/CTA seulement ; accueil mixte santé/coaching ; densité **très compacte**.
 - **4 onglets : Aujourd'hui, Pratiquer, Suivi, Moi ; Coach dans l'accueil, détente et mouvement ensemble dans Pratiquer.**
 - Mobile-first Pixel 7a ; icônes vectorielles cohérentes + labels courts ; éviter textes superflus.
 - Tableau de bord nuit dernière, récupération, pas, activité, action unique ; graphes de suivi pertinents.

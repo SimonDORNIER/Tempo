@@ -1,5 +1,35 @@
 # Tempo Coach — Charte graphique et UX
 
+## Implémentation Option B — Tempo Coach 2.2.0 (19 octobre 2026)
+
+La refonte a été appliquée aux écrans Kotlin/Compose dans `health/v2.2.0-option-b`. Les teintes historiques ne sont plus utilisées ; leurs identifiants demeurent comme alias de compatibilité pour ne pas casser les sous-écrans.
+
+### Tokens d'implémentation exacts
+| Élément | Valeur |
+|---|---|
+| Fond uniforme | `#0C1118` |
+| Carte neutre | `#191F2C` |
+| Carte élevée | `#232A3A` |
+| Texte | `#F8F7FD` |
+| Texte secondaire | `#C9CDDE` |
+| Bordure neutre | `#384158` |
+| Violet principal | `#9638E8` |
+| Violet lumineux | `#C06CFF` |
+| Violet clair / chiffres | `#E0A6FF` |
+| Fond dégradé violet | `#381653` |
+| Vert forêt | `#127E51` |
+| Vert lumineux | `#50E49A` |
+| Fond dégradé vert | `#0B3A2B` |
+
+La navigation reste à 4 onglets avec capsule violette. Les cartes importantes ont un trait de couleur et un fond dégradé ; les pages secondaires partagent désormais la bordure et la palette Material 3.
+
+Les histogrammes 7 jours représentent toujours 7 jours calendaires et différencient une mesure 0 d'une mesure absente. Le nombre des séances terminées de « Cette semaine » est calculé sur la période concernée, pas sur toute la base. Le volume de données locales, les schémas Room, les clés de sauvegarde, les permissions et l'identifiant d'application n'ont pas été modifiés.
+
+La compilation CI et les tests réels sur le Pixel 7a doivent être validés avant de qualifier la version de définitive.
+
+---
+
+
 ## Direction graphique approuvée — option B (16 octobre 2026)
 
 **Décision utilisateur la plus récente, PRIORITAIRE sur la palette « Prune & Rose poudré » historique.**
