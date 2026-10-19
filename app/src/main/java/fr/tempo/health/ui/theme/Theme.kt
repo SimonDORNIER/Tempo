@@ -34,6 +34,8 @@ object TempoColors {
     val text = Color(0xFFF8F7FD)
     val textSecondary = Color(0xFFC9CDDE)
     val textMuted = Color(0xFFAEB6CD)
+    val amber = Color(0xFFFFBF65)
+    val redAlert = Color(0xFFFF7280)
     val error = Color(0xFFFFA5B3)
 
     // Compatibilité des anciens écrans : éviter les anciennes couleurs délavées.

@@ -1304,15 +1304,34 @@ private fun HealthScreen(
             TrendCard(
                 emoji = "😴",
                 title = "Sommeil • 7 jours",
-                values = days.take(7).reversed().map { it.sleepMinutes?.toDouble() },
-                valueText = { value -> formatMinutes(value.toLong()) }
+                values = metricByCalendarDay(days, 7) { it.sleepMinutes?.toDouble() },
+                valueText = { value -> formatMinutes(value.toLong()) },
+                kind = TempoMetricKind.SLEEP,
+                reference = days.drop(7).mapNotNull { it.sleepMinutes?.toDouble() }
             )
 
             TrendCard(
                 emoji = "❤️",
                 title = "HRV • 7 jours",
-                values = days.take(7).reversed().map { it.hrvRmssdMs },
-                valueText = { value -> oneDecimal(value) + " ms" }
+                values = metricByCalendarDay(days, 7) { it.hrvRmssdMs },
+                valueText = { value -> oneDecimal(value) + " ms" },
+                kind = TempoMetricKind.HRV,
+                reference = days.drop(7).mapNotNull { it.hrvRmssdMs }
+            )
+            TrendCard(
+                emoji = "💓",
+                title = "FC repos • 7 jours",
+                values = metricByCalendarDay(days, 7) { it.restingHeartRate },
+                valueText = { value -> value.toInt().toString() + " bpm" },
+                kind = TempoMetricKind.RESTING_PULSE,
+                reference = days.drop(7).mapNotNull { it.restingHeartRate }
+            )
+            TrendCard(
+                emoji = "🌬️",
+                title = "Respiration • 7 jours",
+                values = metricByCalendarDay(days, 7) { it.respiratoryRate },
+                valueText = { value -> oneDecimal(value) + " /min" },
+                kind = TempoMetricKind.OTHER
             )
         }
     }
@@ -1586,44 +1605,54 @@ private fun ProgressScreen(
             TrendCard(
                 emoji = "🗓️",
                 title = "Sommeil • 28 jours",
-                values = month.reversed().map { it.sleepMinutes?.toDouble() },
-                valueText = { value -> formatMinutes(value.toLong()) }
+                values = metricByCalendarDay(days, 28) { it.sleepMinutes?.toDouble() },
+                valueText = { value -> formatMinutes(value.toLong()) },
+                kind = TempoMetricKind.SLEEP,
+                reference = days.drop(7).mapNotNull { it.sleepMinutes?.toDouble() }
             )
 
             TrendCard(
                 emoji = "📈",
                 title = "HRV • 28 jours",
-                values = month.reversed().map { it.hrvRmssdMs },
-                valueText = { value -> oneDecimal(value) + " ms" }
+                values = metricByCalendarDay(days, 28) { it.hrvRmssdMs },
+                valueText = { value -> oneDecimal(value) + " ms" },
+                kind = TempoMetricKind.HRV,
+                reference = days.drop(7).mapNotNull { it.hrvRmssdMs }
             )
 
             TrendCard(
                 emoji = "😴",
                 title = "Sommeil • 7 jours",
-                values = week.reversed().map { it.sleepMinutes?.toDouble() },
-                valueText = { value -> formatMinutes(value.toLong()) }
+                values = metricByCalendarDay(days, 7) { it.sleepMinutes?.toDouble() },
+                valueText = { value -> formatMinutes(value.toLong()) },
+                kind = TempoMetricKind.SLEEP,
+                reference = days.drop(7).mapNotNull { it.sleepMinutes?.toDouble() }
             )
 
             TrendCard(
                 emoji = "❤️",
                 title = "HRV • 7 jours",
-                values = week.reversed().map { it.hrvRmssdMs },
-                valueText = { value -> oneDecimal(value) + " ms" }
+                values = metricByCalendarDay(days, 7) { it.hrvRmssdMs },
+                valueText = { value -> oneDecimal(value) + " ms" },
+                kind = TempoMetricKind.HRV,
+                reference = days.drop(7).mapNotNull { it.hrvRmssdMs }
             )
 
             TrendCard(
                 emoji = "💓",
                 title = "FC repos • 7 jours",
-                values = week.reversed().map { it.restingHeartRate },
+                values = metricByCalendarDay(days, 7) { it.restingHeartRate },
                 valueText = { value -> value.toInt().toString() + " bpm" },
-                lowerIsBetter = true
+                kind = TempoMetricKind.RESTING_PULSE,
+                reference = days.drop(7).mapNotNull { it.restingHeartRate }
             )
 
             TrendCard(
                 emoji = "🚶",
                 title = "Pas • 7 jours",
-                values = week.reversed().map { it.steps?.toDouble() },
-                valueText = { value -> value.toLong().toString() }
+                values = metricByCalendarDay(days, 7) { it.steps?.toDouble() },
+                valueText = { value -> value.toLong().toString() },
+                kind = TempoMetricKind.STEPS
             )
 
             StatusCard(
@@ -1744,85 +1773,52 @@ private fun TrendCard(
     title: String,
     values: List<Double?>,
     valueText: (Double) -> String,
-    lowerIsBetter: Boolean = false
+    kind: TempoMetricKind,
+    reference: List<Double> = emptyList()
 ) {
-    val valid = values.mapNotNull { it }
-    if (valid.isEmpty()) return
-
-    val min = valid.minOrNull() ?: 0.0
-    val max = valid.maxOrNull() ?: min
-    val span = (max - min).takeIf { it > 0.0 } ?: 1.0
-    val latest = values.lastOrNull { it != null }
-    val first = values.firstOrNull { it != null }
-
-    val direction = if (latest != null && first != null) {
-        val change = latest - first
-        when {
-            kotlin.math.abs(change) < span * 0.08 -> "stable"
-            (change > 0 && !lowerIsBetter) || (change < 0 && lowerIsBetter) -> "↗ favorable"
-            else -> "↘ à surveiller"
-        }
-    } else {
-        "tendance incomplète"
-    }
+    val valid = values.filterNotNull().filter { it.isFinite() }
+    val latest = values.lastOrNull { it != null && it.isFinite() }
+    val usual = TempoHealthSignals.reference(reference)
+    val signal = TempoHealthSignals.assess(kind, latest, usual)
+    val accent = TempoHealthSignals.displayColor(kind, signal)
+    val chartKind = if (kind == TempoMetricKind.STEPS ||
+        kind == TempoMetricKind.ACTIVE_MINUTES || kind == TempoMetricKind.SLEEP)
+        TempoChartKind.BARS else TempoChartKind.LINE
 
     TempoPanelCard(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(24.dp)
+        shape = RoundedCornerShape(22.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, accent.copy(alpha = 0.8f))
     ) {
-        Column(Modifier.padding(18.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
+        Column(Modifier.padding(15.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text(emoji, style = MaterialTheme.typography.titleLarge)
-                Spacer(Modifier.width(10.dp))
+                Spacer(Modifier.width(9.dp))
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(title, fontWeight = FontWeight.Bold)
-                    Text(
-                        latest?.let(valueText) ?: "—",
-                        color = MaterialTheme.colorScheme.primary
-                    )
+                    Text(title, fontWeight = FontWeight.SemiBold, maxLines = 2)
+                    Text(latest?.let(valueText) ?: "—", color = accent,
+                        style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                 }
-                Text(
-                    direction,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+            }
+            if (valid.isEmpty()) {
+                Text("Pas de mesure pour cette période",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+            } else {
+                TempoTrendGraph(
+                    values = values, metric = kind, usual = usual,
+                    kind = chartKind, height = 92.dp
                 )
             }
-
-            Spacer(Modifier.height(14.dp))
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(92.dp),
-                horizontalArrangement = Arrangement.spacedBy(
-                    if (values.size > 14) 2.dp else 6.dp
-                ),
-                verticalAlignment = Alignment.Bottom
-            ) {
-                values.forEach { value ->
-                    val normalized = if (value == null) {
-                        0.05
-                    } else {
-                        0.18 + 0.82 * ((value - min) / span).coerceIn(0.0, 1.0)
-                    }
-
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .height((88.0 * normalized).dp)
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(
-                                if (value == null) {
-                                    MaterialTheme.colorScheme.surfaceVariant
-                                } else {
-                                    MaterialTheme.colorScheme.primary
-                                }
-                            )
-                    )
-                }
+            Text(
+                TempoHealthSignals.label(kind, signal) + " • " +
+                    valid.size.toString() + "/" + values.size + " jours renseignés",
+                style = MaterialTheme.typography.labelMedium, color = accent
+            )
+            if (kind == TempoMetricKind.HRV || kind == TempoMetricKind.RESTING_PULSE ||
+                kind == TempoMetricKind.SLEEP) {
+                Text("Couleurs relatives à ta référence personnelle, sans diagnostic.",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     }
