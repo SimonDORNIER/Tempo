@@ -16,7 +16,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
+import fr.tempo.health.ui.theme.TempoPanelCard
+import fr.tempo.health.ui.theme.TempoColors as C
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -43,10 +44,10 @@ fun GuidedBreathingScreen(
     onExit: () -> Unit,
     onRecord: (String, Int, Boolean) -> Unit
 ) {
-    val cream = Color(0xFFF0DDD6)
-    val ink = Color(0xFF1A1D1F)
-    val surface = Color(0xFF252A31)
-    val sage = Color(0xFF8CA899)
+    val cream = C.text
+    val ink = C.background
+    val surface = C.surface
+    val sage = C.greenGlow
     var selectedId by remember { mutableStateOf(BreathingGuides.all.first().exerciseId) }
     val guide = BreathingGuides.all.first { it.exerciseId == selectedId }
     var running by remember { mutableStateOf(false) }
@@ -98,7 +99,7 @@ fun GuidedBreathingScreen(
         OutlinedButton(onClick = ::requestExit) { Text("‹  Retour") }
         Text("Respiration guidée", style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.Bold, color = cream)
-        Text("Sans matériel • à ton rythme", color = Color(0xFFCFC4C8))
+        Text("Sans matériel • à ton rythme", color = C.textSecondary)
 
         if (!running && !finished) {
             BreathingGuides.all.forEach { option ->
@@ -121,7 +122,7 @@ fun GuidedBreathingScreen(
             }
         }
 
-        Card(
+        TempoPanelCard(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(24.dp),
             colors = CardDefaults.cardColors(containerColor = surface)
@@ -162,14 +163,14 @@ fun GuidedBreathingScreen(
                 Text(
                     "Temps restant : " + ((guide.durationSeconds - elapsed) / 60) +
                         " min " + ((guide.durationSeconds - elapsed) % 60) + " s",
-                    color = Color(0xFFCFC4C8)
+                    color = C.textSecondary
                 )
                 Text(
                     if (running) "Cycle " + (elapsed / cycle + 1) +
                         " • inspire " + guide.inhaleSeconds + " s, expire " +
                         guide.exhaleSeconds + " s"
                     else ExerciseLibrary.byId(guide.exerciseId).instructions,
-                    color = Color(0xFFCFC4C8),
+                    color = C.textSecondary,
                     style = MaterialTheme.typography.bodyMedium
                 )
             }
@@ -216,7 +217,7 @@ fun GuidedBreathingScreen(
         Text(
             "Respire confortablement, sans forcer ni retenir ton souffle. " +
                 "Si tu ressens un vertige, un malaise ou un essoufflement, arrête.",
-            color = Color(0xFFCFC4C8),
+            color = C.textSecondary,
             style = MaterialTheme.typography.bodySmall
         )
     }

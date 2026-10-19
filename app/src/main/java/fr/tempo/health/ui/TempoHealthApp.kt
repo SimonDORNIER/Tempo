@@ -32,7 +32,8 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
+import fr.tempo.health.ui.theme.TempoPanelCard
+import fr.tempo.health.ui.theme.TempoColors as C
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CenterAlignedTopAppBar
@@ -221,6 +222,7 @@ fun TempoHealthApp(
     }
 
     Scaffold(
+        containerColor = C.background,
         topBar = {
             if (selectedDestination == null && currentRoute != "workout" && currentRoute != "breathing") {
             CenterAlignedTopAppBar(
@@ -289,7 +291,7 @@ fun TempoHealthApp(
         },
         bottomBar = {
             if (selectedDestination != null) {
-                NavigationBar {
+                NavigationBar(containerColor = C.surface, tonalElevation = 0.dp) {
                     mainDestinations.forEach { destination ->
                         val selected = currentEntry?.destination?.hierarchy
                             ?.any { it.route == destination.route } == true
@@ -314,7 +316,11 @@ fun TempoHealthApp(
                                 )
                             },
                             colors = NavigationBarItemDefaults.colors(
-                                indicatorColor = MaterialTheme.colorScheme.primaryContainer
+                                selectedIconColor = C.text,
+                                selectedTextColor = C.violetGlow,
+                                unselectedIconColor = C.textSecondary,
+                                unselectedTextColor = C.textSecondary,
+                                indicatorColor = C.violetDeep
                             )
                         )
                     }
@@ -642,7 +648,7 @@ private fun StatusCard(
     value: String,
     detail: String
 ) {
-    Card(
+    TempoPanelCard(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(
@@ -715,7 +721,7 @@ private fun TodayScreen(
         subtitle = "La santé, les séances et les habitudes au même endroit."
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-            Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp)) {
+            TempoPanelCard(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp)) {
                 Column(
                     modifier = Modifier.padding(14.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -801,7 +807,7 @@ private fun TodayScreen(
                 )
             }
 
-            Card(
+            TempoPanelCard(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(24.dp)
             ) {
@@ -903,7 +909,7 @@ private fun CoachDashboardCard(
         "Préparer un coucher régulier"
     )
 
-    Card(
+    TempoPanelCard(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(
@@ -1027,7 +1033,7 @@ private fun RecoveryCard(recovery: RecoveryResult) {
 private fun RecoveryFactorsCard(recovery: RecoveryResult) {
     if (recovery.factors.isEmpty()) return
 
-    Card(
+    TempoPanelCard(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(24.dp)
     ) {
@@ -1097,7 +1103,7 @@ private fun SessionRecommendationCard(
     recovery: RecoveryResult,
     plan: WorkoutPlan
 ) {
-    Card(
+    TempoPanelCard(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(
@@ -1450,7 +1456,7 @@ private fun ProgramScreen(
                     }
             )
 
-            Card(
+            TempoPanelCard(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(24.dp),
                 colors = CardDefaults.cardColors(
@@ -1760,7 +1766,7 @@ private fun TrendCard(
         "tendance incomplète"
     }
 
-    Card(
+    TempoPanelCard(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(24.dp)
     ) {
@@ -1851,7 +1857,7 @@ private fun CoachScreen(
                     recovery.baselineDays + " jour(s) de référence"
             )
 
-            Card(
+            TempoPanelCard(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(24.dp)
             ) {
@@ -1916,7 +1922,7 @@ private fun CoachScreen(
                 advice.sessionGuidance
             )
 
-            Card(
+            TempoPanelCard(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(24.dp)
             ) {
@@ -1937,7 +1943,7 @@ private fun CoachScreen(
                 }
             }
 
-            Card(
+            TempoPanelCard(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(24.dp),
                 colors = CardDefaults.cardColors(
@@ -2050,7 +2056,7 @@ private fun SettingsScreen(
                 "Room / SQLite sur le téléphone"
             )
 
-            Card(
+            TempoPanelCard(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(24.dp)
             ) {
@@ -2141,7 +2147,7 @@ private fun SettingsScreen(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
-            Card(
+            TempoPanelCard(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(24.dp)
             ) {
@@ -2207,7 +2213,7 @@ private fun SettingsScreen(
                 }
             }
 
-            Card(
+            TempoPanelCard(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(24.dp)
             ) {
@@ -2305,7 +2311,7 @@ private fun SettingsScreen(
                 }
             }
 
-            Card(
+            TempoPanelCard(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(24.dp)
             ) {
@@ -2414,7 +2420,7 @@ private fun SettingsScreen(
                     }
 
                     backupState.restorePreview?.let { preview ->
-                        Card(
+                        TempoPanelCard(
                             modifier = Modifier.fillMaxWidth(),
                             colors = CardDefaults.cardColors(
                                 containerColor = MaterialTheme.colorScheme.surfaceVariant
@@ -2652,7 +2658,7 @@ private fun CategorySettingsScreen(
                 val icon = categoryIcon(category, preferences)
                 val count = ExerciseLibrary.all.count { it.category == category }
 
-                Card(
+                TempoPanelCard(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(20.dp)
                 ) {
@@ -2792,7 +2798,7 @@ private fun FreeTimerScreen(
         subtitle = "Règle une durée, lance le chrono et Tempo sonne à la fin."
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-            Card(
+            TempoPanelCard(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(28.dp),
                 colors = CardDefaults.cardColors(
@@ -2836,7 +2842,7 @@ private fun FreeTimerScreen(
                 }
             }
 
-            Card(
+            TempoPanelCard(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(24.dp)
             ) {
@@ -3047,7 +3053,7 @@ private fun ExercisePreferencesScreen(
             )
 
             visibleExercises.forEach { exercise ->
-                Card(
+                TempoPanelCard(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(20.dp)
                 ) {
@@ -3405,7 +3411,7 @@ private fun WorkoutSessionScreen(
                             plan.items.size + " exercices enregistrés localement."
                     )
 
-                    Card(
+                    TempoPanelCard(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(24.dp)
                     ) {
@@ -3479,7 +3485,7 @@ private fun WorkoutSessionScreen(
                         else -> "⏱️"
                     }
 
-                    Card(
+                    TempoPanelCard(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(28.dp),
                         colors = CardDefaults.cardColors(
