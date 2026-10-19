@@ -78,6 +78,7 @@ import fr.tempo.health.domain.TrainingPreferences
 import fr.tempo.health.domain.WorkoutPlan
 import fr.tempo.health.ui.theme.TempoColors as C
 import java.time.LocalDate
+import java.time.format.TextStyle
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 import kotlin.math.roundToInt
@@ -116,15 +117,24 @@ private fun TintedCard(
     colorStart: Color = C.surface,
     colorEnd: Color = C.surface,
     onClick: (() -> Unit)? = null,
+    accent: Color? = null,
     content: @Composable () -> Unit
 ) {
+    val borderColor = accent ?: if (colorStart == C.surface && colorEnd == C.surface) {
+        C.border
+    } else C.violet
     Card(
         modifier = modifier.then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier),
         shape = round,
         colors = CardDefaults.cardColors(containerColor = colorStart),
-        border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.06f))
+        border = BorderStroke(if (accent == null && borderColor == C.border) 0.8.dp else 1.2.dp,
+            borderColor.copy(alpha = if (borderColor == C.border) 0.84f else 0.92f))
     ) {
-        Box(modifier = Modifier.fillMaxWidth().background(Brush.linearGradient(listOf(colorStart, colorEnd))).padding(14.dp)) {
+        Box(
+            modifier = Modifier.fillMaxWidth()
+                .background(Brush.linearGradient(listOf(colorStart, colorEnd)))
+                .padding(14.dp)
+        ) {
             content()
         }
     }
@@ -132,9 +142,15 @@ private fun TintedCard(
 
 @Composable
 private fun SmallIcon(icon: ImageVector, tint: Color, modifier: Modifier = Modifier) {
-    Box(modifier = modifier.size(37.dp).background(tint.copy(alpha = 0.16f), CircleShape),
-        contentAlignment = Alignment.Center) {
-        Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(21.dp))
+    Box(
+        modifier = modifier.size(39.dp)
+            .background(
+                Brush.linearGradient(listOf(tint.copy(alpha = 0.32f), tint.copy(alpha = 0.14f))),
+                CircleShape
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(22.dp))
     }
 }
 
@@ -144,15 +160,15 @@ private fun MetricTile(
     accent: Color, first: Color, last: Color, modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
-    TintedCard(modifier, first, last, onClick) {
+    TintedCard(modifier, first, last, onClick, accent) {
         Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
                 SmallIcon(icon, accent)
                 Text(title, style = MaterialTheme.typography.labelMedium, maxLines = 1,
-                    overflow = TextOverflow.Ellipsis, color = C.textSecondary)
+                    overflow = TextOverflow.Ellipsis, color = C.text)
             }
             Text(value, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold,
-                maxLines = 1, color = C.text)
+                maxLines = 1, color = if (accent == C.greenGlow) C.greenGlow else C.violetPale)
             Text(subtitle, style = MaterialTheme.typography.labelSmall, maxLines = 1,
                 overflow = TextOverflow.Ellipsis, color = C.textSecondary)
         }
@@ -164,7 +180,7 @@ private fun PrimaryAction(text: String, icon: ImageVector, onClick: () -> Unit) 
     Button(
         modifier = Modifier.fillMaxWidth().height(56.dp), onClick = onClick,
         shape = RoundedCornerShape(29.dp),
-        colors = ButtonDefaults.buttonColors(containerColor = C.cream, contentColor = C.background)
+        colors = ButtonDefaults.buttonColors(containerColor = C.violet, contentColor = C.text)
     ) {
         Icon(icon, contentDescription = null, modifier = Modifier.size(23.dp))
         Spacer(Modifier.width(10.dp))
@@ -176,11 +192,12 @@ private fun PrimaryAction(text: String, icon: ImageVector, onClick: () -> Unit) 
 }
 
 @Composable
-private fun ListLink(icon: ImageVector, title: String, detail: String, onClick: () -> Unit) {
+private fun ListLink(icon: ImageVector, title: String, detail: String, onClick: () -> Unit,
+    tint: Color = C.violetGlow) {
     Row(modifier = Modifier.fillMaxWidth().clickable(onClick = onClick)
         .defaultMinSize(minHeight = 64.dp).padding(vertical = 5.dp),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(11.dp)) {
-        SmallIcon(icon, C.rose)
+        SmallIcon(icon, tint)
         Column(modifier = Modifier.weight(1f)) {
             Text(title, fontWeight = FontWeight.SemiBold)
             Text(detail, style = MaterialTheme.typography.bodySmall, color = C.textSecondary, maxLines = 2)
@@ -197,36 +214,87 @@ private fun dayLabel(): String =
         .replaceFirstChar { it.uppercase() }
 
 @Composable
-private fun MiniBars(days: List<DailyHealthEntity>, color: Color, metric: (DailyHealthEntity) -> Number?) {
+private fun MiniBars(
+    days: List<DailyHealthEntity>,
+    color: Color,
+    metric: (DailyHealthEntity) -> Number?
+) {
+    // Sept dates calendaires et non sept lignes de base : les jours sans mesure restent vides.
     val map = days.associateBy { it.date }
-    val today = LocalDate.now()
-    val points = (6L downTo 0L).map { ago ->
-        map[today.minusDays(ago).toString()]?.let(metric)?.toFloat()?.takeIf { it > 0f }
+    val dates = (6L downTo 0L).map { LocalDate.now().minusDays(it) }
+    val points = dates.map { date ->
+        map[date.toString()]?.let(metric)?.toFloat()?.takeIf { it >= 0f }
     }
     val max = points.filterNotNull().maxOrNull()?.coerceAtLeast(1f) ?: 1f
-    Row(modifier = Modifier.fillMaxWidth().height(43.dp),
-        horizontalArrangement = Arrangement.spacedBy(7.dp),
-        verticalAlignment = Alignment.Bottom) {
-        points.forEach { p ->
-            Box(modifier = Modifier.weight(1f).height(
-                if (p == null) 3.dp else (6f + 36f * p / max).dp
-            ).background(if (p == null) C.textSecondary.copy(alpha = 0.18f) else color,
-                RoundedCornerShape(topStart = 5.dp, topEnd = 5.dp)))
+    Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth().height(68.dp),
+            horizontalArrangement = Arrangement.spacedBy(7.dp),
+            verticalAlignment = Alignment.Bottom
+        ) {
+            points.forEach { point ->
+                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.Bottom) {
+                    val height = if (point == null) 3.dp else (5f + 61f * point / max).dp
+                    Box(
+                        modifier = Modifier.fillMaxWidth().height(height)
+                            .background(
+                                if (point == null) {
+                                    Brush.verticalGradient(listOf(C.border, C.border.copy(alpha = 0.3f)))
+                                } else {
+                                    Brush.verticalGradient(listOf(color, color.copy(alpha = 0.55f)))
+                                },
+                                RoundedCornerShape(topStart = 5.dp, topEnd = 5.dp)
+                            )
+                    )
+                }
+            }
+        }
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+            dates.forEach { date ->
+                Text(
+                    date.dayOfWeek.getDisplayName(TextStyle.NARROW, Locale.FRANCE)
+                        .uppercase(Locale.FRANCE).take(1),
+                    modifier = Modifier.weight(1f),
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    color = C.textMuted,
+                    style = MaterialTheme.typography.labelSmall,
+                    maxLines = 1
+                )
+            }
         }
     }
 }
 
 @Composable
-private fun TinyTrend(title: String, summary: String, icon: ImageVector, color: Color,
-                      days: List<DailyHealthEntity>, metric: (DailyHealthEntity) -> Number?,
-                      modifier: Modifier, onClick: () -> Unit) {
-    TintedCard(modifier = modifier, onClick = onClick) {
-        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+private fun TinyTrend(
+    title: String,
+    summary: String,
+    icon: ImageVector,
+    color: Color,
+    days: List<DailyHealthEntity>,
+    metric: (DailyHealthEntity) -> Number?,
+    modifier: Modifier,
+    onClick: () -> Unit
+) {
+    val isGreen = color == C.greenGlow
+    TintedCard(
+        modifier = modifier,
+        colorStart = if (isGreen) C.greenDeep else C.violetDeep,
+        colorEnd = C.surface,
+        onClick = onClick,
+        accent = color
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(17.dp))
-                Text(title, style = MaterialTheme.typography.labelMedium, maxLines = 1)
+                SmallIcon(icon, color)
+                Text(title, modifier = Modifier.weight(1f), fontWeight = FontWeight.SemiBold,
+                    style = MaterialTheme.typography.bodyMedium, maxLines = 1)
+                Icon(Icons.Rounded.ChevronRight, "Voir le détail", tint = C.text,
+                    modifier = Modifier.size(19.dp))
             }
-            Text(summary, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            Text(summary, color = if (isGreen) C.text else C.violetPale,
+                style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold,
+                maxLines = 1, overflow = TextOverflow.Ellipsis)
             MiniBars(days, color, metric)
             Text("7 derniers jours", style = MaterialTheme.typography.labelSmall, color = C.textSecondary)
         }
@@ -287,19 +355,19 @@ fun TodayV21Screen(
                 Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
                     MetricTile("Sommeil", sleepText(night?.sleepMinutes),
                         if (night == null) "Données manquantes" else "Dernière nuit",
-                        Icons.Rounded.Bedtime, C.rose, Color(0xFF54324E),
-                        Color(0xFF302731), Modifier.weight(1f), onTracking)
+                        Icons.Rounded.Bedtime, C.rose, C.violetDeep,
+                        C.surface, Modifier.weight(1f), onTracking)
                     MetricTile("Préparation", readiness?.let { "$it / 100" } ?: "—",
                         if (readiness == null) "Fiabilité insuffisante" else "Fiabilité ${recovery.confidence} %",
-                        Icons.Rounded.Favorite, C.sage, Color(0xFF415246),
-                        Color(0xFF2C3430), Modifier.weight(1f), onCoach)
+                        Icons.Rounded.Favorite, C.sage, C.greenDeep,
+                        C.surface, Modifier.weight(1f), onCoach)
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
                     MetricTile("Pas", current?.steps?.toString() ?: "—", "Aujourd'hui",
                         Icons.Rounded.DirectionsWalk, C.sage, C.surface,
                         C.surfaceAlt, Modifier.weight(1f), onTracking)
                     MetricTile("Activité", current?.exerciseMinutes?.let { "$it min" } ?: "—", "Minutes aujourd'hui",
-                        Icons.Rounded.SelfImprovement, C.rose, Color(0xFF432E40),
+                        Icons.Rounded.SelfImprovement, C.rose, C.violetDeep,
                         C.surface, Modifier.weight(1f), onTracking)
                 }
             }
@@ -311,7 +379,7 @@ fun TodayV21Screen(
             )
         }
         item {
-            TintedCard(colorStart = Color(0xFF442F42), colorEnd = Color(0xFF302935), onClick = onCoach) {
+            TintedCard(colorStart = C.violetDeep, colorEnd = C.surface, onClick = onCoach) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     SmallIcon(Icons.Rounded.Lightbulb, C.rose)
                     Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
@@ -423,7 +491,7 @@ fun PracticeHubV21Screen(
         verticalArrangement = Arrangement.spacedBy(16.dp)) {
         item { Headline("Pratiquer", "Détente, mobilité et mouvement") }
         item {
-            TintedCard(colorStart = Color(0xFF563552), colorEnd = Color(0xFF302B39)) {
+            TintedCard(colorStart = C.violetDeep, colorEnd = C.surface) {
                 Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
                     Text("Ma séance conseillée", color = C.rose, fontWeight = FontWeight.Medium)
                     Text(plan.title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
@@ -471,7 +539,7 @@ private fun PracticeTile(
     title: String, detail: String, icon: ImageVector, color: Color,
     modifier: Modifier, onClick: () -> Unit
 ) {
-    TintedCard(modifier, C.surface, C.surfaceAlt, onClick) {
+    TintedCard(modifier, if (color == C.greenGlow) C.greenDeep else C.violetDeep, C.surface, onClick, color) {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             SmallIcon(icon, color)
             Text(title, fontWeight = FontWeight.SemiBold, maxLines = 1)
@@ -489,20 +557,26 @@ fun TrackingHubV21Screen(
     onHealth: () -> Unit,
     onProgress: () -> Unit
 ) {
-    val completed = history.count { it.completed }
+    val weekStart = LocalDate.now().minusDays(6)
+        .atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
+    val weekDays = days.filter { it.date >= LocalDate.now().minusDays(6).toString() &&
+        it.date <= LocalDate.now().toString() }
+    val completed = history.count { it.completed && it.startedAtEpochMs >= weekStart &&
+        it.startedAtEpochMs <= System.currentTimeMillis() }
     LazyColumn(modifier = Modifier.fillMaxSize().background(C.background),
         contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(15.dp)) {
         item { Headline("Suivi", "Comprendre ce qui évolue") }
         item {
-            TintedCard {
+            TintedCard(colorStart = C.violetDeep, colorEnd = C.surface, accent = C.violet) {
                 Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
-                    Text("Cette semaine", fontWeight = FontWeight.SemiBold)
+                    Text("Cette semaine", fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.titleLarge)
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         MetricStat("Sommeil moyen",
-                            sleepText(days.take(7).mapNotNull { it.sleepMinutes }.takeIf { it.isNotEmpty() }?.average()?.toLong()),
-                            Modifier.weight(1f))
-                        MetricStat("Séances terminées", completed.toString(), Modifier.weight(1f))
+                            sleepText(weekDays.mapNotNull { it.sleepMinutes }.takeIf { it.isNotEmpty() }?.average()?.toLong()),
+                            Modifier.weight(1f), C.violetPale)
+                        MetricStat("Séances terminées", completed.toString(), Modifier.weight(1f), C.text)
                     }
                 }
             }
@@ -511,9 +585,9 @@ fun TrackingHubV21Screen(
             Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
                 SectionTitle("Aperçu des 7 jours")
                 Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
-                    TinyTrend("Sommeil", sleepText(days.firstOrNull { it.sleepMinutes != null }?.sleepMinutes),
+                    TinyTrend("Sommeil", sleepText(weekDays.mapNotNull { it.sleepMinutes }.takeIf { it.isNotEmpty() }?.average()?.toLong()),
                         Icons.Rounded.Bedtime, C.rose, days, { it.sleepMinutes }, Modifier.weight(1f), onHealth)
-                    TinyTrend("Pas", days.firstOrNull()?.steps?.toString() ?: "—",
+                    TinyTrend("Pas", weekDays.mapNotNull { it.steps }.takeIf { it.isNotEmpty() }?.average()?.roundToInt()?.toString() ?: "—",
                         Icons.Rounded.DirectionsWalk, C.sage, days, { it.steps }, Modifier.weight(1f), onHealth)
                 }
             }
@@ -525,7 +599,7 @@ fun TrackingHubV21Screen(
                     Column {
                         ListLink(Icons.Rounded.Favorite, "Santé", "Sommeil, FC repos, VFC et respiration", onHealth)
                         HorizontalDivider(color = C.border)
-                        ListLink(Icons.Rounded.DirectionsWalk, "Activité", "Pas, distance et minutes d'exercice", onHealth)
+                        ListLink(Icons.Rounded.DirectionsWalk, "Activité", "Pas, distance et minutes d'exercice", onHealth, C.greenGlow)
                         HorizontalDivider(color = C.border)
                         ListLink(Icons.Rounded.BarChart, "Séances", "Fréquence, durée et progression", onProgress)
                     }
@@ -533,18 +607,19 @@ fun TrackingHubV21Screen(
             }
         }
         item {
-            Text("Les graphiques montrent uniquement les mesures disponibles. Les jours manquants restent visibles.",
+            Text("Jours sans mesure : barres discrètes, sans valeur inventée.",
                 style = MaterialTheme.typography.labelSmall, color = C.textSecondary)
         }
     }
 }
 
 @Composable
-private fun MetricStat(title: String, value: String, modifier: Modifier) {
+private fun MetricStat(title: String, value: String, modifier: Modifier, accent: Color = C.text) {
     Column(modifier) {
         Text(title, style = MaterialTheme.typography.labelSmall, color = C.textSecondary)
         Spacer(Modifier.height(5.dp))
-        Text(value, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+        Text(value, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold,
+            color = accent, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
 
