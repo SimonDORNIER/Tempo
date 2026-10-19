@@ -1,1 +1,1 @@
-Tempo Coach 2.2.0 Option B : palette violet vert foret, design global, graphiques reels, composants harmonises
+Tempo Coach 2.3.0: courbes physiologiques a points, couleurs selon recuperation et reference personnelle, histogrammes d'activite

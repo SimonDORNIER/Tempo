@@ -1,5 +1,19 @@
 # Tempo Coach — Charte graphique et UX
 
+## Tempo Coach 2.3.0 — Graphiques sémantiques, courbes et points (19 octobre 2026)
+
+La direction Option B reste inchangée (fond sombre, violet prononcé et vert forêt). Cette version ajoute des **couleurs d'état** en complément des couleurs de catégories. Le vert, l'ambre et le rouge signalent respectivement une valeur proche de la référence personnelle, un écart modéré et un écart important **quand une référence suffisamment renseignée existe**.
+
+- **Courbe + points visibles** : VFC/HRV, FC de repos, respiration (courbe neutre pour respiration tant qu'aucune règle de tendance personnelle validée n'existe).
+- **Histogrammes** : pas, durée du sommeil, minutes actives et volumes de séances ; ce sont des cumuls ou durées par jour.
+- **Forme & préparation** : vert/orange/rouge calculés via `RecoveryEngine`, et pas avec un nouvel algorithme ou des données artificielles. Aucun graphique de forme historique n'est inventé : l'application n'enregistre pas encore un score par jour.
+- **Comparaison** : médiane des 21 jours précédents, au minimum 5 observations valides. En deçà : état « Référence à construire », sans alerte colorée artificielle.
+- **VFC** : orange si <= 90 % de la référence ; rouge si <= 80 %. **FC repos** : orange si >= +4 bpm ; rouge si >= +8 bpm. **Sommeil** : orange si au moins 40 minutes sous la référence ; rouge si au moins 90 minutes sous cette référence. Ce sont des signaux indicatifs, jamais un diagnostic.
+- **Données absentes** : jours calendaires fixes, pas d'interpolation entre deux points séparés par des jours manquants ; libellé explicite avec nombre de jours renseignés.
+- **SpO₂** : aucune donnée de saturation n'est stockée dans la version actuelle ; ne pas fabriquer de valeur ni de catégorie médicale.
+- **Lisibilité** : points de physiologie et segments de courbe colorés individuellement, badges texte et bordures assorties ; une couleur seule ne suffit pas à l'interprétation.
+
+
 ## Implémentation Option B — Tempo Coach 2.2.0 (19 octobre 2026)
 
 La refonte a été appliquée aux écrans Kotlin/Compose dans `health/v2.2.0-option-b`. Les teintes historiques ne sont plus utilisées ; leurs identifiants demeurent comme alias de compatibilité pour ne pas casser les sous-écrans.
