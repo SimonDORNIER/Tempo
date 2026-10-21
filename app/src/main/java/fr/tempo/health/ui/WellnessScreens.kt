@@ -289,7 +289,9 @@ fun TodayV21Screen(
 ) {
     val today = LocalDate.now().toString()
     val current = days.firstOrNull { it.date == today }
-    val night = days.firstOrNull { it.sleepMinutes != null && it.sleepMinutes > 0 }
+    // Le tableau de bord ne remonte jamais une nuit ancienne comme si c'était celle d'hier.
+    // HealthRepository rattache chaque session au jour local de son réveil.
+    val night = current?.takeIf { (it.sleepMinutes ?: 0L) > 0L }
     val readiness = recovery.score?.takeIf { recovery.confidence >= 20 }
     val preparation = when (recovery.level) {
         RecoveryLevel.GREEN -> "Bonne préparation"
@@ -422,19 +424,6 @@ fun TodayV21Screen(
                             }
                         }
                     }
-                }
-            }
-        }
-        item {
-            Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
-                SectionTitle("Mes tendances", "Voir tout", onTracking)
-                Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
-                    TinyTrend("Sommeil", sleepText(days.take(7).mapNotNull { it.sleepMinutes }.takeIf { it.isNotEmpty() }?.average()?.toLong()),
-                        Icons.Rounded.Bedtime, C.rose, days, { it.sleepMinutes }, Modifier.weight(1f), onTracking,
-                        TempoMetricKind.SLEEP)
-                    TinyTrend("Pas", days.take(7).mapNotNull { it.steps }.takeIf { it.isNotEmpty() }?.average()?.roundToInt()?.toString() ?: "—",
-                        Icons.Rounded.DirectionsWalk, C.sage, days, { it.steps }, Modifier.weight(1f), onTracking,
-                        TempoMetricKind.STEPS)
                 }
             }
         }
