@@ -45,3 +45,10 @@ Statut : contrôle des sources et build CI en cours. Les étapes ci-dessous doiv
 - Impossible de garantir la perfection sur appareil sans exécution ni inspection visuelle réelle.
 - Les écrans secondaires existants héritent de la nouvelle palette ; des détails de mise en page pourront encore être harmonisés.
 - L'historique des habitudes sur 7/28 jours nécessite une évolution de stockage distincte.
+
+## Régression 2.3.1 — accueil centré sur la journée
+- Avec une nuit enregistrée et terminée ce matin : carte « Sommeil » = durée de cette nuit, jamais une moyenne 7 jours.
+- Si le sommeil de ce matin est absent mais celui d'hier existe : carte « Sommeil » = « — », sans reprise de l'ancienne valeur.
+- Les pas et minutes d'activité ne concernent que la date locale du jour ; si absents, « — ».
+- L'accueil ne présente plus de moyenne / mini-tendances 7 jours ; l'historique et les graphiques sont conservés dans « Suivi ».
+- Vérifier navigation, synchronisation Santé Connect, récupération, données locales et mise à jour de la version précédente sans désinstaller.
