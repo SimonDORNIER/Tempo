@@ -1,5 +1,10 @@
 # Tempo Coach — Backlog UX, santé et entraînement
 
+## Décision accueil quotidien — 21 octobre 2026
+- **Aujourd'hui = données du jour, jamais une moyenne historique** : pas et activité du jour, préparation actuelle et sommeil de la **nuit précédente terminée ce matin**.
+- La carte Sommeil lit uniquement le sommeil rattaché à la date locale du jour (session terminée aujourd'hui). En l'absence de données du matin, afficher « — » plutôt que reprendre une nuit antérieure.
+- Retirer les mini-tendances / moyennes 7 jours de l'accueil ; elles restent accessibles dans **Suivi**, sans modifier les historiques ni les calculs de référence du score de préparation.
+
 ## Validation de la future DA — 16 octobre 2026
 - **Option B validée par le propriétaire** (capture sélectionnée dans la conversation Tempo Coach du 16/10/2026).
 - Nouveau repère : fond sombre uni, **violet plus affirmé**, **vert forêt lumineux**, **encadrés violets et verts** bien visibles, dégradés internes fins, graphiques mieux contrastés et état actif de la barre inférieure violet.
@@ -54,10 +59,10 @@ Sources design : docs/CHARTE_GRAPHIQUE_TEMPO_COACH.md, docs/COMPONENTS_TEMPO_COA
 - Détails FC repos, VFC, architecture du sommeil au toucher (pas tout à l'accueil).
 - Une seule action contextuelle (séance normale, mobilité douce ou bilan).
 - Mini-conseil coach en une phrase, 3 habitudes ultra compactes.
-- 2 à 3 mini-tendances 7j sous la zone principale.
+- Aucune moyenne ni mini-tendance sur l'accueil : tendances 7/28 jours dans l'onglet Suivi.
 - Si l'utilisateur clique sur un KPI, ouvrir le détail dans l'onglet de suivi.
 - Reprendre le principe visuel de la capture fournie (infos chiffrées, occupation compacte de l'écran) sans copier des marques ni métriques propriétaires.
-- Dernière nuit = dernière session réellement achevée et datée (pas forcément « aujourd'hui »).
+- Dernière nuit = session réellement terminée le matin du jour affiché ; ne jamais substituer une nuit plus ancienne.
 
 ## 2.3 — Graphiques de suivi interactifs (priorité haute)
 - Santé : sommeil, stade de sommeil fiable, nombre de pas, FC repos, VFC, minutes activité, poids et VO2max si source.
