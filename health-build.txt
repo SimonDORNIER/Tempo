@@ -1,1 +1,1 @@
-Tempo Coach 2.3.0: courbes physiologiques a points, couleurs selon recuperation et reference personnelle, histogrammes d'activite
+Tempo Coach 2.3.1 : accueil journalier (nuit terminée aujourd'hui, pas et activité du jour), sans moyennes 7 jours
