@@ -1215,6 +1215,8 @@ private fun HealthScreen(
                 )
             }
 
+            DetailedHealthMetrics(days)
+
             StatusCard(
                 "😴",
                 "Sommeil",
