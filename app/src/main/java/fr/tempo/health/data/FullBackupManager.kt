@@ -321,6 +321,12 @@ class FullBackupManager(
             .putNullable("restingHeartRate", day.restingHeartRate)
             .putNullable("hrvRmssdMs", day.hrvRmssdMs)
             .putNullable("respiratoryRate", day.respiratoryRate)
+            .putNullable("pulseAverageBpm", day.pulseAverageBpm)
+            .putNullable("pulseMinBpm", day.pulseMinBpm)
+            .putNullable("pulseMaxBpm", day.pulseMaxBpm)
+            .putNullable("oxygenSaturationPct", day.oxygenSaturationPct)
+            .putNullable("skinTemperatureDeltaC", day.skinTemperatureDeltaC)
+            .putNullable("sleepStageTimeline", day.sleepStageTimeline)
             .putNullable("steps", day.steps)
             .putNullable("distanceMeters", day.distanceMeters)
             .putNullable("caloriesKcal", day.caloriesKcal)
@@ -368,6 +374,14 @@ class FullBackupManager(
                         restingHeartRate = item.doubleOrNull("restingHeartRate"),
                         hrvRmssdMs = item.doubleOrNull("hrvRmssdMs"),
                         respiratoryRate = item.doubleOrNull("respiratoryRate"),
+                        pulseAverageBpm = item.doubleOrNull("pulseAverageBpm"),
+                        pulseMinBpm = item.doubleOrNull("pulseMinBpm"),
+                        pulseMaxBpm = item.doubleOrNull("pulseMaxBpm"),
+                        oxygenSaturationPct = item.doubleOrNull("oxygenSaturationPct"),
+                        skinTemperatureDeltaC = item.doubleOrNull("skinTemperatureDeltaC"),
+                        sleepStageTimeline = item.optString("sleepStageTimeline").takeIf {
+                            it.isNotBlank() && it != "null"
+                        },
                         steps = item.longOrNull("steps"),
                         distanceMeters = item.doubleOrNull("distanceMeters"),
                         caloriesKcal = item.doubleOrNull("caloriesKcal"),
