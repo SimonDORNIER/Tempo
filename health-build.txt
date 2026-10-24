@@ -1,1 +1,1 @@
-Tempo Coach 2.4.1 : mesures détaillées, sommeil/stades/éveils, pouls/respiration/SpO2, migration Room 4 et sauvegardes rétrocompatibles — compilateur Android, APK signé.
+Tempo Coach 2.4.2 : correction compatibilité Santé Connect, mesures détaillées sommeil/pouls/respiration/SpO₂ et température cutanée, migration Room 4 et sauvegardes conservées. Compiler et publier APK signé.
