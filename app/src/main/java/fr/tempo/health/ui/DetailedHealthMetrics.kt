@@ -135,6 +135,10 @@ fun DetailedHealthMetrics(days: List<DailyHealthEntity>) {
             DetailTrend("VFC", days, period, TempoMetricKind.HRV) { it.hrvRmssdMs }
             DetailTrend("Pouls moyen", days, period, TempoMetricKind.OTHER) { it.pulseAverageBpm }
             DetailTrend("Respiration", days, period, TempoMetricKind.OTHER) { it.respiratoryRate }
+            DetailTrend("SpO₂", days, period, TempoMetricKind.OTHER) { it.oxygenSaturationPct }
+            DetailTrend("Sommeil", days, period, TempoMetricKind.SLEEP, TempoChartKind.BARS) {
+                it.sleepMinutes?.toDouble()
+            }
             Text("Les jours sans données restent vides. Ces tendances n'établissent pas de diagnostic.",
                 color = C.textSecondary, fontSize = 12.sp)
         }
@@ -229,14 +233,15 @@ private fun SleepPhasesBar(phases: List<SleepPhase>, start: Long, end: Long) {
 @Composable
 private fun DetailTrend(
     title: String, days: List<DailyHealthEntity>, period: Int,
-    kind: TempoMetricKind, value: (DailyHealthEntity) -> Double?
+    kind: TempoMetricKind, chart: TempoChartKind = TempoChartKind.LINE,
+    value: (DailyHealthEntity) -> Double?
 ) {
     val points = metricByCalendarDay(days, period, value)
     val populated = points.filterNotNull()
     Text(title + " • " + populated.size + "/" + period + " jours",
         color = C.text, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
     TempoTrendGraph(values = points, metric = kind, usual = null,
-        kind = TempoChartKind.LINE, height = 75.dp)
+        kind = chart, height = 75.dp)
 }
 
 private fun minutesLabel(value: Long?): String =
