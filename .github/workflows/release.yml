@@ -8,6 +8,7 @@ on:
 
 permissions:
   contents: write
+  issues: write
 
 jobs:
   android:
@@ -89,6 +90,7 @@ jobs:
           path: ${{ env.APK }}
 
       - name: Publier la Release
+        id: release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: health-v${{ steps.version.outputs.version }}
@@ -96,3 +98,20 @@ jobs:
           name: Tempo Health ${{ steps.version.outputs.version }}
           files: ${{ env.APK }}
           generate_release_notes: true
+
+      - name: Enregistrer le résultat de livraison
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const ok = '${{ steps.release.outcome }}' === 'success';
+            const result = ok
+              ? '✅ APK Tempo Coach ${{ steps.version.outputs.version }} compilé, signé et publié'
+              : '❌ Livraison Tempo Coach ${{ steps.version.outputs.version }} non terminée';
+            const url = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: 1,
+              body: `${result} — [journal de publication](${url}).`
+            });
