@@ -1,1 +1,1 @@
-Tempo Coach 2.3.1 : accueil journalier (nuit terminée aujourd'hui, pas et activité du jour), sans moyennes 7 jours
+Tempo Coach 2.4.0 : détails sommeil, FC min/moy/max, VFC, respiration, SpO2 et température — migration Room 4, sauvegarde compatible. Build Android signé.
