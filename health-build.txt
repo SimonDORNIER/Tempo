@@ -1,1 +1,1 @@
-Tempo Coach 2.4.0 : détails sommeil, FC min/moy/max, VFC, respiration, SpO2 et température — migration Room 4, sauvegarde compatible. Build Android signé.
+Tempo Coach 2.4.1 : mesures détaillées, sommeil/stades/éveils, pouls/respiration/SpO2, migration Room 4 et sauvegardes rétrocompatibles — compilateur Android, APK signé.
