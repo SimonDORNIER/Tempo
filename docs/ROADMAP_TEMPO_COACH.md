@@ -1,5 +1,15 @@
 # Tempo Coach — Backlog UX, santé et entraînement
 
+## 2.4.0 — Statistiques santé détaillées (24 octobre 2026)
+
+- Développement sur `health/v2.4.0-stats-detaillees`, base 2.3.1 ; conserver Option B et les 4 onglets.
+- Aujourd'hui : efficacité mesurable de la nuit terminée ce matin, résumé cardio-respiratoire sans moyennes hebdomadaires.
+- Santé : détails par date, phases du sommeil, fréquence cardiaque min/moy/max, pouls repos et nocturne, VFC, respiration, SpO₂ et écart de température cutanée lorsque compatibles.
+- Courbes des mesures 7/28 jours, jours manquants explicites ; jamais de chiffre fabriqué. L'efficacité du sommeil n'est **pas** une note Fitbit.
+- Conservation de toutes les données : migration Room 3→4 et sauvegarde restaurable contenant les nouvelles métriques.
+- Tests sur Pixel 7a et CI requis avant de qualifier l'APK de stable. Voir `docs/TESTS_TEMPO_2_4.md`.
+
+
 ## Décision accueil quotidien — 21 octobre 2026
 - **Aujourd'hui = données du jour, jamais une moyenne historique** : pas et activité du jour, préparation actuelle et sommeil de la **nuit précédente terminée ce matin**.
 - La carte Sommeil lit uniquement le sommeil rattaché à la date locale du jour (session terminée aujourd'hui). En l'absence de données du matin, afficher « — » plutôt que reprendre une nuit antérieure.
