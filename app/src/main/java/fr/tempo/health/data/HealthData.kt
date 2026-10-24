@@ -28,6 +28,12 @@ data class DailyHealthEntity(
     val restingHeartRate: Double? = null,
     val hrvRmssdMs: Double? = null,
     val respiratoryRate: Double? = null,
+    val pulseAverageBpm: Double? = null,
+    val pulseMinBpm: Double? = null,
+    val pulseMaxBpm: Double? = null,
+    val oxygenSaturationPct: Double? = null,
+    val skinTemperatureDeltaC: Double? = null,
+    val sleepStageTimeline: String? = null,
     val steps: Long? = null,
     val distanceMeters: Double? = null,
     val caloriesKcal: Double? = null,
@@ -123,7 +129,7 @@ interface WorkoutHistoryDao {
         DailyCheckInEntity::class,
         WorkoutHistoryEntity::class
     ],
-    version = 3,
+    version = 4,
     exportSchema = false
 )
 abstract class TempoHealthDatabase : RoomDatabase() {
@@ -172,6 +178,18 @@ abstract class TempoHealthDatabase : RoomDatabase() {
             }
         }
 
+        // Champs purement facultatifs : la migration préserve toutes les données existantes.
+        private val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE daily_health ADD COLUMN pulseAverageBpm REAL")
+                db.execSQL("ALTER TABLE daily_health ADD COLUMN pulseMinBpm REAL")
+                db.execSQL("ALTER TABLE daily_health ADD COLUMN pulseMaxBpm REAL")
+                db.execSQL("ALTER TABLE daily_health ADD COLUMN oxygenSaturationPct REAL")
+                db.execSQL("ALTER TABLE daily_health ADD COLUMN skinTemperatureDeltaC REAL")
+                db.execSQL("ALTER TABLE daily_health ADD COLUMN sleepStageTimeline TEXT")
+            }
+        }
+
         fun get(context: Context): TempoHealthDatabase =
             INSTANCE ?: synchronized(this) {
                 INSTANCE ?: Room.databaseBuilder(
@@ -179,7 +197,7 @@ abstract class TempoHealthDatabase : RoomDatabase() {
                     TempoHealthDatabase::class.java,
                     "tempo-health.db"
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
                     .build()
                     .also { INSTANCE = it }
             }
