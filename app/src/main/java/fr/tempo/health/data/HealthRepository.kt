@@ -2,11 +2,14 @@ package fr.tempo.health.data
 
 import android.content.Context
 import androidx.health.connect.client.HealthConnectClient
+import androidx.health.connect.client.feature.HealthConnectFeatures
 import androidx.health.connect.client.permission.HealthPermission
 import androidx.health.connect.client.records.DistanceRecord
 import androidx.health.connect.client.records.ExerciseSessionRecord
 import androidx.health.connect.client.records.HeartRateRecord
 import androidx.health.connect.client.records.HeartRateVariabilityRmssdRecord
+import androidx.health.connect.client.records.OxygenSaturationRecord
+import androidx.health.connect.client.records.SkinTemperatureRecord
 import androidx.health.connect.client.records.RespiratoryRateRecord
 import androidx.health.connect.client.records.RestingHeartRateRecord
 import androidx.health.connect.client.records.SleepSessionRecord
@@ -46,6 +49,16 @@ class HealthRepository(
         HealthPermission.getReadPermission(HeartRateVariabilityRmssdRecord::class)
     private val respiratoryPermission =
         HealthPermission.getReadPermission(RespiratoryRateRecord::class)
+    private val oxygenPermission =
+        HealthPermission.getReadPermission(OxygenSaturationRecord::class)
+    private val skinPermission =
+        HealthPermission.getReadPermission(SkinTemperatureRecord::class)
+    private fun skinSupported(): Boolean =
+        runCatching {
+            client().features.getFeatureStatus(HealthConnectFeatures.FEATURE_SKIN_TEMPERATURE) ==
+                HealthConnectFeatures.FEATURE_STATUS_AVAILABLE
+        }.getOrDefault(false)
+
     private val stepsPermission =
         HealthPermission.getReadPermission(StepsRecord::class)
     private val distancePermission =
@@ -59,7 +72,8 @@ class HealthRepository(
     private val vo2Permission =
         HealthPermission.getReadPermission(Vo2MaxRecord::class)
 
-    val requiredPermissions: Set<String> = setOf(
+    val requiredPermissions: Set<String> get() = buildSet {
+        addAll(setOf(
         sleepPermission,
         heartRatePermission,
         restingHeartRatePermission,
@@ -70,8 +84,13 @@ class HealthRepository(
         caloriesPermission,
         exercisePermission,
         weightPermission,
-        vo2Permission
-    )
+        vo2Permission,
+        oxygenPermission
+        ))
+        if (availability() == HealthConnectAvailability.AVAILABLE && skinSupported()) {
+            add(skinPermission)
+        }
+    }
 
     fun observeRecentDays(limit: Int = 28): Flow<List<DailyHealthEntity>> =
         dao.observeRecent(limit)
@@ -120,9 +139,11 @@ class HealthRepository(
             caloriesPermission to "Calories",
             exercisePermission to "Séances",
             weightPermission to "Poids",
-            vo2Permission to "VO₂ max"
+            vo2Permission to "VO₂ max",
+            oxygenPermission to "Oxygène sanguin (SpO₂)",
+            skinPermission to "Température cutanée"
         ).filter { (permission, _) ->
-            permission !in granted
+            permission !in granted && (permission != skinPermission || skinSupported())
         }.map { (_, label) ->
             label
         }
@@ -184,6 +205,11 @@ class HealthRepository(
                 add(RestingHeartRateRecord.BPM_AVG)
             }
             if (weightPermission in granted) add(WeightRecord.WEIGHT_AVG)
+            if (heartRatePermission in granted) {
+                add(HeartRateRecord.BPM_AVG)
+                add(HeartRateRecord.BPM_MIN)
+                add(HeartRateRecord.BPM_MAX)
+            }
         }
 
         val aggregate = if (aggregateMetrics.isEmpty()) {
@@ -219,8 +245,21 @@ class HealthRepository(
                 Duration.between(record.startTime, record.endTime).toMinutes()
             }
 
-        val sleepMinutes = mainSleep?.let {
-            Duration.between(it.startTime, it.endTime).toMinutes()
+        // Ne pas confondre durée de session (temps au lit) et sommeil réellement mesuré.
+        // Avec des stades complets, la durée endormie exclut les éveils.
+        val sleepMinutes = mainSleep?.let { session ->
+            val total = Duration.between(session.startTime, session.endTime).toMinutes()
+            val classified = session.stages
+                .filter { it.stage != SleepSessionRecord.STAGE_TYPE_UNKNOWN }
+                .sumOf { Duration.between(it.startTime, it.endTime).toMinutes() }
+            if (classified >= total * 0.7) {
+                session.stages.filter {
+                    it.stage == SleepSessionRecord.STAGE_TYPE_LIGHT ||
+                        it.stage == SleepSessionRecord.STAGE_TYPE_DEEP ||
+                        it.stage == SleepSessionRecord.STAGE_TYPE_REM ||
+                        it.stage == SleepSessionRecord.STAGE_TYPE_SLEEPING
+                }.sumOf { Duration.between(it.startTime, it.endTime).toMinutes() }
+            } else total // sans stades fiables : conserver la durée de session historique
         }
 
         fun stageMinutes(vararg stageTypes: Int): Long? {
@@ -284,6 +323,43 @@ class HealthRepository(
             null
         }
 
+
+        // Mesures optionnelles : une source absente ou un capteur non pris en charge
+        // ne doit pas faire échouer toute la synchronisation.
+        val oxygen = if (oxygenPermission in granted) {
+            runCatching {
+                hc.readRecords(
+                    ReadRecordsRequest(
+                        recordType = OxygenSaturationRecord::class,
+                        timeRangeFilter = TimeRangeFilter.between(
+                            mainSleep?.startTime ?: dayStart,
+                            mainSleep?.endTime ?: dayEnd
+                        )
+                    )
+                ).records.map { it.percentage.value }
+                    .takeIf { it.isNotEmpty() }?.average()
+            }.getOrNull()
+        } else null
+
+        val skinDelta = if (skinPermission in granted && skinSupported()) {
+            runCatching {
+                hc.readRecords(
+                    ReadRecordsRequest(
+                        recordType = SkinTemperatureRecord::class,
+                        timeRangeFilter = TimeRangeFilter.between(dayStart, dayEnd)
+                    )
+                ).records.flatMap { it.deltas }
+                    .map { it.delta.inCelsius }
+                    .takeIf { it.isNotEmpty() }?.average()
+            }.getOrNull()
+        } else null
+
+        val stagesTimeline = mainSleep?.stages?.takeIf { it.isNotEmpty() }
+            ?.sortedBy { it.startTime }
+            ?.joinToString("|") { stage ->
+                "${stage.stage},${stage.startTime.toEpochMilli()},${stage.endTime.toEpochMilli()}"
+            }
+
         val exerciseMinutes = if (exercisePermission in granted) {
             hc.readRecords(
                 ReadRecordsRequest(
@@ -331,6 +407,12 @@ class HealthRepository(
                 aggregate?.get(RestingHeartRateRecord.BPM_AVG)?.toDouble(),
             hrvRmssdMs = hrv,
             respiratoryRate = respiratoryRate,
+            pulseAverageBpm = aggregate?.get(HeartRateRecord.BPM_AVG)?.toDouble(),
+            pulseMinBpm = aggregate?.get(HeartRateRecord.BPM_MIN)?.toDouble(),
+            pulseMaxBpm = aggregate?.get(HeartRateRecord.BPM_MAX)?.toDouble(),
+            oxygenSaturationPct = oxygen,
+            skinTemperatureDeltaC = skinDelta,
+            sleepStageTimeline = stagesTimeline,
             steps = aggregate?.get(StepsRecord.COUNT_TOTAL),
             distanceMeters =
                 aggregate?.get(DistanceRecord.DISTANCE_TOTAL)?.inMeters,
