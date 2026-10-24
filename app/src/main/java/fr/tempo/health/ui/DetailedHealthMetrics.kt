@@ -73,7 +73,8 @@ fun DetailedHealthMetrics(days: List<DailyHealthEntity>) {
                     (100.0 * day.sleepMinutes / bedMinutes).coerceIn(0.0, 100.0).roundToInt()
                 } else null
                 Text(
-                    "Sommeil : " + minutesLabel(day.sleepMinutes) +
+                    (if (reliableStages) "Sommeil mesuré : " else "Session déclarée : ") +
+                        minutesLabel(day.sleepMinutes) +
                         "  •  Au lit : " + minutesLabel(bedMinutes),
                     fontWeight = FontWeight.SemiBold
                 )
@@ -91,6 +92,15 @@ fun DetailedHealthMetrics(days: List<DailyHealthEntity>) {
                 SleepStageRow("Léger", day.lightMinutes, day.sleepMinutes, C.textSecondary)
                 SleepStageRow("Paradoxal", day.remMinutes, day.sleepMinutes, C.greenGlow)
                 SleepStageRow("Éveillé", day.awakeMinutes, bedMinutes, C.rose)
+                if (phases.isNotEmpty()) {
+                    val awakeTypes = setOf(1, 3, 7)
+                    val interruptions = phases.indices.count { index ->
+                        phases[index].type in awakeTypes &&
+                            (index == 0 || phases[index - 1].type !in awakeTypes)
+                    }
+                    MetricPair("Périodes d'éveil repérées", interruptions.toString(),
+                        "Nombre de séquences notées par la source, pas forcément tous les réveils")
+                }
                 Text("L'efficacité n'est pas un score Fitbit ni une évaluation médicale. Les phases dépendent des données de la montre.",
                     color = C.textSecondary, fontSize = 12.sp)
             }
