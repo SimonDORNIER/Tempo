@@ -1218,30 +1218,14 @@ private fun HealthScreen(
             DetailedHealthMetrics(days)
 
             StatusCard(
-                "😴",
-                "Sommeil",
-                latest?.sleepMinutes?.let(::formatMinutes) ?: "—",
-                latest?.let(::sleepDetail) ?: "Aucune donnée"
-            )
-
-            StatusCard(
-                "❤️",
-                "Cœur & HRV",
-                latest?.hrvRmssdMs?.let { oneDecimal(it) + " ms" } ?: "—",
-                latest?.let {
-                    "FC repos " + bpm(it.restingHeartRate) +
-                        " • respiration " + rate(it.respiratoryRate)
-                } ?: "Aucune donnée"
-            )
-
-            StatusCard(
                 "🏃",
                 "Activité",
                 latest?.steps?.let { it.toString() + " pas" } ?: "—",
                 latest?.let {
                     distance(it.distanceMeters) + " • " +
                         kcal(it.caloriesKcal) + " • " +
-                        (it.exerciseMinutes ?: 0L) + " min sport"
+                        (it.exerciseMinutes?.let { v -> v.toString() + " min sport" }
+                            ?: "Séances —")
                 } ?: "Aucune donnée"
             )
 
