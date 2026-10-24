@@ -2,7 +2,6 @@ package fr.tempo.health.data
 
 import android.content.Context
 import androidx.health.connect.client.HealthConnectClient
-import androidx.health.connect.client.feature.HealthConnectFeatures
 import androidx.health.connect.client.permission.HealthPermission
 import androidx.health.connect.client.records.DistanceRecord
 import androidx.health.connect.client.records.ExerciseSessionRecord
@@ -53,11 +52,11 @@ class HealthRepository(
         HealthPermission.getReadPermission(OxygenSaturationRecord::class)
     private val skinPermission =
         HealthPermission.getReadPermission(SkinTemperatureRecord::class)
+    // Le support natif de la température cutanée est récent. On limite
+    // volontairement la demande de permission aux versions Android compatibles ;
+    // la lecture effective reste protégée par runCatching plus bas.
     private fun skinSupported(): Boolean =
-        runCatching {
-            client().features.getFeatureStatus(HealthConnectFeatures.FEATURE_SKIN_TEMPERATURE) ==
-                HealthConnectFeatures.FEATURE_STATUS_AVAILABLE
-        }.getOrDefault(false)
+        android.os.Build.VERSION.SDK_INT >= 35
 
     private val stepsPermission =
         HealthPermission.getReadPermission(StepsRecord::class)
