@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -180,6 +179,19 @@ private fun SleepStageRow(name: String, minutes: Long?, total: Long?, tint: Colo
         } else ""
         Text((minutes?.let { "$it min" } ?: "—") + pct, fontSize = 13.sp)
     }
+}
+
+/** Efficacité = sommeil réellement classifié / durée de la session, uniquement avec stades fiables. */
+fun sleepEfficiency(day: DailyHealthEntity?): Int? {
+    if (day?.sleepStartEpochMs == null || day.sleepEndEpochMs == null ||
+        day.sleepMinutes == null) return null
+    val minutes = (day.sleepEndEpochMs - day.sleepStartEpochMs) / 60000L
+    if (minutes <= 0L) return null
+    val classified = parseSleepPhases(day.sleepStageTimeline)
+        .filter { it.type != 0 }
+        .sumOf { (it.end - it.start).coerceAtLeast(0L) / 60000L }
+    if (classified < minutes * 0.7) return null
+    return (100.0 * day.sleepMinutes / minutes).coerceIn(0.0, 100.0).roundToInt()
 }
 
 private data class SleepPhase(val type: Int, val start: Long, val end: Long)
