@@ -3,7 +3,7 @@ name: Vérifier Tempo Coach 2.4
 on:
   push:
     branches:
-      - 'health/v2.4.0-stats-detaillees'
+      - 'health/v2.4.1-stats-detaillees'
 
 permissions:
   contents: read
@@ -30,7 +30,7 @@ jobs:
       - name: Compiler Android
         id: compile
         continue-on-error: true
-        run: gradle --no-daemon :app:assembleDebug -PVERSION_NAME=2.4.0 -PVERSION_CODE=20400
+        run: gradle --no-daemon :app:assembleDebug -PVERSION_NAME=2.4.1 -PVERSION_CODE=20400
       - name: Envoyer le résultat au ticket de validation
         if: always()
         uses: actions/github-script@v7
