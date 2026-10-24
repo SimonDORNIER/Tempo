@@ -323,7 +323,9 @@ fun TodayV21Screen(
             Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
                 Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
                     MetricTile("Sommeil", sleepText(night?.sleepMinutes),
-                        if (night == null) "Données manquantes" else "Dernière nuit",
+                        if (night == null) "Données manquantes"
+                        else sleepEfficiency(night)?.let { "Efficacité $it % • dernière nuit" }
+                            ?: "Dernière nuit",
                         Icons.Rounded.Bedtime, C.rose, C.violetDeep,
                         C.surface, Modifier.weight(1f), onTracking)
                     MetricTile("Préparation", readiness?.let { "$it / 100" } ?: "—",
@@ -340,6 +342,30 @@ fun TodayV21Screen(
                     MetricTile("Activité", current?.exerciseMinutes?.let { "$it min" } ?: "—", "Minutes aujourd'hui",
                         Icons.Rounded.SelfImprovement, C.rose, C.violetDeep,
                         C.surface, Modifier.weight(1f), onTracking)
+                }
+            }
+        }
+        item {
+            TintedCard(colorStart = C.violetDeep, colorEnd = C.surface,
+                accent = C.violetGlow, onClick = onHealth) {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Row(horizontalArrangement = Arrangement.SpaceBetween,
+                        modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Text("Cœur et respiration", fontWeight = FontWeight.SemiBold)
+                        Icon(Icons.Rounded.ChevronRight, "Détails santé", tint = C.violetGlow)
+                    }
+                    Text(
+                        "Repos " + (current?.restingHeartRate?.let { "${it.roundToInt()} bpm" } ?: "—") +
+                            "  •  Nuit " + (night?.overnightHeartRate?.let { "${it.roundToInt()} bpm" } ?: "—") +
+                            "  •  Resp. " + (night?.respiratoryRate?.let {
+                                String.format(Locale.FRANCE, "%.1f/min", it)
+                            } ?: "—"),
+                        style = MaterialTheme.typography.bodySmall, color = C.textSecondary
+                    )
+                    if (night?.oxygenSaturationPct != null) {
+                        Text("SpO₂ nuit : " + String.format(Locale.FRANCE, "%.1f %%", night.oxygenSaturationPct),
+                            style = MaterialTheme.typography.labelSmall, color = C.greenGlow)
+                    }
                 }
             }
         }
