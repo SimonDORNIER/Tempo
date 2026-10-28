@@ -47,7 +47,7 @@ fun GuidedBreathingScreen(
     val cream = C.text
     val ink = C.background
     val surface = C.surface
-    val sage = C.greenGlow
+    val sage = C.calm
     var selectedId by remember { mutableStateOf(BreathingGuides.all.first().exerciseId) }
     val guide = BreathingGuides.all.first { it.exerciseId == selectedId }
     var running by remember { mutableStateOf(false) }

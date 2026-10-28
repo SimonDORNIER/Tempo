@@ -83,15 +83,16 @@ object TempoHealthSignals {
         TempoSignal.UNKNOWN -> C.textMuted
     }
 
+    /** Couleurs d'identité constantes quel que soit le résultat. */
     fun categoryColor(kind: TempoMetricKind): Color = when (kind) {
-        TempoMetricKind.STEPS, TempoMetricKind.ACTIVE_MINUTES -> C.greenGlow
-        else -> C.violetGlow
+        TempoMetricKind.SLEEP -> C.sleep
+        TempoMetricKind.HRV, TempoMetricKind.RESTING_PULSE -> C.heart
+        TempoMetricKind.STEPS, TempoMetricKind.ACTIVE_MINUTES -> C.activity
+        TempoMetricKind.OTHER -> C.calm
     }
 
     fun displayColor(kind: TempoMetricKind, signal: TempoSignal): Color =
-        if (kind == TempoMetricKind.STEPS || kind == TempoMetricKind.ACTIVE_MINUTES ||
-            kind == TempoMetricKind.OTHER) categoryColor(kind)
-        else color(signal)
+        categoryColor(kind)
 
     fun label(kind: TempoMetricKind, signal: TempoSignal): String =
         when (kind) {
@@ -164,8 +165,15 @@ fun TempoTrendGraph(
                 .coerceIn(pad, size.height - pad)
         }
         fun paint(value: Double): Color {
-            val s = TempoHealthSignals.assess(metric, value, usual)
-            return if (s == TempoSignal.UNKNOWN) fallback else TempoHealthSignals.color(s)
+            // Le domaine reste stable : seuls les écarts défavorables
+            // deviennent ambre ou rouge sur les points physiologiques.
+            val state = TempoHealthSignals.assess(metric, value, usual)
+            if (kind == TempoChartKind.BARS) return fallback
+            return when (state) {
+                TempoSignal.CAUTION -> C.amber
+                TempoSignal.LOW -> C.redAlert
+                else -> fallback
+            }
         }
 
         when (kind) {

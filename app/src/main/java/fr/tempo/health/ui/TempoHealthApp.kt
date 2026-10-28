@@ -316,11 +316,11 @@ fun TempoHealthApp(
                                 )
                             },
                             colors = NavigationBarItemDefaults.colors(
-                                selectedIconColor = C.text,
-                                selectedTextColor = C.violetGlow,
-                                unselectedIconColor = C.textSecondary,
-                                unselectedTextColor = C.textSecondary,
-                                indicatorColor = C.violetDeep
+                                selectedIconColor = C.action,
+                                selectedTextColor = C.action,
+                                unselectedIconColor = C.textMuted,
+                                unselectedTextColor = C.textMuted,
+                                indicatorColor = C.actionDeep
                             )
                         )
                     }
@@ -1774,7 +1774,7 @@ private fun TrendCard(
     TempoPanelCard(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(22.dp),
-        border = androidx.compose.foundation.BorderStroke(1.dp, accent.copy(alpha = 0.8f))
+        border = androidx.compose.foundation.BorderStroke(0.8.dp, accent.copy(alpha = 0.36f))
     ) {
         Column(Modifier.padding(15.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -1782,7 +1782,7 @@ private fun TrendCard(
                 Spacer(Modifier.width(9.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(title, fontWeight = FontWeight.SemiBold, maxLines = 2)
-                    Text(latest?.let(valueText) ?: "—", color = accent,
+                    Text(latest?.let(valueText) ?: "—", color = C.text,
                         style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                 }
             }
@@ -1795,11 +1795,19 @@ private fun TrendCard(
                     kind = chartKind, height = 92.dp
                 )
             }
-            Text(
-                TempoHealthSignals.label(kind, signal) + " • " +
-                    valid.size.toString() + "/" + values.size + " jours renseignés",
-                style = MaterialTheme.typography.labelMedium, color = accent
-            )
+            Row(verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                val statusColor = if (signal == TempoSignal.UNKNOWN) C.unknown
+                    else TempoHealthSignals.color(signal)
+                Box(
+                    modifier = Modifier.size(8.dp).background(statusColor, CircleShape)
+                )
+                Text(
+                    TempoHealthSignals.label(kind, signal) + " • " +
+                        valid.size.toString() + "/" + values.size + " jours",
+                    style = MaterialTheme.typography.labelMedium, color = C.textSecondary
+                )
+            }
             if (kind == TempoMetricKind.HRV || kind == TempoMetricKind.RESTING_PULSE ||
                 kind == TempoMetricKind.SLEEP) {
                 Text("Couleurs relatives à ta référence personnelle, sans diagnostic.",
