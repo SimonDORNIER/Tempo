@@ -1,1 +1,1 @@
-Tempo Coach 2.5.4 : couleurs de theme significativement plus presentes sur cartes et icones, sans augmenter la luminosite du fond ni changer les donnees.
+Tempo Coach 2.5.5 : accents des cartes reellement visibles, etats de recuperation discrets et distincts, aucun changement de donnees.

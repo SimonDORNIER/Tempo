@@ -77,10 +77,10 @@ object TempoHealthSignals {
     }
 
     fun color(signal: TempoSignal): Color = when (signal) {
-        TempoSignal.NORMAL -> C.greenGlow
+        TempoSignal.NORMAL -> C.good
         TempoSignal.CAUTION -> C.amber
         TempoSignal.LOW -> C.redAlert
-        TempoSignal.UNKNOWN -> C.textMuted
+        TempoSignal.UNKNOWN -> C.unknown
     }
 
     /** Couleurs d'identité constantes quel que soit le résultat. */
@@ -113,10 +113,10 @@ object TempoHealthSignals {
         }
 
     fun recoveryColor(level: RecoveryLevel): Color = when (level) {
-        RecoveryLevel.GREEN -> C.greenGlow
+        RecoveryLevel.GREEN -> C.good
         RecoveryLevel.ORANGE -> C.amber
         RecoveryLevel.RED -> C.redAlert
-        RecoveryLevel.UNKNOWN -> C.textMuted
+        RecoveryLevel.UNKNOWN -> C.unknown
     }
 }
 

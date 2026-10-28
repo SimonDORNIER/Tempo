@@ -104,8 +104,8 @@ private fun SectionTitle(title: String, action: String? = null, onClick: (() -> 
         if (action != null && onClick != null) {
             Row(modifier = Modifier.clickable(onClick = onClick).defaultMinSize(minHeight = 48.dp),
                 verticalAlignment = Alignment.CenterVertically) {
-                Text(action, style = MaterialTheme.typography.labelMedium, color = C.rose)
-                Icon(Icons.Rounded.ChevronRight, null, modifier = Modifier.size(19.dp), tint = C.rose)
+                Text(action, style = MaterialTheme.typography.labelMedium, color = C.action)
+                Icon(Icons.Rounded.ChevronRight, null, modifier = Modifier.size(19.dp), tint = C.action)
             }
         }
     }
@@ -125,9 +125,14 @@ private fun TintedCard(
     // la couleur de thème restait pratiquement invisible.
     // Ici l'accent est peint directement sur la surface anthracite,
     // à faible opacité, sans modifier les scores ni saturer tout l'écran.
-    val edge = accent?.copy(alpha = 0.64f) ?: C.border.copy(alpha = 0.62f)
-    val gradientStart = accent?.copy(alpha = 0.19f) ?: colorStart.copy(alpha = 0.14f)
-    val gradientEnd = accent?.copy(alpha = 0.045f) ?: colorEnd.copy(alpha = 0.06f)
+    val isStatus = accent == C.good || accent == C.amber ||
+        accent == C.redAlert || accent == C.unknown
+    val edge = accent?.copy(alpha = if (isStatus) 0.57f else 0.64f)
+        ?: C.border.copy(alpha = 0.62f)
+    val gradientStart = accent?.copy(alpha = if (isStatus) 0.13f else 0.19f)
+        ?: colorStart.copy(alpha = 0.14f)
+    val gradientEnd = accent?.copy(alpha = if (isStatus) 0.025f else 0.045f)
+        ?: colorEnd.copy(alpha = 0.06f)
     Card(
         modifier = modifier.then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier),
         shape = RoundedCornerShape(18.dp),
