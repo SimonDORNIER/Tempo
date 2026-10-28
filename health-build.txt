@@ -1,1 +1,1 @@
-Tempo Coach 2.5.0 : refonte graphique professionnelle douce, couleurs stables par domaine et etats separes, donnees et fonctionnalites 2.4.2 conservees.
+Tempo Coach 2.5.1 : correction de compilation de la nouvelle charte 2.5 (dégradés par alpha plutôt que compositeOver), build signé.

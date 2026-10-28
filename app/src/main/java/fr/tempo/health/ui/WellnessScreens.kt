@@ -131,8 +131,8 @@ private fun TintedCard(
         Box(
             modifier = Modifier.fillMaxWidth().background(
                 Brush.linearGradient(listOf(
-                    colorStart.copy(alpha = 0.44f).compositeOver(C.surface),
-                    colorEnd.copy(alpha = 0.20f).compositeOver(C.surface)
+                    colorStart.copy(alpha = 0.28f),
+                    colorEnd.copy(alpha = 0.12f)
                 ))
             ).padding(13.dp)
         ) { content() }
