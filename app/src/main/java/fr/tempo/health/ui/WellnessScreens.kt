@@ -50,6 +50,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -110,6 +111,7 @@ private fun SectionTitle(title: String, action: String? = null, onClick: (() -> 
     }
 }
 
+/** Une même carte compacte et discrète dans tous les onglets. */
 @Composable
 private fun TintedCard(
     modifier: Modifier = Modifier,
@@ -119,37 +121,31 @@ private fun TintedCard(
     accent: Color? = null,
     content: @Composable () -> Unit
 ) {
-    val borderColor = accent ?: if (colorStart == C.surface && colorEnd == C.surface) {
-        C.border
-    } else C.violet
+    val edge = accent?.copy(alpha = 0.36f) ?: C.border.copy(alpha = 0.62f)
     Card(
         modifier = modifier.then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier),
-        shape = round,
-        colors = CardDefaults.cardColors(containerColor = colorStart),
-        border = BorderStroke(if (accent == null && borderColor == C.border) 0.8.dp else 1.2.dp,
-            borderColor.copy(alpha = if (borderColor == C.border) 0.84f else 0.92f))
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(containerColor = C.surface),
+        border = BorderStroke(0.8.dp, edge)
     ) {
         Box(
-            modifier = Modifier.fillMaxWidth()
-                .background(Brush.linearGradient(listOf(colorStart, colorEnd)))
-                .padding(14.dp)
-        ) {
-            content()
-        }
+            modifier = Modifier.fillMaxWidth().background(
+                Brush.linearGradient(listOf(
+                    colorStart.copy(alpha = 0.44f).compositeOver(C.surface),
+                    colorEnd.copy(alpha = 0.20f).compositeOver(C.surface)
+                ))
+            ).padding(13.dp)
+        ) { content() }
     }
 }
 
 @Composable
 private fun SmallIcon(icon: ImageVector, tint: Color, modifier: Modifier = Modifier) {
     Box(
-        modifier = modifier.size(39.dp)
-            .background(
-                Brush.linearGradient(listOf(tint.copy(alpha = 0.32f), tint.copy(alpha = 0.14f))),
-                CircleShape
-            ),
+        modifier = modifier.size(37.dp).background(tint.copy(alpha = 0.13f), CircleShape),
         contentAlignment = Alignment.Center
     ) {
-        Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(22.dp))
+        Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(21.dp))
     }
 }
 
@@ -161,14 +157,17 @@ private fun MetricTile(
 ) {
     TintedCard(modifier, first, last, onClick, accent) {
         Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 SmallIcon(icon, accent)
-                Text(title, style = MaterialTheme.typography.labelMedium, maxLines = 1,
-                    overflow = TextOverflow.Ellipsis, color = C.text)
+                Text(title, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold,
+                    maxLines = 1, overflow = TextOverflow.Ellipsis, color = C.text)
+                Spacer(Modifier.weight(1f))
+                Icon(Icons.Rounded.ChevronRight, null, tint = C.textMuted,
+                    modifier = Modifier.size(17.dp))
             }
-            Text(value, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold,
-                maxLines = 1, color = if (accent == C.violetGlow) C.violetPale else accent)
-            Text(subtitle, style = MaterialTheme.typography.labelSmall, maxLines = 1,
+            Text(value, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold,
+                maxLines = 1, color = C.text, overflow = TextOverflow.Ellipsis)
+            Text(subtitle, style = MaterialTheme.typography.labelSmall, maxLines = 2,
                 overflow = TextOverflow.Ellipsis, color = C.textSecondary)
         }
     }
@@ -177,22 +176,30 @@ private fun MetricTile(
 @Composable
 private fun PrimaryAction(text: String, icon: ImageVector, onClick: () -> Unit) {
     Button(
-        modifier = Modifier.fillMaxWidth().height(56.dp), onClick = onClick,
-        shape = RoundedCornerShape(29.dp),
-        colors = ButtonDefaults.buttonColors(containerColor = C.violet, contentColor = C.text)
+        modifier = Modifier.fillMaxWidth().height(52.dp), onClick = onClick,
+        shape = RoundedCornerShape(18.dp),
+        colors = ButtonDefaults.buttonColors(containerColor = C.action, contentColor = C.actionText)
     ) {
-        Icon(icon, contentDescription = null, modifier = Modifier.size(23.dp))
-        Spacer(Modifier.width(10.dp))
+        Icon(icon, contentDescription = null, modifier = Modifier.size(21.dp))
+        Spacer(Modifier.width(9.dp))
         Text(text, modifier = Modifier.weight(1f, fill = false), maxLines = 1,
             overflow = TextOverflow.Ellipsis, fontWeight = FontWeight.Bold)
-        Spacer(Modifier.width(10.dp))
-        Icon(Icons.Rounded.ChevronRight, contentDescription = null)
     }
 }
 
 @Composable
+private fun TempoStateLabel(title: String, color: Color) {
+    Row(horizontalArrangement = Arrangement.spacedBy(5.dp), verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.size(7.dp).background(color, CircleShape))
+        Text(title, color = C.textSecondary, style = MaterialTheme.typography.labelSmall,
+            maxLines = 1, overflow = TextOverflow.Ellipsis)
+    }
+}
+
+
+@Composable
 private fun ListLink(icon: ImageVector, title: String, detail: String, onClick: () -> Unit,
-    tint: Color = C.violetGlow) {
+    tint: Color = C.profile) {
     Row(modifier = Modifier.fillMaxWidth().clickable(onClick = onClick)
         .defaultMinSize(minHeight = 64.dp).padding(vertical = 5.dp),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(11.dp)) {
@@ -289,141 +296,192 @@ fun TodayV21Screen(
 ) {
     val today = LocalDate.now().toString()
     val current = days.firstOrNull { it.date == today }
-    // Le tableau de bord ne remonte jamais une nuit ancienne comme si c'était celle d'hier.
-    // HealthRepository rattache chaque session au jour local de son réveil.
+    // Un sommeil appartient à la date locale du réveil : ne pas remplacer
+    // la nuit dernière par une ancienne nuit ayant une mesure.
     val night = current?.takeIf { (it.sleepMinutes ?: 0L) > 0L }
     val readiness = recovery.score?.takeIf { recovery.confidence >= 20 }
-    val preparation = when (recovery.level) {
+    val readinessAccent = if (readiness == null) C.unknown
+        else TempoHealthSignals.recoveryColor(recovery.level)
+    val readinessLabel = if (readiness == null) "Données insuffisantes" else when (recovery.level) {
         RecoveryLevel.GREEN -> "Bonne préparation"
-        RecoveryLevel.ORANGE -> "Journée modérée"
-        RecoveryLevel.RED -> "Récupération prioritaire"
-        RecoveryLevel.UNKNOWN -> "À calculer"
+        RecoveryLevel.ORANGE -> "Récupération modérée"
+        RecoveryLevel.RED -> "Repos à privilégier"
+        RecoveryLevel.UNKNOWN -> "À déterminer"
     }
-    val done = if (routine.date == today) routine.completed else emptySet()
+    val completedHabits = if (routine.date == today) routine.completed else emptySet()
     val energy = checkIn?.energy ?: 3
     val pain = checkIn?.pain ?: 0
+
     LazyColumn(
         modifier = Modifier.fillMaxSize().background(C.background),
         contentPadding = androidx.compose.foundation.layout.PaddingValues(
-            start = 16.dp, end = 16.dp, top = 13.dp, bottom = 22.dp
+            start = 14.dp, end = 14.dp, top = 12.dp, bottom = 20.dp
         ),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
+        verticalArrangement = Arrangement.spacedBy(11.dp)
     ) {
         item {
             Headline("Aujourd'hui", dayLabel()) {
-                OutlinedButton(onClick = if (hasPermissions) onSync else onPermissions,
-                    enabled = !syncing, contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 10.dp)) {
+                OutlinedButton(
+                    onClick = if (hasPermissions) onSync else onPermissions,
+                    enabled = !syncing,
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 9.dp)
+                ) {
                     Icon(Icons.Rounded.Refresh, null, modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(4.dp))
-                    Text(if (syncing) "En cours" else "Sync", style = MaterialTheme.typography.labelSmall)
+                    Text(if (syncing) "Sync…" else "Sync", style = MaterialTheme.typography.labelSmall)
                 }
             }
         }
         item {
-            Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
-                Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
-                    MetricTile("Sommeil", sleepText(night?.sleepMinutes),
-                        if (night == null) "Données manquantes"
-                        else sleepEfficiency(night)?.let { "Efficacité $it % • dernière nuit" }
-                            ?: "Dernière nuit",
-                        Icons.Rounded.Bedtime, C.rose, C.violetDeep,
-                        C.surface, Modifier.weight(1f), onTracking)
-                    MetricTile("Préparation", readiness?.let { "$it / 100" } ?: "—",
-                        if (readiness == null) "Fiabilité insuffisante" else "Fiabilité ${recovery.confidence} %",
-                        Icons.Rounded.Favorite,
-                        if (readiness == null) C.textMuted
-                        else TempoHealthSignals.recoveryColor(recovery.level),
-                        C.greenDeep, C.surface, Modifier.weight(1f), onCoach)
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
-                    MetricTile("Pas", current?.steps?.toString() ?: "—", "Aujourd'hui",
-                        Icons.Rounded.DirectionsWalk, C.sage, C.surface,
-                        C.surfaceAlt, Modifier.weight(1f), onTracking)
-                    MetricTile("Activité", current?.exerciseMinutes?.let { "$it min" } ?: "—", "Minutes aujourd'hui",
-                        Icons.Rounded.SelfImprovement, C.rose, C.violetDeep,
-                        C.surface, Modifier.weight(1f), onTracking)
+            TintedCard(onClick = onCoach, colorStart = C.activityDeep, colorEnd = C.surface,
+                accent = readinessAccent) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        SmallIcon(Icons.Rounded.Favorite, readinessAccent)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Forme & préparation", modifier = Modifier.weight(1f),
+                            style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                        Icon(Icons.Rounded.ChevronRight, "Comprendre le score", tint = C.textMuted)
+                    }
+                    Row(verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(13.dp)) {
+                        Box(contentAlignment = Alignment.Center, modifier = Modifier.size(88.dp)) {
+                            CircularProgressIndicator(
+                                progress = { (readiness ?: 0).coerceIn(0, 100) / 100f },
+                                modifier = Modifier.size(83.dp),
+                                color = readinessAccent,
+                                trackColor = C.border.copy(alpha = 0.55f),
+                                strokeWidth = 7.dp
+                            )
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(readiness?.toString() ?: "—", color = C.text,
+                                    style = MaterialTheme.typography.headlineMedium,
+                                    fontWeight = FontWeight.Bold)
+                                Text(if (readiness == null) "Forme" else "/100",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = C.textSecondary)
+                            }
+                        }
+                        Column(modifier = Modifier.weight(1f),
+                            verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                            TempoStateLabel(readinessLabel, readinessAccent)
+                            Text(
+                                if (readiness == null) "Synchronise tes mesures pour calculer ta préparation."
+                                else recovery.reasons.firstOrNull()
+                                    ?: "Adapte ton activité à ton ressenti aujourd'hui.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = C.textSecondary,
+                                maxLines = 3, overflow = TextOverflow.Ellipsis
+                            )
+                            if (readiness != null) {
+                                Text("Fiabilité ${recovery.confidence} %",
+                                    color = C.textMuted, style = MaterialTheme.typography.labelSmall)
+                            }
+                        }
+                    }
                 }
             }
         }
         item {
-            TintedCard(colorStart = C.violetDeep, colorEnd = C.surface,
-                accent = C.violetGlow, onClick = onHealth) {
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Row(horizontalArrangement = Arrangement.SpaceBetween,
-                        modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                        Text("Cœur et respiration", fontWeight = FontWeight.SemiBold)
-                        Icon(Icons.Rounded.ChevronRight, "Détails santé", tint = C.violetGlow)
+            Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                MetricTile("Sommeil", sleepText(night?.sleepMinutes),
+                    if (night == null) "Aucune mesure cette nuit"
+                    else sleepEfficiency(night)?.let { "Efficacité $it % • dernière nuit" }
+                        ?: "Dernière nuit",
+                    Icons.Rounded.Bedtime, C.sleep, C.sleepDeep, C.surface,
+                    Modifier.weight(1f), onTracking)
+                MetricTile("Pas", current?.steps?.toString() ?: "—", "Aujourd'hui",
+                    Icons.Rounded.DirectionsWalk, C.activity, C.activityDeep, C.surface,
+                    Modifier.weight(1f), onTracking)
+            }
+        }
+        item {
+            Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                MetricTile("FC repos", current?.restingHeartRate
+                    ?.let { "${it.roundToInt()} bpm" } ?: "—", "Mesure du jour",
+                    Icons.Rounded.Favorite, C.heart, C.heartDeep, C.surface,
+                    Modifier.weight(1f), onHealth)
+                MetricTile("VFC", current?.hrvRmssdMs
+                    ?.let { "${it.roundToInt()} ms" } ?: "—", "Mesure du jour",
+                    Icons.Rounded.BarChart, C.heart, C.heartDeep, C.surface,
+                    Modifier.weight(1f), onHealth)
+            }
+        }
+        item {
+            TintedCard(onClick = onCoach, colorStart = C.calmDeep, colorEnd = C.surface,
+                accent = C.calm) {
+                Row(verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    SmallIcon(Icons.Rounded.Lightbulb, C.calm)
+                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                        Text("Conseil du coach", fontWeight = FontWeight.SemiBold)
+                        Text(recovery.reasons.firstOrNull()
+                            ?: "Un peu de mobilité ou de respiration peut faire du bien.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = C.textSecondary, maxLines = 2,
+                            overflow = TextOverflow.Ellipsis)
                     }
-                    Text(
-                        "Repos " + (current?.restingHeartRate?.let { "${it.roundToInt()} bpm" } ?: "—") +
-                            "  •  Nuit " + (night?.overnightHeartRate?.let { "${it.roundToInt()} bpm" } ?: "—") +
-                            "  •  Resp. " + (night?.respiratoryRate?.let {
-                                String.format(Locale.FRANCE, "%.1f/min", it)
-                            } ?: "—"),
-                        style = MaterialTheme.typography.bodySmall, color = C.textSecondary
-                    )
-                    if (night?.oxygenSaturationPct != null) {
-                        Text("SpO₂ nuit : " + String.format(Locale.FRANCE, "%.1f %%", night.oxygenSaturationPct),
-                            style = MaterialTheme.typography.labelSmall, color = C.greenGlow)
-                    }
+                    Icon(Icons.Rounded.ChevronRight, "Voir les conseils", tint = C.textMuted)
                 }
             }
         }
         item {
             PrimaryAction(
-                if (recovery.level == RecoveryLevel.RED) "Faire une séance douce" else "Démarrer ma séance",
-                Icons.Rounded.PlayArrow, onStart
+                if (recovery.level == RecoveryLevel.RED) "Commencer une séance douce"
+                else "Commencer une séance", Icons.Rounded.PlayArrow, onStart
             )
         }
         item {
-            TintedCard(colorStart = C.violetDeep, colorEnd = C.surface, onClick = onCoach) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    SmallIcon(Icons.Rounded.Lightbulb, C.rose)
-                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                        Text("Conseil du coach", fontWeight = FontWeight.SemiBold)
-                        Text(recovery.reasons.firstOrNull() ?: preparation,
+            TintedCard(onClick = onHealth) {
+                Row(verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    SmallIcon(Icons.Rounded.Favorite, C.heart)
+                    Column(Modifier.weight(1f)) {
+                        Text("Santé & activité", fontWeight = FontWeight.SemiBold)
+                        Text("Activité " + (current?.exerciseMinutes?.let { "$it min" } ?: "—") +
+                            " • Respiration " + (current?.respiratoryRate?.let {
+                                String.format(Locale.FRANCE, "%.1f/min", it)
+                            } ?: "—"),
                             style = MaterialTheme.typography.bodySmall, color = C.textSecondary,
                             maxLines = 2, overflow = TextOverflow.Ellipsis)
                     }
-                    Icon(Icons.Rounded.ChevronRight, contentDescription = "Voir les explications", tint = C.rose)
+                    Icon(Icons.Rounded.ChevronRight, "Voir la santé", tint = C.textMuted)
                 }
             }
         }
         item {
+            SectionTitle("Mon ressenti")
             TintedCard {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically) {
-                        Text("Mon ressenti", fontWeight = FontWeight.SemiBold)
-                        Text(if (checkIn == null) "À compléter" else "Enregistré",
-                            style = MaterialTheme.typography.labelSmall, color = C.sage)
-                    }
+                Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                    Text(if (checkIn == null) "À compléter" else "Enregistré aujourd'hui",
+                        style = MaterialTheme.typography.labelSmall, color = C.textMuted)
                     Text("Énergie", style = MaterialTheme.typography.labelMedium, color = C.textSecondary)
-                    Row(horizontalArrangement = Arrangement.spacedBy(5.dp), modifier = Modifier.fillMaxWidth()) {
-                        (1..5).forEach { e ->
-                            val selected = checkIn != null && energy == e
-                            OutlinedButton(onClick = { onCheckIn(e, pain) }, modifier = Modifier.weight(1f),
+                    Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                        (1..5).forEach { value ->
+                            val selected = checkIn != null && energy == value
+                            OutlinedButton(onClick = { onCheckIn(value, pain) },
+                                modifier = Modifier.weight(1f),
                                 contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp),
-                                border = BorderStroke(1.dp, if (selected) C.rose else C.border),
+                                border = BorderStroke(1.dp, if (selected) C.action else C.border),
                                 colors = ButtonDefaults.outlinedButtonColors(
-                                    containerColor = if (selected) C.prune else Color.Transparent
-                                )) {
-                                Text(e.toString(), color = if (selected) C.text else C.textSecondary)
-                            }
+                                    containerColor = if (selected) C.actionDeep else C.surface
+                                )) { Text(value.toString(), color = if (selected) C.text else C.textSecondary) }
                         }
                     }
-                    Text("Douleurs", style = MaterialTheme.typography.labelMedium, color = C.textSecondary)
-                    Row(horizontalArrangement = Arrangement.spacedBy(5.dp), modifier = Modifier.fillMaxWidth()) {
-                        listOf("Aucune", "Légères", "Moyennes", "Fortes").forEachIndexed { i, label ->
-                            val selected = checkIn != null && pain == i
-                            OutlinedButton(onClick = { onCheckIn(energy, i) }, modifier = Modifier.weight(1f),
-                                contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 0.dp),
-                                border = BorderStroke(1.dp, if (selected) C.rose else C.border),
+                    Text("Douleurs", style = MaterialTheme.typography.labelMedium,
+                        color = C.textSecondary)
+                    Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                        listOf("Aucune", "Légères", "Moyennes", "Fortes").forEachIndexed { index, label ->
+                            val selected = checkIn != null && pain == index
+                            OutlinedButton(onClick = { onCheckIn(energy, index) },
+                                modifier = Modifier.weight(1f),
+                                contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp),
+                                border = BorderStroke(1.dp, if (selected) C.action else C.border),
                                 colors = ButtonDefaults.outlinedButtonColors(
-                                    containerColor = if (selected) C.prune else Color.Transparent
+                                    containerColor = if (selected) C.actionDeep else C.surface
                                 )) {
-                                Text(label, style = MaterialTheme.typography.labelSmall,
-                                    maxLines = 1, color = if (selected) C.text else C.textSecondary)
+                                Text(label, style = MaterialTheme.typography.labelSmall, maxLines = 1,
+                                    color = if (selected) C.text else C.textSecondary)
                             }
                         }
                     }
@@ -431,33 +489,33 @@ fun TodayV21Screen(
             }
         }
         item {
-            Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                SectionTitle("Habitudes du jour", "${done.size}/3", onPractice)
-                TintedCard {
-                    Column {
-                        val habitNames = listOf(
-                            "Bouger régulièrement",
-                            if (recovery.level == RecoveryLevel.RED) "Mobilité douce ou repos" else "Séance ou mobilité",
-                            "Préparer un coucher régulier"
-                        )
-                        habitNames.forEachIndexed { index, label ->
-                            if (index != 0) HorizontalDivider(color = C.border.copy(alpha = 0.5f))
-                            Row(modifier = Modifier.fillMaxWidth().clickable { onToggleHabit(index) }
-                                .defaultMinSize(minHeight = 54.dp),
-                                verticalAlignment = Alignment.CenterVertically) {
-                                Checkbox(checked = index in done, onCheckedChange = { onToggleHabit(index) })
-                                Text(label, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
-                            }
+            SectionTitle("Habitudes du jour", "${completedHabits.size}/3", onPractice)
+            TintedCard {
+                Column {
+                    listOf(
+                        "Bouger régulièrement",
+                        if (recovery.level == RecoveryLevel.RED) "Mobilité douce ou repos"
+                        else "Séance ou mobilité",
+                        "Préparer un coucher régulier"
+                    ).forEachIndexed { index, label ->
+                        if (index > 0) HorizontalDivider(color = C.border.copy(alpha = 0.5f))
+                        Row(
+                            Modifier.fillMaxWidth().defaultMinSize(minHeight = 49.dp)
+                                .clickable { onToggleHabit(index) },
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Checkbox(checked = index in completedHabits,
+                                onCheckedChange = { onToggleHabit(index) })
+                            Text(label, style = MaterialTheme.typography.bodyMedium,
+                                modifier = Modifier.weight(1f))
                         }
                     }
                 }
             }
         }
         item {
-            Text(
-                "Le score Tempo est une estimation de préparation, pas un diagnostic. Les valeurs absentes ne sont pas remplacées par des données fictives.",
-                style = MaterialTheme.typography.labelSmall, color = C.textSecondary
-            )
+            Text("Le score Tempo est une estimation, pas un diagnostic médical.",
+                style = MaterialTheme.typography.labelSmall, color = C.textMuted)
         }
     }
 }
