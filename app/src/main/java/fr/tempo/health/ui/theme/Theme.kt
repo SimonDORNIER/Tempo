@@ -2,6 +2,7 @@ package fr.tempo.health.ui.theme
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardColors
 import androidx.compose.material3.CardDefaults
@@ -12,53 +13,77 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.unit.dp
 
 /**
- * Option B : charte unique pour les quatre onglets et tous les écrans secondaires.
- * Les alias historiques assurent la compatibilité avec les composants préexistants.
+ * Tempo Coach 2.5 - identité professionnelle et reposante.
+ * Une couleur par domaine ; vert/ambre/rouge uniquement pour l'état.
+ * Ces couleurs ne présument pas de l'existence de mesures de santé.
  */
 object TempoColors {
-    val background = Color(0xFF0C1118)
-    val surface = Color(0xFF191F2C)
-    val surfaceAlt = Color(0xFF232A3A)
-    val border = Color(0xFF384158)
-    val violet = Color(0xFF9638E8)
-    val violetGlow = Color(0xFFC06CFF)
-    val violetPale = Color(0xFFE0A6FF)
-    val violetDeep = Color(0xFF381653)
-    val greenForest = Color(0xFF127E51)
-    val greenGlow = Color(0xFF50E49A)
-    val greenDeep = Color(0xFF0B3A2B)
-    val text = Color(0xFFF8F7FD)
-    val textSecondary = Color(0xFFC9CDDE)
-    val textMuted = Color(0xFFAEB6CD)
-    val amber = Color(0xFFFFBF65)
-    val redAlert = Color(0xFFFF7280)
-    val error = Color(0xFFFFA5B3)
+    val background = Color(0xFF11171F)
+    val surface = Color(0xFF202833)
+    val surfaceAlt = Color(0xFF293440)
+    val border = Color(0xFF3A4654)
+    val text = Color(0xFFF3F5F8)
+    val textSecondary = Color(0xFFCBD3DF)
+    val textMuted = Color(0xFFA7B2C1)
 
-    // Compatibilité des anciens écrans : éviter les anciennes couleurs délavées.
-    val prune = violetDeep
-    val pruneDark = Color(0xFF291638)
-    val rose = violetGlow
-    val cream = violetPale
-    val sage = greenGlow
-    val sageDark = greenDeep
+    // Identité et navigation. Les boutons sont bleus, jamais rouge/vert « santé ».
+    val action = Color(0xFF91BCEA)
+    val actionDeep = Color(0xFF233A53)
+    val actionText = Color(0xFF111B26)
+
+    // Couleurs fixes de familles, pastel plutôt que néon.
+    val sleep = Color(0xFFA99AD3)
+    val sleepDeep = Color(0xFF2B293E)
+    val activity = Color(0xFF78B8A3)
+    val activityDeep = Color(0xFF203A34)
+    val heart = Color(0xFFD59BA1)
+    val heartDeep = Color(0xFF3A2B35)
+    val calm = Color(0xFF91BCEA)
+    val calmDeep = Color(0xFF26384D)
+    val mobility = Color(0xFF86B7A8)
+    val stretch = Color(0xFFD1B28E)
+    val strengthening = Color(0xFFC49AA8)
+    val profile = Color(0xFFA8B2CA)
+
+    // Couleurs contextuelles (métriques suffisamment documentées seulement).
+    val good = Color(0xFF7FC4A6)
+    val amber = Color(0xFFE1BB78)
+    val redAlert = Color(0xFFD98F94)
+    val unknown = Color(0xFF9BA6B4)
+    val error = redAlert
+
+    // Alias de rétrocompatibilité de code ; toutes les nouvelles vues emploient
+    // explicitement sleep/activity/heart/calm et good/amber/redAlert/unknown.
+    val violet = sleep
+    val violetGlow = sleep
+    val violetPale = Color(0xFFC8BCE7)
+    val violetDeep = sleepDeep
+    val greenForest = activity
+    val greenGlow = activity
+    val greenDeep = activityDeep
+    val prune = sleepDeep
+    val pruneDark = sleepDeep
+    val rose = sleep
+    val cream = action
+    val sage = activity
+    val sageDark = activityDeep
 }
 
-private val TempoOptionBScheme = darkColorScheme(
-    primary = TempoColors.violetGlow,
-    onPrimary = TempoColors.background,
-    primaryContainer = TempoColors.violetDeep,
+private val TempoSoftScheme = darkColorScheme(
+    primary = TempoColors.action,
+    onPrimary = TempoColors.actionText,
+    primaryContainer = TempoColors.actionDeep,
     onPrimaryContainer = TempoColors.text,
-    secondary = TempoColors.violetPale,
+    secondary = TempoColors.sleep,
     onSecondary = TempoColors.background,
-    secondaryContainer = TempoColors.violetDeep,
+    secondaryContainer = TempoColors.sleepDeep,
     onSecondaryContainer = TempoColors.text,
-    tertiary = TempoColors.greenGlow,
+    tertiary = TempoColors.activity,
     onTertiary = TempoColors.background,
-    tertiaryContainer = TempoColors.greenDeep,
+    tertiaryContainer = TempoColors.activityDeep,
     onTertiaryContainer = TempoColors.text,
     background = TempoColors.background,
     onBackground = TempoColors.text,
@@ -75,24 +100,24 @@ private val TempoOptionBScheme = darkColorScheme(
     onError = TempoColors.background
 )
 
-/** Une carte partagée : espaces, arrondi et bordure harmonisés dans les sous-écrans. */
+/** Panneau commun aux 4 onglets et aux vues secondaires. */
 @Composable
 fun TempoPanelCard(
     modifier: Modifier = Modifier,
-    shape: Shape = RoundedCornerShape(20.dp),
+    shape: Shape = RoundedCornerShape(19.dp),
     colors: CardColors = CardDefaults.cardColors(containerColor = TempoColors.surface),
     elevation: CardElevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-    border: BorderStroke? = BorderStroke(0.85.dp, TempoColors.border.copy(alpha = 0.82f)),
+    border: BorderStroke? = BorderStroke(0.8.dp, TempoColors.border.copy(alpha = 0.65f)),
     content: @Composable ColumnScope.() -> Unit
 ) {
-    val accentBorder = if (colors.containerColor == TempoOptionBScheme.primaryContainer) {
-        BorderStroke(1.dp, TempoColors.violet.copy(alpha = 0.85f))
+    val actualBorder = if (colors.containerColor == TempoSoftScheme.primaryContainer) {
+        BorderStroke(0.8.dp, TempoColors.action.copy(alpha = 0.36f))
     } else border
     Card(modifier = modifier, shape = shape, colors = colors, elevation = elevation,
-        border = accentBorder, content = content)
+        border = actualBorder, content = content)
 }
 
 @Composable
 fun TempoHealthTheme(content: @Composable () -> Unit) {
-    MaterialTheme(colorScheme = TempoOptionBScheme, content = content)
+    MaterialTheme(colorScheme = TempoSoftScheme, content = content)
 }
