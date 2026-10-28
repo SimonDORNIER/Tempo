@@ -30,28 +30,28 @@ object TempoColors {
     val textMuted = Color(0xFFA7B2C1)
 
     // Identité et navigation. Les boutons sont bleus, jamais rouge/vert « santé ».
-    val action = Color(0xFF91BCEA)
+    val action = Color(0xFF9BC4EF)
     val actionDeep = Color(0xFF233A53)
     val actionText = Color(0xFF111B26)
 
     // Couleurs fixes de familles, pastel plutôt que néon.
-    val sleep = Color(0xFFA99AD3)
+    val sleep = Color(0xFFB4A5DE)
     val sleepDeep = Color(0xFF2B293E)
-    val activity = Color(0xFF78B8A3)
+    val activity = Color(0xFF81C3AC)
     val activityDeep = Color(0xFF203A34)
-    val heart = Color(0xFFD59BA1)
+    val heart = Color(0xFFDF9FA9)
     val heartDeep = Color(0xFF3A2B35)
-    val calm = Color(0xFF91BCEA)
+    val calm = Color(0xFF9BC4EF)
     val calmDeep = Color(0xFF26384D)
-    val mobility = Color(0xFF86B7A8)
-    val stretch = Color(0xFFD1B28E)
-    val strengthening = Color(0xFFC49AA8)
-    val profile = Color(0xFFA8B2CA)
+    val mobility = Color(0xFF90C3B0)
+    val stretch = Color(0xFFDBBD96)
+    val strengthening = Color(0xFFCFA3B2)
+    val profile = Color(0xFFB0BDD2)
 
     // Couleurs contextuelles (métriques suffisamment documentées seulement).
-    val good = Color(0xFF7FC4A6)
-    val amber = Color(0xFFE1BB78)
-    val redAlert = Color(0xFFD98F94)
+    val good = Color(0xFF87CDAD)
+    val amber = Color(0xFFE8C282)
+    val redAlert = Color(0xFFE0989E)
     val unknown = Color(0xFF9BA6B4)
     val error = redAlert
 
@@ -59,7 +59,7 @@ object TempoColors {
     // explicitement sleep/activity/heart/calm et good/amber/redAlert/unknown.
     val violet = sleep
     val violetGlow = sleep
-    val violetPale = Color(0xFFC8BCE7)
+    val violetPale = Color(0xFFD1C4EC)
     val violetDeep = sleepDeep
     val greenForest = activity
     val greenGlow = activity

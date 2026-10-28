@@ -121,7 +121,7 @@ private fun TintedCard(
     accent: Color? = null,
     content: @Composable () -> Unit
 ) {
-    val edge = accent?.copy(alpha = 0.36f) ?: C.border.copy(alpha = 0.62f)
+    val edge = accent?.copy(alpha = 0.43f) ?: C.border.copy(alpha = 0.62f)
     Card(
         modifier = modifier.then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier),
         shape = RoundedCornerShape(18.dp),
@@ -131,8 +131,8 @@ private fun TintedCard(
         Box(
             modifier = Modifier.fillMaxWidth().background(
                 Brush.linearGradient(listOf(
-                    colorStart.copy(alpha = 0.18f),
-                    colorEnd.copy(alpha = 0.08f)
+                    colorStart.copy(alpha = 0.22f),
+                    colorEnd.copy(alpha = 0.10f)
                 ))
             ).padding(13.dp)
         ) { content() }
@@ -142,7 +142,7 @@ private fun TintedCard(
 @Composable
 private fun SmallIcon(icon: ImageVector, tint: Color, modifier: Modifier = Modifier) {
     Box(
-        modifier = modifier.size(37.dp).background(tint.copy(alpha = 0.13f), CircleShape),
+        modifier = modifier.size(37.dp).background(tint.copy(alpha = 0.16f), CircleShape),
         contentAlignment = Alignment.Center
     ) {
         Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(21.dp))

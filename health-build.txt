@@ -1,1 +1,1 @@
-Tempo Coach 2.5.2 : fond anthracite assombri et 4 tuiles Aujourd'hui de hauteur egale, donnees et fonctionnalites preservees.
+Tempo Coach 2.5.3 : saturation des couleurs thematiques legerement relevee, fond sombre et cartes uniformes conserves, aucun changement de donnees.
