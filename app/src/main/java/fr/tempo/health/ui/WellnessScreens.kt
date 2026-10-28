@@ -121,19 +121,22 @@ private fun TintedCard(
     accent: Color? = null,
     content: @Composable () -> Unit
 ) {
-    val edge = accent?.copy(alpha = 0.43f) ?: C.border.copy(alpha = 0.62f)
+    // En 2.5.3 le dégradé partait d'une teinte déjà très sombre :
+    // la couleur de thème restait pratiquement invisible.
+    // Ici l'accent est peint directement sur la surface anthracite,
+    // à faible opacité, sans modifier les scores ni saturer tout l'écran.
+    val edge = accent?.copy(alpha = 0.64f) ?: C.border.copy(alpha = 0.62f)
+    val gradientStart = accent?.copy(alpha = 0.19f) ?: colorStart.copy(alpha = 0.14f)
+    val gradientEnd = accent?.copy(alpha = 0.045f) ?: colorEnd.copy(alpha = 0.06f)
     Card(
         modifier = modifier.then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier),
         shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(containerColor = C.surface),
-        border = BorderStroke(0.8.dp, edge)
+        border = BorderStroke(if (accent != null) 1.dp else 0.8.dp, edge)
     ) {
         Box(
             modifier = Modifier.fillMaxWidth().background(
-                Brush.linearGradient(listOf(
-                    colorStart.copy(alpha = 0.22f),
-                    colorEnd.copy(alpha = 0.10f)
-                ))
+                Brush.linearGradient(listOf(gradientStart, gradientEnd))
             ).padding(13.dp)
         ) { content() }
     }
@@ -142,7 +145,7 @@ private fun TintedCard(
 @Composable
 private fun SmallIcon(icon: ImageVector, tint: Color, modifier: Modifier = Modifier) {
     Box(
-        modifier = modifier.size(37.dp).background(tint.copy(alpha = 0.16f), CircleShape),
+        modifier = modifier.size(37.dp).background(tint.copy(alpha = 0.26f), CircleShape),
         contentAlignment = Alignment.Center
     ) {
         Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(21.dp))

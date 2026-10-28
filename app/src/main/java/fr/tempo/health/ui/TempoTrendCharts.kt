@@ -146,12 +146,12 @@ fun TempoTrendGraph(
         val chartHeight = size.height - pad * 2f
         val usableWidth = (size.width - pad * 2f).coerceAtLeast(1f)
         val space = if (count == 1) 0f else usableWidth / (count - 1)
-        val pointRadius = if (count > 14) 2.6.dp.toPx() else 3.7.dp.toPx()
-        val strokeWidth = if (count > 14) 1.65.dp.toPx() else 2.4.dp.toPx()
+        val pointRadius = if (count > 14) 2.8.dp.toPx() else 4.0.dp.toPx()
+        val strokeWidth = if (count > 14) 1.8.dp.toPx() else 2.6.dp.toPx()
         val referenceY = size.height - pad
 
         drawLine(
-            color = C.border.copy(alpha = 0.50f),
+            color = C.border.copy(alpha = 0.60f),
             start = Offset(pad, referenceY),
             end = Offset(size.width - pad, referenceY),
             strokeWidth = 1.dp.toPx()
