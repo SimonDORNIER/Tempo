@@ -614,75 +614,81 @@ fun TrackingHubV21Screen(
     onHealth: () -> Unit,
     onProgress: () -> Unit
 ) {
-    val weekStart = LocalDate.now().minusDays(6)
+    val today = LocalDate.now()
+    val lastSeven = (0L..6L).map { today.minusDays(it).toString() }.toSet()
+    val recentDays = days.filter { it.date in lastSeven }
+    val earliest = today.minusDays(6)
         .atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
-    val weekDays = days.filter { it.date >= LocalDate.now().minusDays(6).toString() &&
-        it.date <= LocalDate.now().toString() }
-    val completed = history.count { it.completed && it.startedAtEpochMs >= weekStart &&
-        it.startedAtEpochMs <= System.currentTimeMillis() }
-    LazyColumn(modifier = Modifier.fillMaxSize().background(C.background),
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(15.dp)) {
+    val completed = history.count {
+        it.completed && it.startedAtEpochMs >= earliest &&
+            it.startedAtEpochMs <= System.currentTimeMillis()
+    }
+    val sleepValues = recentDays.mapNotNull { it.sleepMinutes }
+    val stepValues = recentDays.mapNotNull { it.steps }
+
+    LazyColumn(
+        modifier = Modifier.fillMaxSize().background(C.background),
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(14.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
         item { Headline("Suivi", "Comprendre ce qui évolue") }
         item {
-            TintedCard(colorStart = C.violetDeep, colorEnd = C.surface, accent = C.violet) {
-                Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
-                    Text("Cette semaine", fontWeight = FontWeight.Bold,
-                        style = MaterialTheme.typography.titleLarge)
-                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            TintedCard {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Les 7 derniers jours", fontWeight = FontWeight.SemiBold)
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         MetricStat("Sommeil moyen",
-                            sleepText(weekDays.mapNotNull { it.sleepMinutes }.takeIf { it.isNotEmpty() }?.average()?.toLong()),
-                            Modifier.weight(1f), C.violetPale)
-                        MetricStat("Séances terminées", completed.toString(), Modifier.weight(1f), C.text)
+                            sleepText(sleepValues.takeIf { it.isNotEmpty() }?.average()?.toLong()),
+                            Modifier.weight(1f), C.text)
+                        MetricStat("Séances terminées", completed.toString(),
+                            Modifier.weight(1f), C.text)
                     }
                 }
             }
         }
+        item { SectionTitle("Sommeil & activité", "Détails", onHealth) }
         item {
-            Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
-                SectionTitle("Aperçu des 7 jours")
-                Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
-                    TinyTrend("Sommeil", sleepText(weekDays.mapNotNull { it.sleepMinutes }.takeIf { it.isNotEmpty() }?.average()?.toLong()),
-                        Icons.Rounded.Bedtime, C.rose, days, { it.sleepMinutes }, Modifier.weight(1f), onHealth,
-                        TempoMetricKind.SLEEP)
-                    TinyTrend("Pas", weekDays.mapNotNull { it.steps }.takeIf { it.isNotEmpty() }?.average()?.roundToInt()?.toString() ?: "—",
-                        Icons.Rounded.DirectionsWalk, C.sage, days, { it.steps }, Modifier.weight(1f), onHealth,
-                        TempoMetricKind.STEPS)
+            Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                TinyTrend("Sommeil", sleepText(sleepValues.takeIf { it.isNotEmpty() }?.average()?.toLong()),
+                    Icons.Rounded.Bedtime, C.sleep, days, { it.sleepMinutes },
+                    Modifier.weight(1f), onHealth, TempoMetricKind.SLEEP)
+                TinyTrend("Pas", stepValues.takeIf { it.isNotEmpty() }
+                    ?.average()?.roundToInt()?.toString() ?: "—",
+                    Icons.Rounded.DirectionsWalk, C.activity, days, { it.steps },
+                    Modifier.weight(1f), onHealth, TempoMetricKind.STEPS)
+            }
+        }
+        item { SectionTitle("Cœur & récupération", "Détails", onHealth) }
+        item {
+            Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                TinyTrend("FC repos", days.firstOrNull { it.restingHeartRate != null }
+                    ?.restingHeartRate?.let { "${it.roundToInt()} bpm" } ?: "—",
+                    Icons.Rounded.Favorite, C.heart, days, { it.restingHeartRate },
+                    Modifier.weight(1f), onHealth, TempoMetricKind.RESTING_PULSE)
+                TinyTrend("VFC", days.firstOrNull { it.hrvRmssdMs != null }
+                    ?.hrvRmssdMs?.let { "${it.roundToInt()} ms" } ?: "—",
+                    Icons.Rounded.BarChart, C.heart, days, { it.hrvRmssdMs },
+                    Modifier.weight(1f), onHealth, TempoMetricKind.HRV)
+            }
+        }
+        item {
+            SectionTitle("Explorer mes données")
+            TintedCard {
+                Column {
+                    ListLink(Icons.Rounded.Favorite, "Santé",
+                        "Sommeil, respiration, cardio, SpO₂", onHealth, C.heart)
+                    HorizontalDivider(color = C.border.copy(alpha = 0.6f))
+                    ListLink(Icons.Rounded.DirectionsWalk, "Activité",
+                        "Pas, distance et minutes actives", onHealth, C.activity)
+                    HorizontalDivider(color = C.border.copy(alpha = 0.6f))
+                    ListLink(Icons.Rounded.BarChart, "Séances",
+                        "Historique et progression", onProgress, C.calm)
                 }
             }
         }
         item {
-            Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
-                SectionTitle("Tendances cardio")
-                Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
-                    TinyTrend("VFC", days.firstOrNull { it.hrvRmssdMs != null }
-                        ?.hrvRmssdMs?.let { "${it.roundToInt()} ms" } ?: "—",
-                        Icons.Rounded.Favorite, C.violetGlow, days, { it.hrvRmssdMs },
-                        Modifier.weight(1f), onHealth, TempoMetricKind.HRV)
-                    TinyTrend("FC repos", days.firstOrNull { it.restingHeartRate != null }
-                        ?.restingHeartRate?.let { "${it.roundToInt()} bpm" } ?: "—",
-                        Icons.Rounded.Favorite, C.violetGlow, days, { it.restingHeartRate },
-                        Modifier.weight(1f), onHealth, TempoMetricKind.RESTING_PULSE)
-                }
-            }
-        }
-        item {
-            Column {
-                SectionTitle("Explorer mes données")
-                TintedCard {
-                    Column {
-                        ListLink(Icons.Rounded.Favorite, "Santé", "Sommeil, FC repos, VFC et respiration", onHealth)
-                        HorizontalDivider(color = C.border)
-                        ListLink(Icons.Rounded.DirectionsWalk, "Activité", "Pas, distance et minutes d'exercice", onHealth, C.greenGlow)
-                        HorizontalDivider(color = C.border)
-                        ListLink(Icons.Rounded.BarChart, "Séances", "Fréquence, durée et progression", onProgress)
-                    }
-                }
-            }
-        }
-        item {
-            Text("Jours sans mesure : barres discrètes, sans valeur inventée.",
-                style = MaterialTheme.typography.labelSmall, color = C.textSecondary)
+            Text("Les couleurs indiquent les domaines. Les pastilles montrent les écarts éventuels à tes références personnelles.",
+                color = C.textMuted, style = MaterialTheme.typography.labelSmall)
         }
     }
 }
@@ -709,15 +715,15 @@ fun MeHubV21Screen(
     LazyColumn(modifier = Modifier.fillMaxSize().background(C.background),
         contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        item { Headline("Moi", "Mon espace personnel, sans compte imposé") }
+        item { Headline("Moi", "Mes objectifs, mes données et mes préférences") }
         item {
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 SectionTitle("Personnalisation")
                 TintedCard {
                     Column {
-                        ListLink(Icons.Rounded.Edit, "Mes exercices", "Créer, modifier et organiser", onExercises)
+                        ListLink(Icons.Rounded.Edit, "Mes exercices", "Créer, modifier et organiser", onExercises, C.strengthening)
                         HorizontalDivider(color = C.border)
-                        ListLink(Icons.Rounded.Spa, "Mes catégories", "Activer, personnaliser les icônes", onCategories)
+                        ListLink(Icons.Rounded.Spa, "Mes catégories", "Activer, personnaliser les icônes", onCategories, C.mobility)
                         HorizontalDivider(color = C.border)
                         ListLink(Icons.Rounded.Tune, "Objectifs et matériel", "Durée, équipement et préférences", onSettings)
                     }
@@ -729,7 +735,7 @@ fun MeHubV21Screen(
                 SectionTitle("Santé & données")
                 TintedCard {
                     Column {
-                        ListLink(Icons.Rounded.Favorite, "Santé Connect", "Synchronisation, autorisations et mesures", onHealth)
+                        ListLink(Icons.Rounded.Favorite, "Santé Connect", "Synchronisation, autorisations et mesures", onHealth, C.heart)
                         HorizontalDivider(color = C.border)
                         ListLink(Icons.Rounded.Settings, "Sauvegarde & restauration", "Google Drive et données locales", onSettings)
                     }
@@ -745,7 +751,7 @@ fun MeHubV21Screen(
                         HorizontalDivider(color = C.border)
                         ListLink(Icons.Rounded.Settings, "Paramètres", "Sons, rappels et préférences", onSettings)
                         HorizontalDivider(color = C.border)
-                        ListLink(Icons.Rounded.Update, "Vérifier les mises à jour", "Rechercher une nouvelle version", onUpdates)
+                        ListLink(Icons.Rounded.Update, "Vérifier les mises à jour", "Rechercher une nouvelle version", onUpdates, C.calm)
                     }
                 }
             }
@@ -771,7 +777,7 @@ fun ExerciseExploreV21Screen(
     LazyColumn(modifier = Modifier.fillMaxSize().background(C.background),
         contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        item { Headline("Exercices", "Choisis librement une pratique adaptée à ton confort") }
+        item { Headline("Exercices", "Choisir une pratique") }
         if (exercises.isEmpty()) {
             item { Text("Aucun exercice disponible dans cette catégorie.",
                 color = C.textSecondary) }
@@ -781,7 +787,7 @@ fun ExerciseExploreV21Screen(
                 Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        SmallIcon(Icons.Rounded.SelfImprovement, C.rose)
+                        SmallIcon(Icons.Rounded.SelfImprovement, C.mobility)
                         Column(modifier = Modifier.weight(1f)) {
                             Text(exercise.name, fontWeight = FontWeight.SemiBold)
                             Text("${preferences.exerciseWorkSeconds[exercise.id] ?: exercise.defaultWorkSeconds} secondes",
