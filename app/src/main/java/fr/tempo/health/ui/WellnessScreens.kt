@@ -221,56 +221,48 @@ private fun dayLabel(): String =
 
 @Composable
 private fun TinyTrend(
-    title: String,
-    summary: String,
-    icon: ImageVector,
-    color: Color,
-    days: List<DailyHealthEntity>,
-    metric: (DailyHealthEntity) -> Number?,
-    modifier: Modifier,
-    onClick: () -> Unit,
-    kind: TempoMetricKind = TempoMetricKind.OTHER
+    title: String, summary: String, icon: ImageVector, color: Color,
+    days: List<DailyHealthEntity>, metric: (DailyHealthEntity) -> Number?,
+    modifier: Modifier, onClick: () -> Unit, kind: TempoMetricKind = TempoMetricKind.OTHER
 ) {
     val points = metricByCalendarDay(days, 7) { metric(it)?.toDouble() }
-    val usual = TempoHealthSignals.reference(
-        days.drop(7).mapNotNull { metric(it)?.toDouble() }
-    )
-    val lastValue = points.lastOrNull { it != null }
-    val signal = TempoHealthSignals.assess(kind, lastValue, usual)
+    val usual = TempoHealthSignals.reference(days.drop(7).mapNotNull { metric(it)?.toDouble() })
+    val state = TempoHealthSignals.assess(kind, points.lastOrNull { it != null }, usual)
     val isActivity = kind == TempoMetricKind.STEPS || kind == TempoMetricKind.ACTIVE_MINUTES
-    val accent = if (isActivity) C.greenGlow
-        else if (signal == TempoSignal.UNKNOWN) color else TempoHealthSignals.color(signal)
-    TintedCard(
-        modifier = modifier,
-        colorStart = if (isActivity) C.greenDeep
-            else if (signal == TempoSignal.LOW) C.surfaceAlt else C.violetDeep,
-        colorEnd = C.surface,
-        onClick = onClick,
-        accent = accent
-    ) {
+    val background = when (kind) {
+        TempoMetricKind.SLEEP -> C.sleepDeep
+        TempoMetricKind.STEPS, TempoMetricKind.ACTIVE_MINUTES -> C.activityDeep
+        TempoMetricKind.HRV, TempoMetricKind.RESTING_PULSE -> C.heartDeep
+        TempoMetricKind.OTHER -> C.calmDeep
+    }
+    TintedCard(modifier, background, C.surface, onClick, color) {
         Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                SmallIcon(icon, accent)
-                Text(title, modifier = Modifier.weight(1f), fontWeight = FontWeight.SemiBold,
-                    style = MaterialTheme.typography.bodyMedium, maxLines = 1)
-                Icon(Icons.Rounded.ChevronRight, "Voir le détail", tint = C.text,
-                    modifier = Modifier.size(19.dp))
+                SmallIcon(icon, color)
+                Text(title, modifier = Modifier.weight(1f),
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.SemiBold, maxLines = 1)
+                Icon(Icons.Rounded.ChevronRight, "Voir les détails", tint = C.textMuted,
+                    modifier = Modifier.size(18.dp))
             }
-            Text(summary, color = accent, style = MaterialTheme.typography.headlineSmall,
+            Text(summary, color = C.text, style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
             TempoTrendGraph(
                 values = points, metric = kind, usual = usual,
-                kind = if (kind == TempoMetricKind.SLEEP || isActivity) TempoChartKind.BARS
-                       else TempoChartKind.LINE,
-                height = 73.dp
+                kind = if (kind == TempoMetricKind.SLEEP || isActivity)
+                    TempoChartKind.BARS else TempoChartKind.LINE, height = 66.dp
             )
-            Text(
-                if (isActivity) "7 derniers jours"
-                else TempoHealthSignals.label(kind, signal),
-                style = MaterialTheme.typography.labelSmall,
-                color = if (signal == TempoSignal.UNKNOWN) C.textSecondary else accent,
-                maxLines = 1, overflow = TextOverflow.Ellipsis
-            )
+            if (isActivity) {
+                Text("7 derniers jours", color = C.textSecondary,
+                    style = MaterialTheme.typography.labelSmall)
+            } else {
+                TempoStateLabel(
+                    if (state == TempoSignal.UNKNOWN) "Référence insuffisante"
+                    else TempoHealthSignals.label(kind, state),
+                    if (state == TempoSignal.UNKNOWN) C.unknown
+                    else TempoHealthSignals.color(state)
+                )
+            }
         }
     }
 }
@@ -530,48 +522,57 @@ fun PracticeHubV21Screen(
     onTimer: () -> Unit,
     onManage: () -> Unit
 ) {
-    LazyColumn(modifier = Modifier.fillMaxSize().background(C.background),
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        item { Headline("Pratiquer", "Détente, mobilité et mouvement") }
+    LazyColumn(
+        modifier = Modifier.fillMaxSize().background(C.background),
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(14.dp),
+        verticalArrangement = Arrangement.spacedBy(11.dp)
+    ) {
+        item { Headline("Pratiquer", "Respirer, bouger, se sentir mieux") }
         item {
-            TintedCard(colorStart = C.violetDeep, colorEnd = C.surface) {
-                Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
-                    Text("Ma séance conseillée", color = C.rose, fontWeight = FontWeight.Medium)
-                    Text(plan.title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                    Text("${plan.estimatedMinutes} min • ${plan.items.size} exercices • intensité ${plan.intensity}/10",
+            TintedCard(colorStart = C.calmDeep, colorEnd = C.surface, accent = C.calm) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                        SmallIcon(Icons.Rounded.PlayArrow, C.calm)
+                        Column(Modifier.weight(1f)) {
+                            Text("Ma séance conseillée",
+                                color = C.textSecondary, style = MaterialTheme.typography.labelMedium)
+                            Text(plan.title, style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold, maxLines = 2)
+                        }
+                    }
+                    Text("${plan.estimatedMinutes} min • ${plan.items.size} exercices",
                         style = MaterialTheme.typography.bodySmall, color = C.textSecondary)
                     PrimaryAction("Commencer", Icons.Rounded.PlayArrow, onStart)
                 }
             }
         }
+        item { SectionTitle("Choisir une pratique") }
         item {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                SectionTitle("Choisir une activité")
-                Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
-                    PracticeTile("Respiration", "2 à 4 min", Icons.Rounded.Air, C.rose, Modifier.weight(1f), onBreathing)
-                    PracticeTile("Mobilité", "Bouger en douceur", Icons.Rounded.SelfImprovement, C.sage,
-                        Modifier.weight(1f), { onExplore(ExerciseCategory.MOBILITY) })
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
-                    PracticeTile("Étirements", "Relâcher le corps", Icons.Rounded.Spa, C.rose,
-                        Modifier.weight(1f), { onExplore(ExerciseCategory.STRETCHING) })
-                    PracticeTile("Renforcement", "Stabilité et force", Icons.Rounded.FitnessCenter, C.sage,
-                        Modifier.weight(1f), { onExplore(ExerciseCategory.FULL_BODY) })
-                }
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                PracticeTile("Respiration", "Retrouver le calme", Icons.Rounded.Air,
+                    C.calm, Modifier.fillMaxWidth(), onBreathing)
+                PracticeTile("Mobilité", "Bouger avec souplesse", Icons.Rounded.SelfImprovement,
+                    C.mobility, Modifier.fillMaxWidth(), { onExplore(ExerciseCategory.MOBILITY) })
+                PracticeTile("Étirements", "Relâcher les tensions", Icons.Rounded.Spa,
+                    C.stretch, Modifier.fillMaxWidth(), { onExplore(ExerciseCategory.STRETCHING) })
+                PracticeTile("Renforcement", "Gagner en stabilité", Icons.Rounded.FitnessCenter,
+                    C.strengthening, Modifier.fillMaxWidth(),
+                    { onExplore(ExerciseCategory.FULL_BODY) })
             }
         }
         item {
-            Column {
-                SectionTitle("Mes outils")
-                TintedCard {
-                    Column {
-                        ListLink(Icons.Rounded.Book, "Mon programme", "Planifier et adapter ma semaine", onProgram)
-                        HorizontalDivider(color = C.border)
-                        ListLink(Icons.Rounded.Timer, "Minuteur libre", "Compte à rebours personnalisé", onTimer)
-                        HorizontalDivider(color = C.border)
-                        ListLink(Icons.Rounded.Tune, "Mes exercices", "Personnaliser la bibliothèque", onManage)
-                    }
+            SectionTitle("Mes outils")
+            TintedCard {
+                Column {
+                    ListLink(Icons.Rounded.Book, "Mes programmes", "Planifier ma semaine",
+                        onProgram, C.calm)
+                    HorizontalDivider(color = C.border.copy(alpha = 0.6f))
+                    ListLink(Icons.Rounded.Timer, "Minuteur libre", "Définir un temps",
+                        onTimer, C.calm)
+                    HorizontalDivider(color = C.border.copy(alpha = 0.6f))
+                    ListLink(Icons.Rounded.Tune, "Bibliothèque", "Consulter les exercices",
+                        onManage, C.profile)
                 }
             }
         }
@@ -583,12 +584,24 @@ private fun PracticeTile(
     title: String, detail: String, icon: ImageVector, color: Color,
     modifier: Modifier, onClick: () -> Unit
 ) {
-    TintedCard(modifier, if (color == C.greenGlow) C.greenDeep else C.violetDeep, C.surface, onClick, color) {
-        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    val background = when (title) {
+        "Respiration" -> C.calmDeep
+        "Mobilité" -> C.activityDeep
+        "Étirements" -> C.surfaceAlt
+        else -> C.heartDeep
+    }
+    TintedCard(modifier = modifier, colorStart = background, colorEnd = C.surface,
+        onClick = onClick, accent = color) {
+        Row(verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(11.dp)) {
             SmallIcon(icon, color)
-            Text(title, fontWeight = FontWeight.SemiBold, maxLines = 1)
-            Text(detail, style = MaterialTheme.typography.labelSmall, color = C.textSecondary,
-                maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(title, fontWeight = FontWeight.SemiBold)
+                Text(detail, style = MaterialTheme.typography.bodySmall,
+                    color = C.textSecondary, maxLines = 1)
+            }
+            Icon(Icons.Rounded.ChevronRight, "Ouvrir $title",
+                tint = C.textMuted, modifier = Modifier.size(21.dp))
         }
     }
 }
