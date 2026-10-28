@@ -1,5 +1,7 @@
 # Instructions permanentes — Projet Tempo Coach
 
+> **Décision du 28/10/2026 (prioritaire)** : la maquette 2.5 en couleurs douces par domaine remplace Option B. Brancher les futurs développements sur `health/v2.5.0-soft-professional-ui` puis sur la dernière version publiée. Sources : `docs/CHARTE_GRAPHIQUE_TEMPO_COACH.md` en tête et `docs/TESTS_TEMPO_2_5.md`. Ne jamais revenir aux fortes bordures saturées. Pas de fausses données ni de modifications de schéma pour cette refonte.
+
 > **Décision de design du 16/10/2026** : le propriétaire a sélectionné le visuel **Option B** (Suivi sombre, cartes encadrées en violet et vert forêt, accents plus saturés et graphiques lumineux). Il **remplace les teintes trop fades** de l'ancienne charte comme cible pour le prochain développement. Lire d'abord la section « Direction graphique approuvée — option B » dans `docs/CHARTE_GRAPHIQUE_TEMPO_COACH.md`. Implémentation Option B sur la branche `health/v2.2.0-option-b` (statut de publication à vérifier dans GitHub Actions et les Releases).
 
 

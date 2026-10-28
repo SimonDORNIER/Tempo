@@ -1,5 +1,23 @@
 # Tempo Coach — Charte graphique et UX
 
+## Décision prioritaire — Tempo Coach 2.5 : interface douce par domaine (28 octobre 2026)
+
+La **dernière maquette des quatre onglets** a été validée comme référence visuelle. Elle remplace la DA Option B, jugée trop saturée. L'interface doit rester compacte, claire et professionnelle pour Pixel 7a, avec un fond anthracite uni, des surfaces peu contrastées, des bordures fines et de rares dégradés discrets. Ne pas inventer de statistiques, de pourcentages, de profil, de programmes ni d'objectifs à partir de la maquette illustrative.
+
+### Tokens de thème exacts
+- Fond `#11171F` ; surface `#202833` ; surface élevée `#293440` ; bordure `#3A4654` ; texte principal `#F3F5F8` ; secondaire `#CBD3DF`.
+- Navigation et actions : bleu doux `#91BCEA`, fond de sélection `#233A53`.
+- Identité des domaines **stable dans la durée** : sommeil lavande `#A99AD3`, activité/mobilité vert doux `#78B8A3`, cardio rose sourd `#D59BA1`, respiration/coach bleu doux `#91BCEA`, étirements beige `#D1B28E`, renforcement rose grisé `#C49AA8`.
+- **États distincts de la famille visuelle**, visibles en petite pastille et en texte : bonne récupération `#7FC4A6`, écart modéré `#E1BB78`, écart défavorable `#D98F94`, inconnu `#9BA6B4`. La couleur d'une catégorie n'est pas un jugement médical.
+- Dans les graphiques, la ligne et les barres conservent la couleur du domaine ; seuls les points présentant un écart défavorable sont ambre ou rouge. Les trous dans les séries restent sans points et sans liaison, et l'évaluation nécessite une référence personnelle valable.
+- Dans Aujourd'hui, priorité à la **journée actuelle** et à la dernière nuit réellement terminée. Le score « Forme & préparation » reste celui du moteur existant, avec fiabilité et absence explicite.
+- Les quatre racines demeurent Aujourd'hui / Pratiquer / Suivi / Moi ; Coach intégré ; écrans secondaires et préférences inchangés fonctionnellement. Aucun nouvel abonnement, changement de package, migration Room ou changement des sauvegardes.
+
+**Important :** les anciennes sections Option B ci-dessous constituent l'historique des décisions, et non la charte actuelle.
+
+---
+
+
 ## Tempo Coach 2.3.0 — Graphiques sémantiques, courbes et points (19 octobre 2026)
 
 La direction Option B reste inchangée (fond sombre, violet prononcé et vert forêt). Cette version ajoute des **couleurs d'état** en complément des couleurs de catégories. Le vert, l'ambre et le rouge signalent respectivement une valeur proche de la référence personnelle, un écart modéré et un écart important **quand une référence suffisamment renseignée existe**.

@@ -1,1 +1,1 @@
-Tempo Coach 2.4.2 : correction compatibilité Santé Connect, mesures détaillées sommeil/pouls/respiration/SpO₂ et température cutanée, migration Room 4 et sauvegardes conservées. Compiler et publier APK signé.
+Tempo Coach 2.5.0 : refonte graphique professionnelle douce, couleurs stables par domaine et etats separes, donnees et fonctionnalites 2.4.2 conservees.
