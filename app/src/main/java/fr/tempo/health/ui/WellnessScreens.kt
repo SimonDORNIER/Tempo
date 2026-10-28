@@ -131,8 +131,8 @@ private fun TintedCard(
         Box(
             modifier = Modifier.fillMaxWidth().background(
                 Brush.linearGradient(listOf(
-                    colorStart.copy(alpha = 0.28f),
-                    colorEnd.copy(alpha = 0.12f)
+                    colorStart.copy(alpha = 0.18f),
+                    colorEnd.copy(alpha = 0.08f)
                 ))
             ).padding(13.dp)
         ) { content() }
@@ -155,18 +155,28 @@ private fun MetricTile(
     accent: Color, first: Color, last: Color, modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
-    TintedCard(modifier, first, last, onClick, accent) {
-        Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+    // Taille identique pour Sommeil, Pas, FC repos et VFC, même avec
+    // une description sur deux lignes. Le texte reste limité proprement.
+    TintedCard(modifier.height(162.dp), first, last, onClick, accent) {
+        Column(
+            modifier = Modifier.fillMaxWidth().height(136.dp),
+            verticalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
                 SmallIcon(icon, accent)
-                Text(title, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold,
-                    maxLines = 1, overflow = TextOverflow.Ellipsis, color = C.text)
+                Text(title, style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.SemiBold, maxLines = 1,
+                    overflow = TextOverflow.Ellipsis, color = C.text)
                 Spacer(Modifier.weight(1f))
                 Icon(Icons.Rounded.ChevronRight, null, tint = C.textMuted,
                     modifier = Modifier.size(17.dp))
             }
-            Text(value, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold,
-                maxLines = 1, color = C.text, overflow = TextOverflow.Ellipsis)
+            Text(value, style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold, maxLines = 1,
+                color = C.text, overflow = TextOverflow.Ellipsis)
             Text(subtitle, style = MaterialTheme.typography.labelSmall, maxLines = 2,
                 overflow = TextOverflow.Ellipsis, color = C.textSecondary)
         }

@@ -21,10 +21,10 @@ import androidx.compose.ui.unit.dp
  * Ces couleurs ne présument pas de l'existence de mesures de santé.
  */
 object TempoColors {
-    val background = Color(0xFF11171F)
-    val surface = Color(0xFF202833)
-    val surfaceAlt = Color(0xFF293440)
-    val border = Color(0xFF3A4654)
+    val background = Color(0xFF090D12)
+    val surface = Color(0xFF1B222B)
+    val surfaceAlt = Color(0xFF242C36)
+    val border = Color(0xFF35404D)
     val text = Color(0xFFF3F5F8)
     val textSecondary = Color(0xFFCBD3DF)
     val textMuted = Color(0xFFA7B2C1)

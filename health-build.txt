@@ -1,1 +1,1 @@
-Tempo Coach 2.5.1 : correction de compilation de la nouvelle charte 2.5 (dégradés par alpha plutôt que compositeOver), build signé.
+Tempo Coach 2.5.2 : fond anthracite assombri et 4 tuiles Aujourd'hui de hauteur egale, donnees et fonctionnalites preservees.
