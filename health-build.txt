@@ -1,1 +1,1 @@
-Tempo Coach 2.5.3 : saturation des couleurs thematiques legerement relevee, fond sombre et cartes uniformes conserves, aucun changement de donnees.
+Tempo Coach 2.5.4 : rendre les fonds des cartes clairement teintes de leurs couleurs thematiques, sans toucher au fond anthracite ni aux donnees.

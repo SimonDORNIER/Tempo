@@ -121,19 +121,30 @@ private fun TintedCard(
     accent: Color? = null,
     content: @Composable () -> Unit
 ) {
-    val edge = accent?.copy(alpha = 0.43f) ?: C.border.copy(alpha = 0.62f)
+    // 2.5.4 : les anciens dégradés étaient presque invisibles car ils utilisaient
+    // une couleur de fond elle-même très sombre. On teint désormais la surface
+    // avec la couleur claire du domaine, sans modifier le fond global.
+    val isHealthState = accent == C.good || accent == C.amber || accent == C.redAlert
+    val tintStart = when {
+        accent == null -> colorStart.copy(alpha = 0.22f)
+        isHealthState -> accent.copy(alpha = 0.13f)
+        else -> accent.copy(alpha = 0.18f)
+    }
+    val tintEnd = when {
+        accent == null -> colorEnd.copy(alpha = 0.08f)
+        isHealthState -> accent.copy(alpha = 0.025f)
+        else -> accent.copy(alpha = 0.04f)
+    }
+    val edge = accent?.copy(alpha = 0.63f) ?: C.border.copy(alpha = 0.62f)
     Card(
         modifier = modifier.then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier),
         shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(containerColor = C.surface),
-        border = BorderStroke(0.8.dp, edge)
+        border = BorderStroke(1.dp, edge)
     ) {
         Box(
             modifier = Modifier.fillMaxWidth().background(
-                Brush.linearGradient(listOf(
-                    colorStart.copy(alpha = 0.22f),
-                    colorEnd.copy(alpha = 0.10f)
-                ))
+                Brush.linearGradient(listOf(tintStart, tintEnd))
             ).padding(13.dp)
         ) { content() }
     }
@@ -142,7 +153,7 @@ private fun TintedCard(
 @Composable
 private fun SmallIcon(icon: ImageVector, tint: Color, modifier: Modifier = Modifier) {
     Box(
-        modifier = modifier.size(37.dp).background(tint.copy(alpha = 0.16f), CircleShape),
+        modifier = modifier.size(37.dp).background(tint.copy(alpha = 0.22f), CircleShape),
         contentAlignment = Alignment.Center
     ) {
         Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(21.dp))
