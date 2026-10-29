@@ -1280,9 +1280,8 @@ private fun HealthScreen(
             HealthAverageComparisonCard(
                 emoji = "🚶",
                 title = "Pas • 7 j vs 21 j précédents",
-                weekValues = week.mapNotNull {
-                    it.steps?.toDouble()
-                },
+                weekValues = week.filter { it.date != java.time.LocalDate.now().toString() }
+                    .mapNotNull { it.steps?.toDouble() },
                 monthValues = month.mapNotNull {
                     it.steps?.toDouble()
                 },
