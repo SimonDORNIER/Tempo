@@ -1812,7 +1812,7 @@ private fun TrendCard(
                 Text(
                     TempoHealthSignals.comparisonLabel(kind, comparisonValue, usual) + " • " +
                         valid.size.toString() + "/" + values.size + " jours",
-                    style = MaterialTheme.typography.labelMedium, color = C.textSecondary
+                    style = MaterialTheme.typography.labelMedium, color = statusColor
                 )
             }
             if (kind == TempoMetricKind.HRV || kind == TempoMetricKind.RESTING_PULSE ||
