@@ -1,3 +1,7 @@
+# Décision utilisateur du 29/10/2026 — Accueil sémantique 2.5.7
+
+Les cartes Aujourd'hui (Sommeil, Pas, FC repos, VFC) utilisent le statut de TempoHealthSignals pour leur fond, bordure, chiffre et label ; les icônes restent de la couleur du domaine. La respiration dans « Santé & activité » comporte un indicateur d'état ; le score Forme colore le nombre. Pas du jour jamais en alerte, référence insuffisante = gris. C'est la suite de la décision 2.5.6.
+
 # Décision utilisateur du 29/10/2026 — PRIORITÉ SUR LES CONSIGNES CI-DESSOUS
 
 Sur Tempo Coach 2.5.6+, tous les points, segments, barres et chiffres interprétés utilisent la même couleur d'état (`C.good`, `C.amber`, `C.redAlert`, `C.unknown`), indépendante de l'identité des domaines. Aucune fausse référence, pas d'alerte sur journée de pas incomplète. Lire la section 2.5.6 dans la charte.
