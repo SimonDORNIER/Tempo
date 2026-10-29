@@ -1817,7 +1817,7 @@ private fun TrendCard(
             }
             if (kind == TempoMetricKind.HRV || kind == TempoMetricKind.RESTING_PULSE ||
                 kind == TempoMetricKind.SLEEP) {
-                Text("Vert : habituel/favorable · orange : écart modéré · rouge : écart marqué · gris : référence insuffisante. Comparaison indicative.",
+                Text(TempoHealthSignals.LEGEND,
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
