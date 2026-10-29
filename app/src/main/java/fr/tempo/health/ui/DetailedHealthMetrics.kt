@@ -148,8 +148,8 @@ fun DetailedHealthMetrics(days: List<DailyHealthEntity>) {
         DataDetailCard("Activité", C.greenGlow) {
             MetricPair("Pas", day?.steps?.toString() ?: "Pas de mesure",
                 if (offset == 0) "Journée en cours" else "Sur la journée",
-                if (offset == 0) null else TempoMetricKind.STEPS,
-                day?.steps?.toDouble(), baseline { it.steps?.toDouble() })
+                TempoMetricKind.STEPS,
+                if (offset == 0) null else day?.steps?.toDouble(), baseline { it.steps?.toDouble() })
             MetricPair("Distance", decimalLabel(day?.distanceMeters?.div(1000.0), " km"), "Sur la journée")
             MetricPair("Minutes de séances enregistrées", day?.exerciseMinutes?.let { "$it min" } ?: "Pas de mesure",
                 "Ne représente pas toutes les minutes d'activité douce",
