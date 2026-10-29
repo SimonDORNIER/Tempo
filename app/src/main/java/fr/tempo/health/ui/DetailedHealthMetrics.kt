@@ -153,8 +153,8 @@ fun DetailedHealthMetrics(days: List<DailyHealthEntity>) {
             MetricPair("Distance", decimalLabel(day?.distanceMeters?.div(1000.0), " km"), "Sur la journée")
             MetricPair("Minutes de séances enregistrées", day?.exerciseMinutes?.let { "$it min" } ?: "Pas de mesure",
                 "Ne représente pas toutes les minutes d'activité douce",
-                if (offset == 0) null else TempoMetricKind.ACTIVE_MINUTES,
-                day?.exerciseMinutes?.toDouble(), baseline { it.exerciseMinutes?.toDouble() })
+                TempoMetricKind.ACTIVE_MINUTES,
+                if (offset == 0) null else day?.exerciseMinutes?.toDouble(), baseline { it.exerciseMinutes?.toDouble() })
         }
 
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
