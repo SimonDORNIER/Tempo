@@ -1,2 +1,2 @@
-Tempo Coach 2.5.6 : code couleur sémantique cohérent sur toutes les tendances et les mesures détaillées, jours d'activité incomplets neutres, tests de seuils. Données, stockage et package inchangés.
-Publication de la version 2.5.6 après validation automatique des tests et de la compilation Android.
+Tempo Coach 2.5.7 : accueil à couleurs d'état identiques à Suivi (sommeil, pas, FC repos, VFC, respiration, préparation). Référence personnelle médiane de 5+ journées ; pas du jour neutres ; aucune donnée inventée. Icônes par domaine conservées.
+Publication uniquement après tests unitaires et compilation Android signée.
