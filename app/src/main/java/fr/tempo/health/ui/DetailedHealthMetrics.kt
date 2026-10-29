@@ -172,7 +172,7 @@ fun DetailedHealthMetrics(days: List<DailyHealthEntity>) {
             DetailTrend("Sommeil", days, period, TempoMetricKind.SLEEP, TempoChartKind.BARS) {
                 it.sleepMinutes?.toDouble()
             }
-            Text("Vert = habituel/favorable · orange = écart modéré · rouge = écart marqué · gris = référence insuffisante ou journée en cours. Comparaison indicative.",
+            Text(TempoHealthSignals.LEGEND,
                 color = C.textSecondary, fontSize = 12.sp)
         }
         Text("Données locales issues de Santé Connect • dernière synchronisation : " +
