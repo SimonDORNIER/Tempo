@@ -1,3 +1,7 @@
+# Correctif utilisateur 29/10/2026 — 2.5.8 : retour fiable sur Aujourd'hui
+
+Dans la barre basse, sélectionner Aujourd'hui revient explicitement à la destination racine avec `popBackStack("today", false)`, sans `restoreState`. Ne plus utiliser un navigate avec save/restore pour l'accueil, car un état antérieur peut restituer Suivi. Les trois autres onglets conservent leur gestion d'état habituelle.
+
 # Décision utilisateur du 29/10/2026 — Accueil sémantique 2.5.7
 
 Les cartes Aujourd'hui (Sommeil, Pas, FC repos, VFC) utilisent le statut de TempoHealthSignals pour leur fond, bordure, chiffre et label ; les icônes restent de la couleur du domaine. La respiration dans « Santé & activité » comporte un indicateur d'état ; le score Forme colore le nombre. Pas du jour jamais en alerte, référence insuffisante = gris. C'est la suite de la décision 2.5.6.
