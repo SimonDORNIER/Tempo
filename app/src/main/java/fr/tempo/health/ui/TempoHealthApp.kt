@@ -1317,7 +1317,8 @@ private fun HealthScreen(
                 title = "Respiration • 7 jours",
                 values = metricByCalendarDay(days, 7) { it.respiratoryRate },
                 valueText = { value -> oneDecimal(value) + " /min" },
-                kind = TempoMetricKind.OTHER
+                kind = TempoMetricKind.RESPIRATION,
+                reference = days.drop(7).mapNotNull { it.respiratoryRate }
             )
         }
     }
@@ -1638,7 +1639,8 @@ private fun ProgressScreen(
                 title = "Pas • 7 jours",
                 values = metricByCalendarDay(days, 7) { it.steps?.toDouble() },
                 valueText = { value -> value.toLong().toString() },
-                kind = TempoMetricKind.STEPS
+                kind = TempoMetricKind.STEPS,
+                reference = days.drop(7).mapNotNull { it.steps?.toDouble() }
             )
 
             StatusCard(
@@ -1765,8 +1767,12 @@ private fun TrendCard(
     val valid = values.filterNotNull().filter { it.isFinite() }
     val latest = values.lastOrNull { it != null && it.isFinite() }
     val usual = TempoHealthSignals.reference(reference)
-    val signal = TempoHealthSignals.assess(kind, latest, usual)
-    val accent = TempoHealthSignals.displayColor(kind, signal)
+    val comparisonValue = if (kind == TempoMetricKind.STEPS ||
+        kind == TempoMetricKind.ACTIVE_MINUTES) {
+        values.dropLast(1).lastOrNull { it != null && it.isFinite() }
+    } else latest
+    val signal = TempoHealthSignals.assess(kind, comparisonValue, usual)
+    val accent = TempoHealthSignals.categoryColor(kind)
     val chartKind = if (kind == TempoMetricKind.STEPS ||
         kind == TempoMetricKind.ACTIVE_MINUTES || kind == TempoMetricKind.SLEEP)
         TempoChartKind.BARS else TempoChartKind.LINE
@@ -1782,7 +1788,10 @@ private fun TrendCard(
                 Spacer(Modifier.width(9.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(title, fontWeight = FontWeight.SemiBold, maxLines = 2)
-                    Text(latest?.let(valueText) ?: "—", color = C.text,
+                    Text(latest?.let(valueText) ?: "—",
+                        color = if (kind == TempoMetricKind.STEPS ||
+                            kind == TempoMetricKind.ACTIVE_MINUTES) C.text
+                            else TempoHealthSignals.color(signal),
                         style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                 }
             }
@@ -1803,14 +1812,14 @@ private fun TrendCard(
                     modifier = Modifier.size(8.dp).background(statusColor, CircleShape)
                 )
                 Text(
-                    TempoHealthSignals.label(kind, signal) + " • " +
+                    TempoHealthSignals.comparisonLabel(kind, comparisonValue, usual) + " • " +
                         valid.size.toString() + "/" + values.size + " jours",
                     style = MaterialTheme.typography.labelMedium, color = C.textSecondary
                 )
             }
             if (kind == TempoMetricKind.HRV || kind == TempoMetricKind.RESTING_PULSE ||
                 kind == TempoMetricKind.SLEEP) {
-                Text("Couleurs relatives à ta référence personnelle, sans diagnostic.",
+                Text("Vert : habituel/favorable · orange : écart modéré · rouge : écart marqué · gris : référence insuffisante. Comparaison indicative.",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
