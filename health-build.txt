@@ -1,1 +1,1 @@
-Tempo Coach 2.5.5 : accents des cartes reellement visibles, etats de recuperation discrets et distincts, aucun changement de donnees.
+Tempo Coach 2.5.6 : code couleur sémantique cohérent sur toutes les tendances et les mesures détaillées, jours d'activité incomplets neutres, tests de seuils. Données, stockage et package inchangés.
