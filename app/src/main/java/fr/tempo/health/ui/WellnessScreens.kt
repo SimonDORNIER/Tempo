@@ -209,7 +209,7 @@ private fun PrimaryAction(text: String, icon: ImageVector, onClick: () -> Unit) 
 private fun TempoStateLabel(title: String, color: Color) {
     Row(horizontalArrangement = Arrangement.spacedBy(5.dp), verticalAlignment = Alignment.CenterVertically) {
         Box(Modifier.size(7.dp).background(color, CircleShape))
-        Text(title, color = C.textSecondary, style = MaterialTheme.typography.labelSmall,
+        Text(title, color = color, style = MaterialTheme.typography.labelSmall,
             maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
