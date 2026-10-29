@@ -1,5 +1,10 @@
 # Tempo Coach — Charte graphique et UX
 
+## Correctif 2.5.8 — navigation de l'onglet Aujourd'hui
+
+L'onglet `Aujourd'hui` est la racine de navigation. Un tap sur son icône doit afficher `TodayV21Screen` et non l'ancien onglet `Suivi`. Ne pas restaurer une pile mémorisée lors de la sélection de cette racine : retour explicite avec `NavController.popBackStack("today", false)`, puis navigation sans restauration seulement si la racine n'est pas trouvée. Les écrans et couleurs 2.5.7 restent inchangés.
+
+
 ## Décision prioritaire — 2.5.7 (29 octobre 2026) : l'accueil reflète les états
 
 Les quatre tuiles d'Aujourd'hui sont **informatives en trois secondes** : fond teinté et bordure, chiffre et pastille/libellé sont en vert, ambre, rouge ou gris selon `TempoHealthSignals.assessDaily`. L'icône conserve la teinte du domaine (lavande sommeil, vert activité, rose cardio). Le score de préparation colore aussi le chiffre central ; la respiration de « Santé & activité » porte une pastille et une couleur d'état.
