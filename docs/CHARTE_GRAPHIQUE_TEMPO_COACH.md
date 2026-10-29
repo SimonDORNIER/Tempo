@@ -1,5 +1,15 @@
 # Tempo Coach — Charte graphique et UX
 
+## Décision prioritaire — 2.5.6 (29 octobre 2026) : couleurs d'état partout
+
+Le **domaine** conserve sa couleur douce pour les icônes et l'habillage des cartes. En revanche, **chaque valeur évaluée, point, segment de courbe, barre et pastille** utilise un seul système de couleurs : vert `C.good` = habituel/favorable, ambre `C.amber` = écart modéré, rouge `C.redAlert` = écart marqué, gris `C.unknown` = historique insuffisant ou mesure encore incomplète. La légende visible est définie dans `TempoHealthSignals.LEGEND` et utilisée dans Suivi, les graphiques et les mesures détaillées.
+
+La médiane de référence exige au moins **cinq journées renseignées**. Les seuils de sommeil, FC de repos et VFC restent ceux de 2.3.0 ; les pas/minutes actives sont évalués en **volume relatif** (en dessous de 75 % = ambre, de 45 % = rouge) sans conclure à un problème de santé, et la journée en cours est grise. La respiration et la SpO₂ utilisent des écarts personnels indicatifs, pas des limites de diagnostic. La flèche ↑ / ↓ et ≈ distingue le sens de variation du jugement favorable/défavorable. Les journées sans mesure restent vides sans interpolation, et les segments s'arrêtent aux trous de données. La ligne pointillée donne la référence quand elle entre dans l'échelle affichée.
+
+Cette demande de l'utilisateur remplace la consigne antérieure de garder les lignes/barres colorées par domaine. Les couleurs de famille restent dans les icônes et les cartes, pas dans les graphiques d'état.
+
+
+
 ## Décision prioritaire — Tempo Coach 2.5 : interface douce par domaine (28 octobre 2026)
 
 La **dernière maquette des quatre onglets** a été validée comme référence visuelle. Elle remplace la DA Option B, jugée trop saturée. L'interface doit rester compacte, claire et professionnelle pour Pixel 7a, avec un fond anthracite uni, des surfaces peu contrastées, des bordures fines et de rares dégradés discrets. Ne pas inventer de statistiques, de pourcentages, de profil, de programmes ni d'objectifs à partir de la maquette illustrative.
