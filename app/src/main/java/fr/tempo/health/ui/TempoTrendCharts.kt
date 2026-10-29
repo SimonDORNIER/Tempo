@@ -94,6 +94,14 @@ object TempoHealthSignals {
         }
     }
 
+    /** Pour les volumes d'activité, la journée actuelle est toujours incomplète. */
+    fun assessDaily(
+        kind: TempoMetricKind, value: Double?, usual: Double?, isCurrentDay: Boolean
+    ): TempoSignal =
+        if (isCurrentDay && (kind == TempoMetricKind.STEPS ||
+                kind == TempoMetricKind.ACTIVE_MINUTES)) TempoSignal.UNKNOWN
+        else assess(kind, value, usual)
+
     fun color(signal: TempoSignal): Color = when (signal) {
         TempoSignal.NORMAL -> C.good
         TempoSignal.CAUTION -> C.amber
@@ -219,14 +227,12 @@ fun TempoTrendGraph(
             return (pad + chartHeight * (0.83f - normalized.toFloat() * 0.68f))
                 .coerceIn(pad, size.height - pad)
         }
-        fun paint(value: Double, index: Int): Color {
-            if (index == count - 1 && (metric == TempoMetricKind.STEPS ||
-                    metric == TempoMetricKind.ACTIVE_MINUTES)) {
-                return C.unknown // Aujourd'hui n'est pas une journée achevée.
-            }
-            return TempoHealthSignals.displayColor(metric,
-                TempoHealthSignals.assess(metric, value, usual))
-        }
+        fun paint(value: Double, index: Int): Color =
+            TempoHealthSignals.displayColor(
+                metric, TempoHealthSignals.assessDaily(
+                    metric, value, usual, isCurrentDay = index == count - 1
+                )
+            )
 
         if (usual != null && usual.isFinite() && usual > 0.0) {
             val y = when (kind) {
