@@ -1,5 +1,12 @@
 # Tempo Coach — Charte graphique et UX
 
+## Décision prioritaire — 2.5.7 (29 octobre 2026) : l'accueil reflète les états
+
+Les quatre tuiles d'Aujourd'hui sont **informatives en trois secondes** : fond teinté et bordure, chiffre et pastille/libellé sont en vert, ambre, rouge ou gris selon `TempoHealthSignals.assessDaily`. L'icône conserve la teinte du domaine (lavande sommeil, vert activité, rose cardio). Le score de préparation colore aussi le chiffre central ; la respiration de « Santé & activité » porte une pastille et une couleur d'état.
+
+Sommeil = dernière nuit réellement terminée avec ses heures et son efficacité **affichée comme donnée, pas comme diagnostic** ; comparaison de la durée à la référence personnelle par la même règle que Suivi. FC repos et VFC = mesure du jour comparée à la médiane personnelle valable, pas à une valeur universelle. Pas = gris « Journée en cours » jusqu'à la fin du jour, jamais rouge à midi. Pour une référence absente ou une mesure absente : gris et texte explicite, pas de vert par défaut. Les mêmes règles s'appliquent aux graphiques et à l'accueil. Quatre cartes de 162 dp, fond sombre inchangé, aucun changement de données ni de sauvegarde.
+
+
 ## Décision prioritaire — 2.5.6 (29 octobre 2026) : couleurs d'état partout
 
 Le **domaine** conserve sa couleur douce pour les icônes et l'habillage des cartes. En revanche, **chaque valeur évaluée, point, segment de courbe, barre et pastille** utilise un seul système de couleurs : vert `C.good` = habituel/favorable, ambre `C.amber` = écart modéré, rouge `C.redAlert` = écart marqué, gris `C.unknown` = historique insuffisant ou mesure encore incomplète. La légende visible est définie dans `TempoHealthSignals.LEGEND` et utilisée dans Suivi, les graphiques et les mesures détaillées.
