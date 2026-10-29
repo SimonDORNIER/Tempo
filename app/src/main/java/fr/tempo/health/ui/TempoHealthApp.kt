@@ -646,7 +646,8 @@ private fun StatusCard(
     emoji: String,
     title: String,
     value: String,
-    detail: String
+    detail: String,
+    valueColor: androidx.compose.ui.graphics.Color = C.text
 ) {
     TempoPanelCard(
         modifier = Modifier.fillMaxWidth(),
@@ -676,7 +677,8 @@ private fun StatusCard(
                 Text(
                     value,
                     style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
+                    color = valueColor
                 )
                 Text(
                     detail,
@@ -1249,7 +1251,8 @@ private fun HealthScreen(
                 },
                 valueText = { value ->
                     formatMinutes(value.toLong())
-                }
+                },
+                kind = TempoMetricKind.SLEEP
             )
 
             HealthAverageComparisonCard(
@@ -1259,7 +1262,8 @@ private fun HealthScreen(
                 monthValues = month.mapNotNull { it.hrvRmssdMs },
                 valueText = { value ->
                     oneDecimal(value) + " ms"
-                }
+                },
+                kind = TempoMetricKind.HRV
             )
 
             HealthAverageComparisonCard(
@@ -1270,7 +1274,7 @@ private fun HealthScreen(
                 valueText = { value ->
                     oneDecimal(value) + " bpm"
                 },
-                lowerIsBetter = true
+                kind = TempoMetricKind.RESTING_PULSE
             )
 
             HealthAverageComparisonCard(
@@ -1284,7 +1288,8 @@ private fun HealthScreen(
                 },
                 valueText = { value ->
                     value.toLong().toString() + " pas/j"
-                }
+                },
+                kind = TempoMetricKind.STEPS
             )
 
             TrendCard(
@@ -1724,7 +1729,7 @@ private fun HealthAverageComparisonCard(
     weekValues: List<Double>,
     monthValues: List<Double>,
     valueText: (Double) -> String,
-    lowerIsBetter: Boolean = false
+    kind: TempoMetricKind
 ) {
     if (weekValues.size < 4 || monthValues.size < 7) {
         StatusCard(
@@ -1736,22 +1741,15 @@ private fun HealthAverageComparisonCard(
 
     val weekAverage = weekValues.average()
     val monthAverage = monthValues.average()
-    val delta = weekAverage - monthAverage
-    val threshold = kotlin.math.abs(monthAverage) * 0.03
-
-    val trend = when {
-        kotlin.math.abs(delta) <= threshold -> "≈ stable"
-        (delta > 0 && !lowerIsBetter) ||
-            (delta < 0 && lowerIsBetter) -> "↗ favorable"
-        else -> "↘ à surveiller"
-    }
-
+    val signal = TempoHealthSignals.assess(kind, weekAverage, monthAverage)
     StatusCard(
         emoji,
         title,
         valueText(weekAverage),
-        "21 j précédents : " + valueText(monthAverage) + " • " + trend +
-            " • " + weekValues.size + "/" + monthValues.size + " mesures"
+        "21 j précédents : " + valueText(monthAverage) + " • " +
+            TempoHealthSignals.comparisonLabel(kind, weekAverage, monthAverage) +
+            " • " + weekValues.size + "/" + monthValues.size + " mesures",
+        valueColor = TempoHealthSignals.color(signal)
     )
 }
 
