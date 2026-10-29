@@ -269,7 +269,11 @@ private fun TinyTrend(
                 Icon(Icons.Rounded.ChevronRight, "Voir les détails", tint = C.textMuted,
                     modifier = Modifier.size(18.dp))
             }
-            Text(summary, color = C.text, style = MaterialTheme.typography.titleLarge,
+            Text(summary,
+                color = if (kind == TempoMetricKind.HRV ||
+                    kind == TempoMetricKind.RESTING_PULSE) TempoHealthSignals.color(state)
+                    else C.text,
+                style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
             TempoTrendGraph(
                 values = points, metric = kind, usual = usual,
@@ -277,9 +281,8 @@ private fun TinyTrend(
                     TempoChartKind.BARS else TempoChartKind.LINE, height = 66.dp
             )
             TempoStateLabel(
-                if (isActivity && state != TempoSignal.UNKNOWN) {
-                    "Hier : " + TempoHealthSignals.label(kind, state)
-                } else TempoHealthSignals.label(kind, state),
+                (if (isActivity) "Jour fini · " else "") +
+                    TempoHealthSignals.comparisonLabel(kind, latestCompleted, usual),
                 TempoHealthSignals.color(state)
             )
         }
