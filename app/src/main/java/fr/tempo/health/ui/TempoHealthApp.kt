@@ -299,10 +299,26 @@ fun TempoHealthApp(
                         NavigationBarItem(
                             selected = selected,
                             onClick = {
-                                navController.navigate(destination.route) {
-                                    popUpTo("today") { saveState = true }
-                                    launchSingleTop = true
-                                    restoreState = true
+                                if (destination.route == "today") {
+                                    // L'accueil est la racine de la navigation. Revenir
+                                    // directement dessus évite de restaurer une ancienne
+                                    // pile « Suivi » lorsque l'utilisateur touche l'onglet.
+                                    val returnedHome = navController.popBackStack(
+                                        route = "today", inclusive = false
+                                    )
+                                    if (!returnedHome && currentRoute != "today") {
+                                        navController.navigate("today") {
+                                            popUpTo("today") { inclusive = false }
+                                            launchSingleTop = true
+                                            restoreState = false
+                                        }
+                                    }
+                                } else {
+                                    navController.navigate(destination.route) {
+                                        popUpTo("today") { saveState = true }
+                                        launchSingleTop = true
+                                        restoreState = true
+                                    }
                                 }
                             },
                             icon = {
