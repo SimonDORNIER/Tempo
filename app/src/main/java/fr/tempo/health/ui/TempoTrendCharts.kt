@@ -10,6 +10,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -20,7 +21,7 @@ import java.time.LocalDate
 import kotlin.math.max
 
 /** Statut indicatif par rapport aux mesures habituelles, jamais un diagnostic. */
-enum class TempoMetricKind { SLEEP, HRV, RESTING_PULSE, STEPS, ACTIVE_MINUTES, OTHER }
+enum class TempoMetricKind { SLEEP, HRV, RESTING_PULSE, STEPS, ACTIVE_MINUTES, RESPIRATION, OXYGEN_SATURATION, OTHER }
 enum class TempoSignal { NORMAL, CAUTION, LOW, UNKNOWN }
 enum class TempoChartKind { LINE, BARS }
 
@@ -69,10 +70,25 @@ object TempoHealthSignals {
                 value >= usual + 4.0 -> TempoSignal.CAUTION
                 else -> TempoSignal.NORMAL
             }
-            // On ne déduit pas l'état de fatigue de l'activité, de la respiration
-            // ou des pas. Ces couleurs restent celles de leur catégorie.
-            TempoMetricKind.STEPS, TempoMetricKind.ACTIVE_MINUTES, TempoMetricKind.OTHER ->
-                TempoSignal.UNKNOWN
+            // Volumes de mouvement : comparaison d'une journée achevée à ses habitudes,
+            // jamais un jugement clinique ni un score de récupération.
+            TempoMetricKind.STEPS, TempoMetricKind.ACTIVE_MINUTES -> when {
+                value <= usual * 0.45 -> TempoSignal.LOW
+                value <= usual * 0.75 -> TempoSignal.CAUTION
+                else -> TempoSignal.NORMAL
+            }
+            // Écarts à la référence individuelle : ne diagnostique pas de trouble.
+            TempoMetricKind.RESPIRATION -> when {
+                kotlin.math.abs(value - usual) >= kotlin.math.max(2.5, usual * 0.20) -> TempoSignal.LOW
+                kotlin.math.abs(value - usual) >= kotlin.math.max(1.2, usual * 0.10) -> TempoSignal.CAUTION
+                else -> TempoSignal.NORMAL
+            }
+            TempoMetricKind.OXYGEN_SATURATION -> when {
+                value <= usual - 3.0 -> TempoSignal.LOW
+                value <= usual - 1.5 -> TempoSignal.CAUTION
+                else -> TempoSignal.NORMAL
+            }
+            TempoMetricKind.OTHER -> TempoSignal.UNKNOWN
         }
     }
 
@@ -86,13 +102,43 @@ object TempoHealthSignals {
     /** Couleurs d'identité constantes quel que soit le résultat. */
     fun categoryColor(kind: TempoMetricKind): Color = when (kind) {
         TempoMetricKind.SLEEP -> C.sleep
-        TempoMetricKind.HRV, TempoMetricKind.RESTING_PULSE -> C.heart
+        TempoMetricKind.HRV, TempoMetricKind.RESTING_PULSE, TempoMetricKind.OXYGEN_SATURATION -> C.heart
         TempoMetricKind.STEPS, TempoMetricKind.ACTIVE_MINUTES -> C.activity
-        TempoMetricKind.OTHER -> C.calm
+        TempoMetricKind.RESPIRATION, TempoMetricKind.OTHER -> C.calm
     }
 
+    // Même sémantique sur les chiffres, les points, les segments, les barres
+    // et les pastilles. La couleur de domaine reste réservée aux icônes/cartes.
     fun displayColor(kind: TempoMetricKind, signal: TempoSignal): Color =
-        categoryColor(kind)
+        color(signal)
+
+    /** Sens de la mesure et gravité de l'écart : ce sont deux informations distinctes. */
+    fun comparisonLabel(kind: TempoMetricKind, value: Double?, usual: Double?): String {
+        val signal = assess(kind, value, usual)
+        if (signal == TempoSignal.UNKNOWN || value == null || usual == null) {
+            return "Référence insuffisante"
+        }
+        val margin = when (kind) {
+            TempoMetricKind.SLEEP -> 20.0
+            TempoMetricKind.HRV, TempoMetricKind.STEPS, TempoMetricKind.ACTIVE_MINUTES ->
+                usual * 0.05
+            TempoMetricKind.RESTING_PULSE, TempoMetricKind.RESPIRATION -> 1.0
+            TempoMetricKind.OXYGEN_SATURATION -> 0.5
+            TempoMetricKind.OTHER -> 0.0
+        }
+        val direction = when {
+            value > usual + margin -> "↑ Au-dessus"
+            value < usual - margin -> "↓ En dessous"
+            else -> "≈ Habituel"
+        }
+        val status = when (signal) {
+            TempoSignal.NORMAL -> "favorable / habituel"
+            TempoSignal.CAUTION -> "écart modéré"
+            TempoSignal.LOW -> "écart marqué"
+            TempoSignal.UNKNOWN -> "indéterminé"
+        }
+        return "$direction · $status"
+    }
 
     fun label(kind: TempoMetricKind, signal: TempoSignal): String =
         when (kind) {
@@ -102,13 +148,19 @@ object TempoHealthSignals {
                 TempoSignal.LOW -> "Sommeil nettement réduit"
                 TempoSignal.UNKNOWN -> "Référence à construire"
             }
-            TempoMetricKind.HRV, TempoMetricKind.RESTING_PULSE -> when (signal) {
+            TempoMetricKind.HRV, TempoMetricKind.RESTING_PULSE, TempoMetricKind.RESPIRATION,
+            TempoMetricKind.OXYGEN_SATURATION -> when (signal) {
                 TempoSignal.NORMAL -> "Dans ma plage habituelle"
                 TempoSignal.CAUTION -> "Écart modéré"
                 TempoSignal.LOW -> "Écart important"
                 TempoSignal.UNKNOWN -> "Référence à construire"
             }
-            TempoMetricKind.STEPS, TempoMetricKind.ACTIVE_MINUTES -> "Volume d'activité"
+            TempoMetricKind.STEPS, TempoMetricKind.ACTIVE_MINUTES -> when (signal) {
+                TempoSignal.NORMAL -> "Activité habituelle ou supérieure"
+                TempoSignal.CAUTION -> "Activité sous l'habitude"
+                TempoSignal.LOW -> "Activité très réduite"
+                TempoSignal.UNKNOWN -> "Référence à construire"
+            }
             TempoMetricKind.OTHER -> "Mesures disponibles"
         }
 
@@ -139,7 +191,8 @@ fun TempoTrendGraph(
     val maxValue = valid.maxOrNull() ?: 1.0
     val range = (maxValue - minValue).takeIf { it > 0.00001 } ?: 1.0
     val count = values.size.coerceAtLeast(1)
-    val fallback = TempoHealthSignals.categoryColor(metric)
+    // Couleurs réservées au résultat, jamais aux catégories.
+    // La dernière barre d'activité correspond à aujourd'hui, encore incomplet.
 
     Canvas(modifier = modifier.fillMaxWidth().height(height)) {
         val pad = 6.dp.toPx()
@@ -164,15 +217,32 @@ fun TempoTrendGraph(
             return (pad + chartHeight * (0.83f - normalized.toFloat() * 0.68f))
                 .coerceIn(pad, size.height - pad)
         }
-        fun paint(value: Double): Color {
-            // Le domaine reste stable : seuls les écarts défavorables
-            // deviennent ambre ou rouge sur les points physiologiques.
-            val state = TempoHealthSignals.assess(metric, value, usual)
-            if (kind == TempoChartKind.BARS) return fallback
-            return when (state) {
-                TempoSignal.CAUTION -> C.amber
-                TempoSignal.LOW -> C.redAlert
-                else -> fallback
+        fun paint(value: Double, index: Int): Color {
+            if (index == count - 1 && (metric == TempoMetricKind.STEPS ||
+                    metric == TempoMetricKind.ACTIVE_MINUTES)) {
+                return C.unknown // Aujourd'hui n'est pas une journée achevée.
+            }
+            return TempoHealthSignals.displayColor(metric,
+                TempoHealthSignals.assess(metric, value, usual))
+        }
+
+        if (usual != null && usual.isFinite() && usual > 0.0) {
+            val y = when (kind) {
+                TempoChartKind.LINE -> if (usual in minValue..maxValue) yAt(usual) else null
+                TempoChartKind.BARS -> {
+                    val ceiling = max(maxValue, 1.0)
+                    if (usual <= ceiling) size.height - pad -
+                        (usual / ceiling).toFloat() * chartHeight * 0.9f else null
+                }
+            }
+            if (y != null) {
+                drawLine(
+                    color = C.textMuted.copy(alpha = 0.75f),
+                    start = Offset(pad, y),
+                    end = Offset(size.width - pad, y),
+                    strokeWidth = 1.dp.toPx(),
+                    pathEffect = PathEffect.dashPathEffect(floatArrayOf(5.dp.toPx(), 5.dp.toPx()))
+                )
             }
         }
 
@@ -183,19 +253,21 @@ fun TempoTrendGraph(
                     if (index == 0 || value == null || !value.isFinite()) return@forEachIndexed
                     val previous = values[index - 1]
                     if (previous == null || !previous.isFinite()) return@forEachIndexed
-                    drawLine(
-                        color = paint(value),
-                        start = Offset(xAt(index - 1), yAt(previous)),
-                        end = Offset(xAt(index), yAt(value)),
-                        strokeWidth = strokeWidth,
-                        cap = StrokeCap.Round
-                    )
+                    val start = Offset(xAt(index - 1), yAt(previous))
+                    val end = Offset(xAt(index), yAt(value))
+                    val midpoint = Offset((start.x + end.x) / 2f, (start.y + end.y) / 2f)
+                    // Chaque moitié du trait représente exactement son point,
+                    // même si l'état change entre deux jours.
+                    drawLine(color = paint(previous, index - 1),
+                        start = start, end = midpoint, strokeWidth = strokeWidth, cap = StrokeCap.Round)
+                    drawLine(color = paint(value, index),
+                        start = midpoint, end = end, strokeWidth = strokeWidth, cap = StrokeCap.Round)
                 }
                 values.forEachIndexed { index, value ->
                     if (value == null || !value.isFinite()) return@forEachIndexed
                     val center = Offset(xAt(index), yAt(value))
                     drawCircle(color = C.background, radius = pointRadius + 1.7.dp.toPx(), center = center)
-                    drawCircle(color = paint(value), radius = pointRadius, center = center)
+                    drawCircle(color = paint(value, index), radius = pointRadius, center = center)
                 }
             }
             TempoChartKind.BARS -> {
@@ -205,7 +277,7 @@ fun TempoTrendGraph(
                     if (value == null || !value.isFinite()) return@forEachIndexed
                     val h = max(3.dp.toPx(), (value / ceiling).toFloat() * chartHeight * 0.9f)
                     val top = size.height - pad - h
-                    val color = paint(value)
+                    val color = paint(value, index)
                     drawRoundRect(
                         brush = Brush.verticalGradient(
                             colors = listOf(color, color.copy(alpha = 0.57f)),
