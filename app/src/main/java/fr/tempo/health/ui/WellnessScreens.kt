@@ -245,13 +245,19 @@ private fun TinyTrend(
 ) {
     val points = metricByCalendarDay(days, 7) { metric(it)?.toDouble() }
     val usual = TempoHealthSignals.reference(days.drop(7).mapNotNull { metric(it)?.toDouble() })
-    val state = TempoHealthSignals.assess(kind, points.lastOrNull { it != null }, usual)
+    // Une journée d'activité n'est comparée qu'une fois terminée.
+    val latestCompleted = if (kind == TempoMetricKind.STEPS ||
+        kind == TempoMetricKind.ACTIVE_MINUTES) {
+        points.dropLast(1).lastOrNull { it != null }
+    } else points.lastOrNull { it != null }
+    val state = TempoHealthSignals.assess(kind, latestCompleted, usual)
     val isActivity = kind == TempoMetricKind.STEPS || kind == TempoMetricKind.ACTIVE_MINUTES
     val background = when (kind) {
         TempoMetricKind.SLEEP -> C.sleepDeep
         TempoMetricKind.STEPS, TempoMetricKind.ACTIVE_MINUTES -> C.activityDeep
-        TempoMetricKind.HRV, TempoMetricKind.RESTING_PULSE -> C.heartDeep
-        TempoMetricKind.OTHER -> C.calmDeep
+        TempoMetricKind.HRV, TempoMetricKind.RESTING_PULSE,
+        TempoMetricKind.OXYGEN_SATURATION -> C.heartDeep
+        TempoMetricKind.RESPIRATION, TempoMetricKind.OTHER -> C.calmDeep
     }
     TintedCard(modifier, background, C.surface, onClick, color) {
         Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
@@ -270,17 +276,12 @@ private fun TinyTrend(
                 kind = if (kind == TempoMetricKind.SLEEP || isActivity)
                     TempoChartKind.BARS else TempoChartKind.LINE, height = 66.dp
             )
-            if (isActivity) {
-                Text("7 derniers jours", color = C.textSecondary,
-                    style = MaterialTheme.typography.labelSmall)
-            } else {
-                TempoStateLabel(
-                    if (state == TempoSignal.UNKNOWN) "Référence insuffisante"
-                    else TempoHealthSignals.label(kind, state),
-                    if (state == TempoSignal.UNKNOWN) C.unknown
-                    else TempoHealthSignals.color(state)
-                )
-            }
+            TempoStateLabel(
+                if (isActivity && state != TempoSignal.UNKNOWN) {
+                    "Hier : " + TempoHealthSignals.label(kind, state)
+                } else TempoHealthSignals.label(kind, state),
+                TempoHealthSignals.color(state)
+            )
         }
     }
 }
@@ -705,7 +706,7 @@ fun TrackingHubV21Screen(
             }
         }
         item {
-            Text("Les couleurs indiquent les domaines. Les pastilles montrent les écarts éventuels à tes références personnelles.",
+            Text("Graphiques : vert = habituel/favorable · orange = écart modéré · rouge = écart marqué · gris = référence insuffisante ou journée en cours. Icônes : couleurs des domaines.",
                 color = C.textMuted, style = MaterialTheme.typography.labelSmall)
         }
     }
