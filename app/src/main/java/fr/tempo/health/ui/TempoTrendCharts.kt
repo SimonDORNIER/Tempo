@@ -41,6 +41,8 @@ fun metricByCalendarDay(
 }
 
 object TempoHealthSignals {
+    const val LEGEND = "Vert = habituel/favorable · orange = écart modéré · rouge = écart marqué · gris = référence insuffisante ou journée en cours. Comparaison indicative."
+
     /** Minimum de cinq jours de comparaison distincts pour colorer une tendance personnelle. */
     fun reference(values: List<Double>): Double? {
         val cleaned = values.filter { it.isFinite() && it > 0.0 }.sorted()
