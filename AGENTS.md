@@ -1,3 +1,7 @@
+# Décision utilisateur du 29/10/2026 — PRIORITÉ SUR LES CONSIGNES CI-DESSOUS
+
+Sur Tempo Coach 2.5.6+, tous les points, segments, barres et chiffres interprétés utilisent la même couleur d'état (`C.good`, `C.amber`, `C.redAlert`, `C.unknown`), indépendante de l'identité des domaines. Aucune fausse référence, pas d'alerte sur journée de pas incomplète. Lire la section 2.5.6 dans la charte.
+
 # Instructions permanentes — Projet Tempo Coach
 
 > **Décision du 28/10/2026 (prioritaire)** : la maquette 2.5 en couleurs douces par domaine remplace Option B. Brancher les futurs développements sur `health/v2.5.0-soft-professional-ui` puis sur la dernière version publiée. Sources : `docs/CHARTE_GRAPHIQUE_TEMPO_COACH.md` en tête et `docs/TESTS_TEMPO_2_5.md`. Ne jamais revenir aux fortes bordures saturées. Pas de fausses données ni de modifications de schéma pour cette refonte.
