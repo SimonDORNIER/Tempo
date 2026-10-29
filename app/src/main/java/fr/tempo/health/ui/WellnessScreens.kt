@@ -160,12 +160,14 @@ private fun SmallIcon(icon: ImageVector, tint: Color, modifier: Modifier = Modif
 @Composable
 private fun MetricTile(
     title: String, value: String, subtitle: String, icon: ImageVector,
-    accent: Color, first: Color, last: Color, modifier: Modifier = Modifier,
+    accent: Color, first: Color, last: Color,
+    signal: TempoSignal, statusText: String, modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
-    // Taille identique pour Sommeil, Pas, FC repos et VFC, même avec
-    // une description sur deux lignes. Le texte reste limité proprement.
-    TintedCard(modifier.height(162.dp), first, last, onClick, accent) {
+    // Les icônes gardent l'identité du domaine ; le fond, la bordure et
+    // la mesure reflètent l'état, comme dans les graphiques de Suivi.
+    val stateColor = TempoHealthSignals.color(signal)
+    TintedCard(modifier.height(162.dp), first, last, onClick, stateColor) {
         Column(
             modifier = Modifier.fillMaxWidth().height(136.dp),
             verticalArrangement = Arrangement.SpaceBetween
@@ -184,9 +186,46 @@ private fun MetricTile(
             }
             Text(value, style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold, maxLines = 1,
-                color = C.text, overflow = TextOverflow.Ellipsis)
-            Text(subtitle, style = MaterialTheme.typography.labelSmall, maxLines = 2,
-                overflow = TextOverflow.Ellipsis, color = C.textSecondary)
+                color = stateColor, overflow = TextOverflow.Ellipsis)
+            Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                TempoStateLabel(statusText, stateColor)
+                Text(subtitle, style = MaterialTheme.typography.labelSmall, maxLines = 2,
+                    overflow = TextOverflow.Ellipsis, color = C.textSecondary)
+            }
+        }
+    }
+}
+
+/** Libellé court, compréhensible avec le code couleur sans ouvrir Suivi. */
+private fun homeStatusLabel(
+    kind: TempoMetricKind, signal: TempoSignal, hasValue: Boolean
+): String {
+    if (!hasValue) return "Pas de mesure"
+    return when (kind) {
+        TempoMetricKind.SLEEP -> when (signal) {
+            TempoSignal.NORMAL -> "Durée habituelle"
+            TempoSignal.CAUTION -> "Nuit plus courte"
+            TempoSignal.LOW -> "Nuit très courte"
+            TempoSignal.UNKNOWN -> "Sans référence"
+        }
+        TempoMetricKind.HRV -> when (signal) {
+            TempoSignal.NORMAL -> "VFC habituelle"
+            TempoSignal.CAUTION -> "VFC un peu basse"
+            TempoSignal.LOW -> "VFC très basse"
+            TempoSignal.UNKNOWN -> "Sans référence"
+        }
+        TempoMetricKind.RESTING_PULSE -> when (signal) {
+            TempoSignal.NORMAL -> "FC habituelle"
+            TempoSignal.CAUTION -> "FC un peu haute"
+            TempoSignal.LOW -> "FC élevée"
+            TempoSignal.UNKNOWN -> "Sans référence"
+        }
+        TempoMetricKind.STEPS, TempoMetricKind.ACTIVE_MINUTES -> "Journée en cours"
+        else -> when (signal) {
+            TempoSignal.NORMAL -> "Habituel"
+            TempoSignal.CAUTION -> "Écart modéré"
+            TempoSignal.LOW -> "Écart marqué"
+            TempoSignal.UNKNOWN -> "Sans référence"
         }
     }
 }
@@ -313,6 +352,32 @@ fun TodayV21Screen(
     // Un sommeil appartient à la date locale du réveil : ne pas remplacer
     // la nuit dernière par une ancienne nuit ayant une mesure.
     val night = current?.takeIf { (it.sleepMinutes ?: 0L) > 0L }
+    // Exactement la référence personnelle de Suivi : médiane d'au moins
+    // cinq jours, hors des sept derniers jours (pas de seuil médical fixe).
+    val history = days.drop(7)
+    val sleepSignal = TempoHealthSignals.assessDaily(
+        TempoMetricKind.SLEEP, night?.sleepMinutes?.toDouble(),
+        TempoHealthSignals.reference(history.mapNotNull { it.sleepMinutes?.toDouble() }),
+        isCurrentDay = true
+    )
+    val stepsSignal = TempoHealthSignals.assessDaily(
+        TempoMetricKind.STEPS, current?.steps?.toDouble(), null, isCurrentDay = true
+    )
+    val heartSignal = TempoHealthSignals.assessDaily(
+        TempoMetricKind.RESTING_PULSE, current?.restingHeartRate,
+        TempoHealthSignals.reference(history.mapNotNull { it.restingHeartRate }),
+        isCurrentDay = true
+    )
+    val hrvSignal = TempoHealthSignals.assessDaily(
+        TempoMetricKind.HRV, current?.hrvRmssdMs,
+        TempoHealthSignals.reference(history.mapNotNull { it.hrvRmssdMs }),
+        isCurrentDay = true
+    )
+    val breathingSignal = TempoHealthSignals.assessDaily(
+        TempoMetricKind.RESPIRATION, current?.respiratoryRate,
+        TempoHealthSignals.reference(history.mapNotNull { it.respiratoryRate }),
+        isCurrentDay = true
+    )
     val readiness = recovery.score?.takeIf { recovery.confidence >= 20 }
     val readinessAccent = if (readiness == null) C.unknown
         else TempoHealthSignals.recoveryColor(recovery.level)
@@ -368,7 +433,7 @@ fun TodayV21Screen(
                                 strokeWidth = 7.dp
                             )
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text(readiness?.toString() ?: "—", color = C.text,
+                                Text(readiness?.toString() ?: "—", color = readinessAccent,
                                     style = MaterialTheme.typography.headlineMedium,
                                     fontWeight = FontWeight.Bold)
                                 Text(if (readiness == null) "Forme" else "/100",
@@ -399,13 +464,15 @@ fun TodayV21Screen(
         item {
             Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
                 MetricTile("Sommeil", sleepText(night?.sleepMinutes),
-                    if (night == null) "Aucune mesure cette nuit"
-                    else sleepEfficiency(night)?.let { "Efficacité $it % • dernière nuit" }
+                    if (night == null) "Nuit précédente"
+                    else sleepEfficiency(night)?.let { "Efficacité $it % · nuit dernière" }
                         ?: "Dernière nuit",
                     Icons.Rounded.Bedtime, C.sleep, C.sleepDeep, C.surface,
+                    sleepSignal, homeStatusLabel(TempoMetricKind.SLEEP, sleepSignal, night != null),
                     Modifier.weight(1f), onTracking)
                 MetricTile("Pas", current?.steps?.toString() ?: "—", "Aujourd'hui",
                     Icons.Rounded.DirectionsWalk, C.activity, C.activityDeep, C.surface,
+                    stepsSignal, homeStatusLabel(TempoMetricKind.STEPS, stepsSignal, current?.steps != null),
                     Modifier.weight(1f), onTracking)
             }
         }
@@ -414,10 +481,14 @@ fun TodayV21Screen(
                 MetricTile("FC repos", current?.restingHeartRate
                     ?.let { "${it.roundToInt()} bpm" } ?: "—", "Mesure du jour",
                     Icons.Rounded.Favorite, C.heart, C.heartDeep, C.surface,
+                    heartSignal, homeStatusLabel(TempoMetricKind.RESTING_PULSE, heartSignal,
+                        current?.restingHeartRate != null),
                     Modifier.weight(1f), onHealth)
                 MetricTile("VFC", current?.hrvRmssdMs
                     ?.let { "${it.roundToInt()} ms" } ?: "—", "Mesure du jour",
                     Icons.Rounded.BarChart, C.heart, C.heartDeep, C.surface,
+                    hrvSignal, homeStatusLabel(TempoMetricKind.HRV, hrvSignal,
+                        current?.hrvRmssdMs != null),
                     Modifier.weight(1f), onHealth)
             }
         }
@@ -453,11 +524,18 @@ fun TodayV21Screen(
                     Column(Modifier.weight(1f)) {
                         Text("Santé & activité", fontWeight = FontWeight.SemiBold)
                         Text("Activité " + (current?.exerciseMinutes?.let { "$it min" } ?: "—") +
-                            " • Respiration " + (current?.respiratoryRate?.let {
-                                String.format(Locale.FRANCE, "%.1f/min", it)
-                            } ?: "—"),
+                            " · aujourd'hui (en cours)",
                             style = MaterialTheme.typography.bodySmall, color = C.textSecondary,
-                            maxLines = 2, overflow = TextOverflow.Ellipsis)
+                            maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        TempoStateLabel(
+                            "Respiration " + (current?.respiratoryRate?.let {
+                                String.format(Locale.FRANCE, "%.1f/min", it)
+                            } ?: "—") + " · " + homeStatusLabel(
+                                TempoMetricKind.RESPIRATION, breathingSignal,
+                                current?.respiratoryRate != null
+                            ),
+                            TempoHealthSignals.color(breathingSignal)
+                        )
                     }
                     Icon(Icons.Rounded.ChevronRight, "Voir la santé", tint = C.textMuted)
                 }
