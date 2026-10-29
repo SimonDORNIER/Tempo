@@ -1,2 +1,2 @@
-Tempo Coach 2.5.7 : accueil à couleurs d'état identiques à Suivi (sommeil, pas, FC repos, VFC, respiration, préparation). Référence personnelle médiane de 5+ journées ; pas du jour neutres ; aucune donnée inventée. Icônes par domaine conservées.
-Publication uniquement après tests unitaires et compilation Android signée.
+Tempo Coach 2.5.8 : correction navigation, le bouton Aujourd'hui revient directement à l'accueil sans restaurer Suivi. Les couleurs de l'accueil 2.5.7, les données et réglages restent inchangés.
+Tests et compilation Android suivis d'une publication d'APK signé sur GitHub Releases.
