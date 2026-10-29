@@ -37,6 +37,27 @@ class TempoHealthSignalsTest {
         assertEquals(TempoSignal.LOW, TempoHealthSignals.assess(TempoMetricKind.RESPIRATION, 18.0, 15.0))
     }
 
+    @Test fun incompleteDayNeverTriggersActivityWarning() {
+        // Même si le compteur est encore faible à midi, la couleur reste grise.
+        assertEquals(TempoSignal.UNKNOWN, TempoHealthSignals.assessDaily(
+            TempoMetricKind.STEPS, 838.0, 8000.0, isCurrentDay = true))
+        assertEquals(TempoSignal.UNKNOWN, TempoHealthSignals.assessDaily(
+            TempoMetricKind.ACTIVE_MINUTES, 4.0, 40.0, isCurrentDay = true))
+        assertEquals(TempoSignal.LOW, TempoHealthSignals.assessDaily(
+            TempoMetricKind.STEPS, 838.0, 8000.0, isCurrentDay = false))
+    }
+
+    @Test fun homeFollowsTrendSemanticsForSleepAndCardio() {
+        assertEquals(TempoSignal.NORMAL, TempoHealthSignals.assessDaily(
+            TempoMetricKind.SLEEP, 470.0, 455.0, isCurrentDay = true))
+        assertEquals(TempoSignal.CAUTION, TempoHealthSignals.assessDaily(
+            TempoMetricKind.HRV, 29.0, 33.0, isCurrentDay = true))
+        assertEquals(TempoSignal.NORMAL, TempoHealthSignals.assessDaily(
+            TempoMetricKind.RESTING_PULSE, 63.0, 65.0, isCurrentDay = true))
+        assertEquals(TempoSignal.UNKNOWN, TempoHealthSignals.assessDaily(
+            TempoMetricKind.HRV, 29.0, null, isCurrentDay = true))
+    }
+
     @Test fun noDiagnosisWithoutReference() {
         assertEquals(TempoSignal.UNKNOWN, TempoHealthSignals.assess(TempoMetricKind.HRV, 29.0, null))
         assertEquals(TempoSignal.UNKNOWN, TempoHealthSignals.assess(TempoMetricKind.OTHER, 65.0, 60.0))
