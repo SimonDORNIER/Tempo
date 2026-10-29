@@ -45,6 +45,8 @@ fun DetailedHealthMetrics(days: List<DailyHealthEntity>) {
     val dayDate = LocalDate.now().minusDays(offset.toLong())
     val day = days.firstOrNull { it.date == dayDate.toString() }
     val dateLabel = dayDate.format(DateTimeFormatter.ofPattern("EEEE d MMMM", Locale.FRANCE))
+    fun baseline(get: (DailyHealthEntity) -> Double?): Double? =
+        TempoHealthSignals.reference(days.drop(7).mapNotNull(get))
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text("Mes mesures en détail", fontWeight = FontWeight.Bold, fontSize = 19.sp)
@@ -72,12 +74,20 @@ fun DetailedHealthMetrics(days: List<DailyHealthEntity>) {
                 val efficiency = if (reliableStages && day.sleepMinutes != null && bedMinutes > 0) {
                     (100.0 * day.sleepMinutes / bedMinutes).coerceIn(0.0, 100.0).roundToInt()
                 } else null
+                val sleepValue = day.sleepMinutes?.toDouble()
+                val sleepReference = baseline { it.sleepMinutes?.toDouble() }
+                val sleepState = TempoHealthSignals.assess(TempoMetricKind.SLEEP,
+                    sleepValue, sleepReference)
                 Text(
                     (if (reliableStages) "Sommeil mesuré : " else "Session déclarée : ") +
                         minutesLabel(day.sleepMinutes) +
                         "  •  Au lit : " + minutesLabel(bedMinutes),
-                    fontWeight = FontWeight.SemiBold
+                    fontWeight = FontWeight.SemiBold,
+                    color = TempoHealthSignals.color(sleepState)
                 )
+                Text(TempoHealthSignals.comparisonLabel(TempoMetricKind.SLEEP,
+                    sleepValue, sleepReference),
+                    color = TempoHealthSignals.color(sleepState), fontSize = 11.sp)
                 Text("De " + timeLabel(day.sleepStartEpochMs) + " à " + timeLabel(day.sleepEndEpochMs),
                     color = C.textSecondary, fontSize = 13.sp)
                 MetricPair("Qualité — efficacité du sommeil",
@@ -111,27 +121,40 @@ fun DetailedHealthMetrics(days: List<DailyHealthEntity>) {
                 "Minimum : " + numberLabel(day?.pulseMinBpm, " bpm") +
                     "   Maximum : " + numberLabel(day?.pulseMaxBpm, " bpm"))
             MetricPair("Pouls au repos", numberLabel(day?.restingHeartRate, " bpm"),
-                "Valeur agrégée sur la journée")
+                "Valeur agrégée sur la journée",
+                TempoMetricKind.RESTING_PULSE, day?.restingHeartRate,
+                baseline { it.restingHeartRate })
             MetricPair("Pouls pendant le sommeil", numberLabel(day?.overnightHeartRate, " bpm"),
                 "Moyenne sur la session de sommeil")
             MetricPair("Variabilité cardiaque (VFC)", numberLabel(day?.hrvRmssdMs, " ms"),
-                "RMSSD : mesure moyenne disponible, à interpréter selon tes habitudes")
+                "RMSSD : mesure moyenne disponible, à interpréter selon tes habitudes",
+                TempoMetricKind.HRV, day?.hrvRmssdMs,
+                baseline { it.hrvRmssdMs })
         }
 
         DataDetailCard("Respiration et oxygénation", C.greenGlow) {
             MetricPair("Fréquence respiratoire", decimalLabel(day?.respiratoryRate, " resp/min"),
-                "Moyenne nocturne si une nuit est mesurée, sinon moyenne du jour")
+                "Moyenne nocturne si une nuit est mesurée, sinon moyenne du jour",
+                TempoMetricKind.RESPIRATION, day?.respiratoryRate,
+                baseline { it.respiratoryRate })
             MetricPair("Saturation en oxygène", decimalLabel(day?.oxygenSaturationPct, " %"),
-                "Moyenne des relevés reçus ; pas une mesure continue")
+                "Moyenne des relevés reçus ; pas une mesure continue",
+                TempoMetricKind.OXYGEN_SATURATION, day?.oxygenSaturationPct,
+                baseline { it.oxygenSaturationPct })
             MetricPair("Écart de température cutanée", signedLabel(day?.skinTemperatureDeltaC),
                 "Écart par rapport à la référence du capteur, pas la température du corps")
         }
 
         DataDetailCard("Activité", C.greenGlow) {
-            MetricPair("Pas", day?.steps?.toString() ?: "Pas de mesure", "Sur la journée")
+            MetricPair("Pas", day?.steps?.toString() ?: "Pas de mesure",
+                if (offset == 0) "Journée en cours" else "Sur la journée",
+                if (offset == 0) null else TempoMetricKind.STEPS,
+                day?.steps?.toDouble(), baseline { it.steps?.toDouble() })
             MetricPair("Distance", decimalLabel(day?.distanceMeters?.div(1000.0), " km"), "Sur la journée")
             MetricPair("Minutes de séances enregistrées", day?.exerciseMinutes?.let { "$it min" } ?: "Pas de mesure",
-                "Ne représente pas toutes les minutes d'activité douce")
+                "Ne représente pas toutes les minutes d'activité douce",
+                if (offset == 0) null else TempoMetricKind.ACTIVE_MINUTES,
+                day?.exerciseMinutes?.toDouble(), baseline { it.exerciseMinutes?.toDouble() })
         }
 
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -144,12 +167,12 @@ fun DetailedHealthMetrics(days: List<DailyHealthEntity>) {
             }
             DetailTrend("VFC", days, period, TempoMetricKind.HRV) { it.hrvRmssdMs }
             DetailTrend("Pouls moyen", days, period, TempoMetricKind.OTHER) { it.pulseAverageBpm }
-            DetailTrend("Respiration", days, period, TempoMetricKind.OTHER) { it.respiratoryRate }
-            DetailTrend("SpO₂", days, period, TempoMetricKind.OTHER) { it.oxygenSaturationPct }
+            DetailTrend("Respiration", days, period, TempoMetricKind.RESPIRATION) { it.respiratoryRate }
+            DetailTrend("SpO₂", days, period, TempoMetricKind.OXYGEN_SATURATION) { it.oxygenSaturationPct }
             DetailTrend("Sommeil", days, period, TempoMetricKind.SLEEP, TempoChartKind.BARS) {
                 it.sleepMinutes?.toDouble()
             }
-            Text("Les jours sans données restent vides. Ces tendances n'établissent pas de diagnostic.",
+            Text("Vert = habituel/favorable · orange = écart modéré · rouge = écart marqué · gris = référence insuffisante ou journée en cours. Comparaison indicative.",
                 color = C.textSecondary, fontSize = 12.sp)
         }
         Text("Données locales issues de Santé Connect • dernière synchronisation : " +
@@ -174,13 +197,23 @@ private fun DataDetailCard(title: String, accent: Color, content: @Composable ()
 }
 
 @Composable
-private fun MetricPair(title: String, value: String, caption: String) {
+private fun MetricPair(
+    title: String, value: String, caption: String,
+    metricKind: TempoMetricKind? = null, reading: Double? = null, usual: Double? = null
+) {
+    val signal = metricKind?.let { TempoHealthSignals.assess(it, reading, usual) }
+        ?: TempoSignal.UNKNOWN
     Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text(title, color = C.textSecondary, fontSize = 13.sp, modifier = Modifier.weight(1f))
-            Text(value, color = C.text, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+            Text(value, color = if (metricKind == null) C.text else TempoHealthSignals.color(signal),
+                fontWeight = FontWeight.Bold, fontSize = 14.sp)
         }
         Text(caption, color = C.textSecondary, fontSize = 11.sp)
+        if (metricKind != null && reading != null) {
+            Text(TempoHealthSignals.comparisonLabel(metricKind, reading, usual),
+                color = TempoHealthSignals.color(signal), fontSize = 11.sp)
+        }
     }
 }
 
@@ -250,8 +283,15 @@ private fun DetailTrend(
     val populated = points.filterNotNull()
     Text(title + " • " + populated.size + "/" + period + " jours",
         color = C.text, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
-    TempoTrendGraph(values = points, metric = kind, usual = null,
+    val usual = TempoHealthSignals.reference(days.drop(7).mapNotNull(value))
+    TempoTrendGraph(values = points, metric = kind, usual = usual,
         kind = chart, height = 75.dp)
+    val lastComplete = if (kind == TempoMetricKind.STEPS ||
+        kind == TempoMetricKind.ACTIVE_MINUTES) points.dropLast(1).lastOrNull { it != null }
+        else points.lastOrNull { it != null }
+    val state = TempoHealthSignals.assess(kind, lastComplete, usual)
+    Text(TempoHealthSignals.comparisonLabel(kind, lastComplete, usual),
+        color = TempoHealthSignals.color(state), fontSize = 11.sp)
 }
 
 private fun minutesLabel(value: Long?): String =
