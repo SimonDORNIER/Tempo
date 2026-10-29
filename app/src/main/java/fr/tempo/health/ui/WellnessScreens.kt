@@ -706,7 +706,7 @@ fun TrackingHubV21Screen(
             }
         }
         item {
-            Text("Graphiques : vert = habituel/favorable · orange = écart modéré · rouge = écart marqué · gris = référence insuffisante ou journée en cours. Icônes : couleurs des domaines.",
+            Text(TempoHealthSignals.LEGEND,
                 color = C.textMuted, style = MaterialTheme.typography.labelSmall)
         }
     }
