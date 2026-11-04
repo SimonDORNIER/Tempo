@@ -19,7 +19,7 @@ internal object BreathingSoundEnvelope {
         remainingSeconds: Int,
         preview: Boolean
     ): Int = when {
-        isPause -> HOLD_DURATION_MS
+        isPause && mode == BreathingCueMode.SHORT -> HOLD_DURATION_MS
         mode == BreathingCueMode.SHORT -> SHORT_DURATION_MS
         preview -> CONTINUOUS_PREVIEW_MS
         else -> remainingSeconds.coerceAtLeast(1) * 1000
@@ -29,11 +29,19 @@ internal object BreathingSoundEnvelope {
     fun gain(elapsedMs: Double, durationMs: Int, mode: BreathingCueMode, isPause: Boolean): Double {
         if (durationMs <= 0 || elapsedMs <= 0.0 || elapsedMs >= durationMs) return 0.0
         return when {
-            isPause -> {
+            isPause && mode == BreathingCueMode.SHORT -> {
                 // Deux petites clochettes discrètes, séparées par un silence.
                 val first = pulse(elapsedMs, 0.0, 360.0)
                 val second = pulse(elapsedMs, 450.0, 340.0) * 0.72
                 maxOf(first, second)
+            }
+            isPause -> {
+                // Une nappe ronde et différente du son de respiration,
+                // soutenue pendant TOUTE la phase, y compris les longues pauses.
+                val entry = smoothstep(elapsedMs / 470.0)
+                val end = smoothstep((durationMs - elapsedMs) / 640.0)
+                val movement = 0.94 + 0.06 * sin(2.0 * PI * elapsedMs / 11500.0)
+                entry * end * movement
             }
             mode == BreathingCueMode.SHORT -> {
                 val entry = smoothstep(elapsedMs / 165.0)
@@ -53,7 +61,8 @@ internal object BreathingSoundEnvelope {
 
     /** Amplitude modérée même lorsque le volume Tempo est à 100 %. */
     fun peak(mode: BreathingCueMode, isPause: Boolean): Double = when {
-        isPause -> 0.24
+        isPause && mode == BreathingCueMode.SHORT -> 0.24
+        isPause -> 0.18
         mode == BreathingCueMode.SHORT -> 0.38
         else -> 0.24
     }
