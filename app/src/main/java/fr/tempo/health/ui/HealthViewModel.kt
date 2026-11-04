@@ -144,12 +144,15 @@ class HealthViewModel(application: Application) : AndroidViewModel(application) 
         if (_syncing.value) return
 
         viewModelScope.launch {
-            val shouldSync = runCatching {
-                repository.shouldAutoSync()
-            }.getOrDefault(true)
+            // Le StateFlow Room démarre à emptyList() : il n'indique pas
+            // si le cache est réellement vide lors du premier affichage.
+            // Évite de relire 28 jours à chaque lancement.
+            val (shouldSync, emptyCache) = runCatching {
+                repository.shouldAutoSync() to (repository.lastSyncEpochMs() == null)
+            }.getOrDefault(true to false)
 
             if (shouldSync) {
-                launchSync(full = recentDays.value.isEmpty())
+                launchSync(full = emptyCache)
             }
         }
     }
