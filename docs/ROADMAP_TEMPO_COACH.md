@@ -1,3 +1,11 @@
+## 2.6.0 — Respiration guidée : signaux sonores dédiés (04/11/2026)
+
+- Dans **Pratiquer**, les respirations ont une section autonome, séparée de **Mouvement**; aucun cinquième onglet.
+- Icône haut-parleur sur le lecteur : popup compacte de réglages, avec activation, deux modes (signaux courts au début des phases / sons continus durant chaque phase), volume, hauteur et timbre propres à inspiration et expiration et préécoute.
+- Action **Activer / Couper** directe, accessible avant et pendant la séance. En pause, à l'arrêt ou en fin d'exercice, le son cesse immédiatement ; reprise sur le temps restant.
+- Synthèse audio locale Android, sans droits supplémentaires ni réseau. Réglages enregistrés dans `tempo-health-settings`, inclus dans la sauvegarde complète déjà existante.
+- Les sons du minuteur d'entraînement classique sont inchangés. Compilation et tests : `docs/TESTS_TEMPO_2_6.md`.
+
 ## 2.5.9 — Synchronisation automatique Santé Connect (4 novembre 2026)
 
 - Mise à jour locale périodique **toutes les 2 heures environ** via WorkManager, y compris lorsque l'interface n'est pas ouverte ; Android peut différer l'exécution selon la batterie.
