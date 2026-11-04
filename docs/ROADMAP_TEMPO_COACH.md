@@ -1,3 +1,12 @@
+## 2.5.9 — Synchronisation automatique Santé Connect (4 novembre 2026)
+
+- Mise à jour locale périodique **toutes les 2 heures environ** via WorkManager, y compris lorsque l'interface n'est pas ouverte ; Android peut différer l'exécution selon la batterie.
+- **Permission distincte et explicite** de lecture Santé Connect en arrière-plan, demandée depuis l'écran Santé uniquement si le téléphone la prend en charge. Sans elle, l'application conserve la lecture à l'ouverture ou manuelle.
+- Tâche courte sur 3 jours (aujourd'hui et deux jours précédents), sans effacer l'historique ni les données utilisateur ; verrou commun pour éviter les lectures simultanées.
+- Correction de la relance inutile d'une lecture complète de 28 jours causée par le `StateFlow` initialement vide alors que Room contenait déjà des données. Une lecture complète reste disponible manuellement.
+- Écran Aujourd'hui alimenté immédiatement par les données locales, sans exiger une synchro avant affichage.
+- Vérifications : `docs/TESTS_TEMPO_2_5_9.md`.
+
 # Tempo Coach — Backlog UX, santé et entraînement
 
 ## 2.4.0 — Statistiques santé détaillées (24 octobre 2026)
