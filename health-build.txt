@@ -1,3 +1,3 @@
-Tempo Coach 2.5.9 : synchronisation Santé Connect automatique environ toutes les 2 heures via WorkManager et permission dédiée en arrière-plan.
-Évite les synchronisations intégrales de 28 jours à chaque ouverture quand le cache existe. Les données historiques, exercices, sauvegardes et couleurs sont conservés.
-Tests Android / compilation puis publication de l'APK signé sur GitHub Releases.
+Tempo Coach 2.6.0 : sons de respiration guidée courts ou continus selon les phases, timbres et hauteurs personnalisables, aperçu, volume et coupure instantanée.
+Respiration isolée de Mouvement dans Pratiquer. Préférences sauvegardées et minuteurs classiques inchangés.
+Vérification : docs/TESTS_TEMPO_2_6.md. Compiler, signer et publier TempoHealth-2.6.0.apk.
