@@ -3,6 +3,7 @@ package fr.tempo.health
 import android.app.Application
 import fr.tempo.health.data.FullBackupManager
 import fr.tempo.health.data.HealthRepository
+import fr.tempo.health.data.HealthSyncScheduler
 import fr.tempo.health.data.WorkoutRepository
 import fr.tempo.health.reminders.ReminderManager
 
@@ -15,6 +16,7 @@ class TempoHealthApplication : Application() {
         super.onCreate()
         reminderManager.createNotificationChannel()
         reminderManager.scheduleAll()
+        HealthSyncScheduler.schedule(applicationContext)
     }
 
     val healthRepository: HealthRepository by lazy {
