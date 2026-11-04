@@ -79,6 +79,7 @@ fun GuidedBreathingScreen(
     val previewScope = rememberCoroutineScope()
     var previewJob by remember { mutableStateOf<Job?>(null) }
     var previewing by remember { mutableStateOf(false) }
+    var previewToken by remember { mutableStateOf(0) }
 
     fun changeSound(next: BreathingSoundSettings) {
         soundSettings = next
@@ -88,6 +89,8 @@ fun GuidedBreathingScreen(
 
     fun previewPhase(inspiration: Boolean) {
         previewJob?.cancel()
+        previewToken += 1
+        val token = previewToken
         previewJob = previewScope.launch {
             previewing = true
             try {
@@ -98,7 +101,7 @@ fun GuidedBreathingScreen(
                     preview = true
                 )
             } finally {
-                previewing = false
+                if (previewToken == token) previewing = false
             }
         }
     }
