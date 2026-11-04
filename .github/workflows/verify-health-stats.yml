@@ -7,6 +7,7 @@ on:
       - 'health/v2.5.6-semantic-colors'
       - 'health/v2.5.7-accueil-semantic-colors'
       - 'health/v2.5.8-today-navigation-fix'
+      - 'health/v2.6.0-breathing-audio'
 
 permissions:
   contents: read
@@ -33,7 +34,7 @@ jobs:
       - name: Compiler Android
         id: compile
         continue-on-error: true
-        run: gradle --no-daemon :app:testDebugUnitTest :app:assembleDebug -PVERSION_NAME=2.5.8 -PVERSION_CODE=20508
+        run: gradle --no-daemon :app:testDebugUnitTest :app:assembleDebug -PVERSION_NAME=2.6.0 -PVERSION_CODE=20600
       - name: Envoyer le résultat au ticket de validation
         if: always()
         uses: actions/github-script@v7
