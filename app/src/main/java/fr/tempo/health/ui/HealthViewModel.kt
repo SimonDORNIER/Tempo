@@ -23,6 +23,7 @@ class HealthViewModel(application: Application) : AndroidViewModel(application) 
     private val backupManager = app.fullBackupManager
 
     val requiredPermissions: Set<String> = repository.requiredPermissions
+    val backgroundReadPermission: String = repository.backgroundReadPermission
 
     val recentDays: StateFlow<List<DailyHealthEntity>> =
         repository.observeRecentDays()
@@ -62,6 +63,12 @@ class HealthViewModel(application: Application) : AndroidViewModel(application) 
     val missingPermissionLabels: StateFlow<List<String>> =
         _missingPermissionLabels.asStateFlow()
 
+    private val _backgroundReadSupported = MutableStateFlow(repository.backgroundReadSupported())
+    val backgroundReadSupported: StateFlow<Boolean> = _backgroundReadSupported.asStateFlow()
+
+    private val _backgroundReadGranted = MutableStateFlow(false)
+    val backgroundReadGranted: StateFlow<Boolean> = _backgroundReadGranted.asStateFlow()
+
     private val _syncing = MutableStateFlow(false)
     val syncing: StateFlow<Boolean> = _syncing.asStateFlow()
 
@@ -74,8 +81,10 @@ class HealthViewModel(application: Application) : AndroidViewModel(application) 
 
     fun refreshPermissionState() {
         _availability.value = repository.availability()
+        _backgroundReadSupported.value = repository.backgroundReadSupported()
         if (_availability.value != HealthConnectAvailability.AVAILABLE) {
             _hasPermissions.value = false
+            _backgroundReadGranted.value = false
             return
         }
 
@@ -84,6 +93,8 @@ class HealthViewModel(application: Application) : AndroidViewModel(application) 
                 .onSuccess { granted ->
                     val relevant = granted.intersect(requiredPermissions)
                     _hasPermissions.value = relevant.isNotEmpty()
+                    _backgroundReadGranted.value =
+                        _backgroundReadSupported.value && backgroundReadPermission in granted
                     _missingPermissionLabels.value =
                         repository.missingPermissionLabels(relevant)
                     if (_hasPermissions.value) {
@@ -91,6 +102,7 @@ class HealthViewModel(application: Application) : AndroidViewModel(application) 
                     }
                 }
                 .onFailure {
+                    _backgroundReadGranted.value = false
                     _missingPermissionLabels.value = emptyList()
                     _message.value = "Impossible de vérifier les autorisations."
                 }
