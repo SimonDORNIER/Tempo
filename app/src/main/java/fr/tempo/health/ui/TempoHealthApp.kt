@@ -161,6 +161,8 @@ fun TempoHealthApp(
     val recovery by healthViewModel.recovery.collectAsStateWithLifecycle()
     val availability by healthViewModel.availability.collectAsStateWithLifecycle()
     val hasPermissions by healthViewModel.hasPermissions.collectAsStateWithLifecycle()
+    val backgroundReadSupported by healthViewModel.backgroundReadSupported.collectAsStateWithLifecycle()
+    val backgroundReadGranted by healthViewModel.backgroundReadGranted.collectAsStateWithLifecycle()
     val missingPermissionLabels by
         healthViewModel.missingPermissionLabels.collectAsStateWithLifecycle()
     val syncing by healthViewModel.syncing.collectAsStateWithLifecycle()
@@ -197,6 +199,13 @@ fun TempoHealthApp(
         contract = PermissionController.createRequestPermissionResultContract()
     ) { granted ->
         healthViewModel.onPermissionsResult(granted)
+    }
+
+    val backgroundPermissionLauncher = rememberLauncherForActivityResult(
+        contract = PermissionController.createRequestPermissionResultContract()
+    ) { _ ->
+        // Les permissions Santé Connect sont recalculées depuis la source réelle.
+        healthViewModel.refreshPermissionState()
     }
 
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
@@ -433,12 +442,19 @@ fun TempoHealthApp(
                     availability = availability,
                     hasPermissions = hasPermissions,
                     missingPermissionLabels = missingPermissionLabels,
+                    backgroundReadSupported = backgroundReadSupported,
+                    backgroundReadGranted = backgroundReadGranted,
                     syncing = syncing,
                     message = message,
                     requestPermissions = {
                         permissionLauncher.launch(healthViewModel.requiredPermissions)
                     },
-                    sync = healthViewModel::sync
+                    sync = healthViewModel::sync,
+                    requestBackgroundPermission = {
+                        backgroundPermissionLauncher.launch(
+                            setOf(healthViewModel.backgroundReadPermission)
+                        )
+                    }
                 )
             }
 
@@ -1166,10 +1182,13 @@ private fun HealthScreen(
     availability: HealthConnectAvailability,
     hasPermissions: Boolean,
     missingPermissionLabels: List<String>,
+    backgroundReadSupported: Boolean,
+    backgroundReadGranted: Boolean,
     syncing: Boolean,
     message: String?,
     requestPermissions: () -> Unit,
-    sync: () -> Unit
+    sync: () -> Unit,
+    requestBackgroundPermission: () -> Unit
 ) {
     val latest = days.firstOrNull()
     val week = days.take(7)
@@ -1222,6 +1241,27 @@ private fun HealthScreen(
                     message,
                     color = MaterialTheme.colorScheme.primary
                 )
+            }
+
+            if (hasPermissions && backgroundReadSupported) {
+                StatusCard(
+                    emoji = "⏱️",
+                    title = "Synchronisation automatique",
+                    value = if (backgroundReadGranted) "Toutes les 2 heures environ" else "À autoriser",
+                    detail = if (backgroundReadGranted) {
+                        "Mise à jour en arrière-plan, même quand Tempo Coach est fermé. Android peut décaler l’horaire."
+                    } else {
+                        "Autorise Santé Connect en arrière-plan pour retrouver tes mesures dès l’ouverture."
+                    }
+                )
+                if (!backgroundReadGranted) {
+                    OutlinedButton(
+                        onClick = requestBackgroundPermission,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("AUTORISER LA SYNCHRO AUTOMATIQUE")
+                    }
+                }
             }
 
             if (hasPermissions && missingPermissionLabels.isNotEmpty()) {
