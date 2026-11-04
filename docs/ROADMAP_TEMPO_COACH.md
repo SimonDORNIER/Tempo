@@ -1,3 +1,11 @@
+## 2.6.2 — Sons apaisants pour la respiration (04/11/2026)
+
+- Les bips courts brusques (260 ms) sont remplacés par de petits carillons feutrés d’environ **900 ms** : entrée progressive (~165 ms), extinction douce (~470 ms) et légère descente de volume. Les hauteurs distinctes inspiration/expiration restent réglables.
+- Les sons continus deviennent nettement moins puissants, avec un fondu d’entrée (~380 ms) et de sortie (~580 ms), une modulation très lente et un timbre sans harmonique agressive. La fréquence monte très légèrement à l’inspiration et descend à l’expiration.
+- Les pauses facultatives utilisent deux petites clochettes graves au lieu des impulsions abruptes de 320 ms. Les préférences sonores existantes sont préservées ; les nouveaux profils reçoivent des hauteurs par défaut plus graves (460/330 Hz) et un volume initial de 65%.
+- Conserver les deux modes, la préécoute, les réglages séparés, la coupure immédiate, les 4 phases du cycle personnalisé, la sauvegarde et les historiques. Aucun fichier audio, réseau ou permission supplémentaire.
+- Tests de synthèse : `BreathingSoundEnvelopeTest`; checklist téléphone : `docs/TESTS_TEMPO_2_6_2.md`.
+
 ## 2.6.1 — Réparation du son et respiration totalement réglable (04/11/2026)
 
 - Correctif sons 2.6.0 : sortie multimédia Android via AudioTrack PCM 44,1 kHz MODE_STREAM, petits blocs annulables au lieu de MODE_STATIC, sons actifs et volume initial 70% pour les nouvelles configurations. Défaillances signalées visuellement, aperçu individuel des timbres; respecter les choix existants.
