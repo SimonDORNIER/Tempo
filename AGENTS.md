@@ -1,3 +1,7 @@
+# Décision 04/11/2026 — Tempo Coach 2.6.3 : son des pauses indépendant
+
+Les pauses disposent de leur propre mode (Court ou Continu), volume, hauteur, timbre et aperçu, sans influencer les paramètres sonores d'inspiration/expiration. Le mode Continu doit couvrir exactement la durée de la pause (avec fondus), les pauses courtes ne jouent qu'au départ. Conserver le style sonore doux de la 2.6.2 et les préférences en place, les sauvegardes, le cycle personnalisé à phase 0 ignorée, ainsi que la navigation 4 onglets. Validation : docs/TESTS_TEMPO_2_6_3.md.
+
 # Décision 04/11/2026 — Tempo Coach 2.6.2 : audio de détente
 
 Priorité sonore : les courtes indications des phases respiratoires doivent évoquer des carillons doux (900 ms, longues enveloppes de fade), pas des bips de minuterie. Les sons continus doivent rester feutrés, plus discrets et progressifs, sans saturation ni brusque transition ; les deux pauses sont signalées par de petites clochettes grave. Préserver le volume et les réglages existants de l’utilisateur, les préférences des sessions personnalisées, le 4-temps à 0 possible, la sauvegarde et l'APK signé. Tester sur Pixel 7a et documenter dans docs/TESTS_TEMPO_2_6_2.md.
