@@ -52,6 +52,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import fr.tempo.health.domain.BreathingGuides
 import fr.tempo.health.domain.BreathingPattern
@@ -276,7 +277,7 @@ fun GuidedBreathingScreen(
                             enabled = durationMinutes > 1) {
                             Icon(Icons.Rounded.Remove, "Réduire la durée", tint = C.text)
                         }
-                        Text("$"+"{durationMinutes} min", fontWeight = FontWeight.Bold,
+                        Text(durationMinutes.toString() + " min", fontWeight = FontWeight.Bold,
                             style = MaterialTheme.typography.titleLarge, color = sage)
                         IconButton(onClick = { saveDuration(durationMinutes + 1) },
                             enabled = durationMinutes < 60) {
@@ -288,7 +289,7 @@ fun GuidedBreathingScreen(
                             FilterChip(
                                 selected = durationMinutes == minutes,
                                 onClick = { saveDuration(minutes) },
-                                label = { Text("$"+"{minutes} min") }
+                                label = { Text(minutes.toString() + " min") }
                             )
                         }
                     }
@@ -575,5 +576,50 @@ private fun BreathingPhaseSoundEditor(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun BreathingDurationRow(
+    title: String,
+    seconds: Int,
+    onChange: (Int) -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(3.dp)
+    ) {
+        Text(
+            title,
+            modifier = Modifier.weight(1f),
+            color = C.textSecondary,
+            style = MaterialTheme.typography.bodySmall
+        )
+        IconButton(
+            enabled = seconds > 0,
+            onClick = { onChange((seconds - 1).coerceAtLeast(0)) }
+        ) {
+            Icon(Icons.Rounded.Remove, "Réduire " + title, tint = C.text)
+        }
+        OutlinedTextField(
+            value = seconds.toString(),
+            onValueChange = { input ->
+                if (input.all(Char::isDigit) && input.length <= 2) {
+                    onChange((input.toIntOrNull() ?: 0).coerceIn(0, 60))
+                }
+            },
+            modifier = Modifier.width(68.dp),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            singleLine = true,
+            textStyle = MaterialTheme.typography.bodyLarge.copy(textAlign = TextAlign.Center)
+        )
+        IconButton(
+            enabled = seconds < 60,
+            onClick = { onChange((seconds + 1).coerceAtMost(60)) }
+        ) {
+            Icon(Icons.Rounded.Add, "Augmenter " + title, tint = C.text)
+        }
+        Text("s", color = C.textSecondary)
     }
 }
