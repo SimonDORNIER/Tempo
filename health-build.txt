@@ -1,3 +1,3 @@
-Tempo Coach 2.6.2 : les sons de respiration privilégient la détente.
-Signaux courts : carillons feutrés d'environ 0,9 s avec ouverture et extinction douces. Sons continus : moins agressifs, plus calmes, avec fondus longs et légères variations de hauteur. Pauses : doubles clochettes graves discrètes.
-Conservation des durées de respiration personnalisables et des réglages audio précédents. Vérification : docs/TESTS_TEMPO_2_6_2.md et BreathingSoundEnvelopeTest.
+Tempo Coach 2.6.3 : mode et paramètres sonores indépendants pour les pauses des exercices de respiration.
+Nouveau profil de pause commun aux deux pauses : sons courts (deux petits carillons doux au début) OU sons continus (timbre feutré durant toute la pause), volume/hauteur/timbre et aperçu séparés. Le mode respiration reste indépendant et ses réglages existants sont conservés.
+Une phase de pause à 0 seconde reste ignorée. Les paramètres sont sauvegardés avec les préférences existantes. Tests automatisés BreathingPauseSoundTest, BreathingSoundEnvelopeTest et checklist docs/TESTS_TEMPO_2_6_3.md.
