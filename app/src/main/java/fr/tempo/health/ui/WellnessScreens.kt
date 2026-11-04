@@ -647,11 +647,14 @@ fun PracticeHubV21Screen(
                 }
             }
         }
-        item { SectionTitle("Choisir une pratique") }
+        item { SectionTitle("Respiration guidée") }
+        item {
+            PracticeTile("Respiration", "Exercices guidés et signaux sonores",
+                Icons.Rounded.Air, C.calm, Modifier.fillMaxWidth(), onBreathing)
+        }
+        item { SectionTitle("Mouvement") }
         item {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                PracticeTile("Respiration", "Retrouver le calme", Icons.Rounded.Air,
-                    C.calm, Modifier.fillMaxWidth(), onBreathing)
                 PracticeTile("Mobilité", "Bouger avec souplesse", Icons.Rounded.SelfImprovement,
                     C.mobility, Modifier.fillMaxWidth(), { onExplore(ExerciseCategory.MOBILITY) })
                 PracticeTile("Étirements", "Relâcher les tensions", Icons.Rounded.Spa,
@@ -867,7 +870,9 @@ fun ExerciseExploreV21Screen(
 ) {
     val exercises = ExerciseLibrary.effective(preferences)
         .filter {
-            (category == null || if (category == ExerciseCategory.FULL_BODY) {
+            (if (category == null) {
+                it.category != ExerciseCategory.BREATHING
+            } else if (category == ExerciseCategory.FULL_BODY) {
                 it.category in setOf(ExerciseCategory.UPPER_BODY, ExerciseCategory.LOWER_BODY,
                     ExerciseCategory.CORE, ExerciseCategory.FULL_BODY)
             } else it.category == category) &&
