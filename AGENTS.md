@@ -1,3 +1,7 @@
+# Correctif 04/11/2026 — Tempo Coach 2.6.1 : son et respiration personnalisable
+
+Priorité immédiate : corriger la lecture audio des respirations 2.6.0, initialiser le son à actif pour les nouvelles préférences, prévisualiser les sons, alerter sur une erreur de sortie (volume multimédia Android). En mode continu, utiliser un flux PCM stable ; pause/reprise/coupure doivent annuler proprement. Chaque exercice de respiration a une durée totale réglable avant lancement; ajouter une option avec inspiration / pause / expiration / pause à 0–60 s par phase, 0 supprimant la phase. Interdire une séance sans aucune inspiration ni expiration. Conserver sauvegarde, historique, 4 onglets, Santé Connect et minuteur des autres exercices. Voir docs/TESTS_TEMPO_2_6_1.md.
+
 # Correctif utilisateur 04/11/2026 — 2.5.9 : synchro santé toutes les deux heures
 
 WorkManager lit Santé Connect avec permission explicite d'accès en arrière-plan, sur une fenêtre courte, et rafraîchit Room hors interface. Conserver les données locales, la synchronisation manuelle 28 jours et les 4 onglets. Ne pas promettre une minute exacte sous Android. La lecture 28 jours ne doit plus être déclenchée à cause de l'état initial vide du StateFlow lorsque la base contient déjà des données. Voir `docs/TESTS_TEMPO_2_5_9.md`.
