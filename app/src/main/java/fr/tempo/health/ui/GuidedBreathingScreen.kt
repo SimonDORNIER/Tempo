@@ -10,18 +10,22 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.VolumeOff
+import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.Remove
 import androidx.compose.material.icons.rounded.VolumeUp
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Slider
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -35,6 +39,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -43,10 +48,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import fr.tempo.health.domain.BreathingGuides
+import fr.tempo.health.domain.BreathingPattern
+import fr.tempo.health.domain.BreathPhase
 import fr.tempo.health.domain.ExerciseLibrary
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -63,15 +72,28 @@ fun GuidedBreathingScreen(
     val ink = C.background
     val surface = C.surface
     val sage = C.calm
+    val context = LocalContext.current
     var selectedId by remember { mutableStateOf(BreathingGuides.all.first().exerciseId) }
     val guide = BreathingGuides.all.first { it.exerciseId == selectedId }
+    var durationMinutes by remember {
+        mutableStateOf(
+            BreathingExercisePreferences.durationMinutes(
+                context, guide.exerciseId, guide.durationSeconds / 60
+            )
+        )
+    }
+    var customPattern by remember {
+        mutableStateOf(BreathingExercisePreferences.customPattern(context))
+    }
+    val pattern = if (guide.exerciseId == "breath-custom") customPattern
+    else BreathingPattern(inhaleSeconds = guide.inhaleSeconds, exhaleSeconds = guide.exhaleSeconds)
+    val durationSeconds = durationMinutes * 60
     var running by remember { mutableStateOf(false) }
     var paused by remember { mutableStateOf(false) }
     var finished by remember { mutableStateOf(false) }
     var preparation by remember { mutableStateOf(5) }
     var elapsed by remember { mutableStateOf(0) }
     var confirmExit by remember { mutableStateOf(false) }
-    val context = LocalContext.current
     var soundSettings by remember { mutableStateOf(BreathingSoundPreferences.load(context)) }
     var showSoundSettings by remember { mutableStateOf(false) }
     val soundPlayer = remember { BreathingSoundPlayer() }
@@ -80,6 +102,34 @@ fun GuidedBreathingScreen(
     var previewJob by remember { mutableStateOf<Job?>(null) }
     var previewing by remember { mutableStateOf(false) }
     var previewToken by remember { mutableStateOf(0) }
+    var audioProblem by remember { mutableStateOf(false) }
+
+    fun saveDuration(minutes: Int) {
+        durationMinutes = minutes.coerceIn(1, 60)
+        BreathingExercisePreferences.saveDuration(context, guide.exerciseId, durationMinutes)
+        onSoundSettingsChange()
+    }
+
+    fun savePattern(next: BreathingPattern) {
+        customPattern = next
+        BreathingExercisePreferences.saveCustomPattern(context, next)
+        onSoundSettingsChange()
+    }
+
+    fun selectGuide(exerciseId: String) {
+        selectedId = exerciseId
+        val chosen = BreathingGuides.all.first { it.exerciseId == exerciseId }
+        durationMinutes = BreathingExercisePreferences.durationMinutes(
+            context, chosen.exerciseId, chosen.durationSeconds / 60
+        )
+        elapsed = 0
+        preparation = 5
+        audioProblem = false
+    }
+
+    DisposableEffect(Unit) {
+        onDispose { previewJob?.cancel() }
+    }
 
     fun changeSound(next: BreathingSoundSettings) {
         soundSettings = next
@@ -94,12 +144,14 @@ fun GuidedBreathingScreen(
         previewJob = previewScope.launch {
             previewing = true
             try {
-                previewPlayer.play(
-                    soundSettings.copy(volume = soundSettings.volume.coerceAtLeast(10)),
-                    inspiration,
-                    if (inspiration) guide.inhaleSeconds else guide.exhaleSeconds,
+                val ok = previewPlayer.play(
+                    soundSettings,
+                    if (inspiration) BreathPhase.INHALE else BreathPhase.EXHALE,
+                    if (inspiration) pattern.inhaleSeconds.coerceAtLeast(1)
+                    else pattern.exhaleSeconds.coerceAtLeast(1),
                     preview = true
                 )
+                audioProblem = !ok
             } finally {
                 if (previewToken == token) previewing = false
             }
@@ -112,14 +164,14 @@ fun GuidedBreathingScreen(
 
     BackHandler(enabled = running) { confirmExit = true }
 
-    LaunchedEffect(running, paused, selectedId) {
+    LaunchedEffect(running, paused) {
         while (running && !paused) {
             delay(1000)
             if (preparation > 0) {
                 preparation--
             } else {
-                elapsed = (elapsed + 1).coerceAtMost(guide.durationSeconds)
-                if (elapsed >= guide.durationSeconds) {
+                elapsed = (elapsed + 1).coerceAtMost(durationSeconds)
+                if (elapsed >= durationSeconds) {
                     running = false
                     finished = true
                     onRecord(guide.exerciseId, elapsed, true)
@@ -128,26 +180,23 @@ fun GuidedBreathingScreen(
         }
     }
 
-    val cycle = guide.inhaleSeconds + guide.exhaleSeconds
-    val withinCycle = elapsed % cycle
-    val inhale = withinCycle < guide.inhaleSeconds
-    val phaseRemaining = if (inhale) {
-        guide.inhaleSeconds - withinCycle
-    } else {
-        cycle - withinCycle
-    }
-    val phaseIndex = (elapsed / cycle) * 2 + if (inhale) 0 else 1
+    val phaseState = pattern.locate(elapsed)
+    val phaseRemaining = phaseState?.remainingSeconds ?: 0
+    val cycle = pattern.cycleSeconds
 
-    // La coroutine s'annule dès que l'on met en pause, coupe le son ou change de phase.
-    // Ne pas mettre elapsed dans les clés : un son long doit continuer entre les secondes.
+    // Les pauses et les phases à 0 sont gérées par le même moteur.
+    // Le son ne redémarre pas à chaque seconde d'une phase longue.
     LaunchedEffect(
         running, paused, finished, preparation == 0, selectedId,
-        phaseIndex, soundSettings, previewing
+        phaseState?.stepIndex, soundSettings, previewing
     ) {
         if (running && !paused && !finished && preparation == 0 &&
-            soundSettings.enabled && !previewing
+            soundSettings.enabled && !previewing && phaseState != null
         ) {
-            soundPlayer.play(soundSettings, inhale, phaseRemaining)
+            val ok = soundPlayer.play(
+                soundSettings, phaseState.phase, phaseState.remainingSeconds
+            )
+            if (!ok && soundSettings.volume > 0) audioProblem = true
         }
     }
 
