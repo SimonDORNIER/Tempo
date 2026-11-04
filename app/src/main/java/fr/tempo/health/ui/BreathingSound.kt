@@ -37,7 +37,11 @@ data class BreathingSoundSettings(
     val inhalePitchHz: Int = 460,
     val exhalePitchHz: Int = 330,
     val inhaleTimbre: BreathingTimbre = BreathingTimbre.SOFT,
-    val exhaleTimbre: BreathingTimbre = BreathingTimbre.SOFT
+    val exhaleTimbre: BreathingTimbre = BreathingTimbre.SOFT,
+    val pauseMode: BreathingCueMode = BreathingCueMode.SHORT,
+    val pauseVolume: Int = 55,
+    val pausePitchHz: Int = 290,
+    val pauseTimbre: BreathingTimbre = BreathingTimbre.SOFT
 )
 
 /** Tous les réglages sont inclus dans l'export des préférences de Tempo. */
@@ -59,6 +63,12 @@ object BreathingSoundPreferences {
             inhaleTimbre = parse(prefs.getString(PREFIX + "inhale-timbre", null),
                 BreathingTimbre.SOFT, BreathingTimbre.entries.toTypedArray()),
             exhaleTimbre = parse(prefs.getString(PREFIX + "exhale-timbre", null),
+                BreathingTimbre.SOFT, BreathingTimbre.entries.toTypedArray()),
+            pauseMode = parse(prefs.getString(PREFIX + "pause-mode", null),
+                BreathingCueMode.SHORT, BreathingCueMode.entries.toTypedArray()),
+            pauseVolume = prefs.getInt(PREFIX + "pause-volume", 55).coerceIn(0, 100),
+            pausePitchHz = prefs.getInt(PREFIX + "pause-hz", 290).coerceIn(200, 1000),
+            pauseTimbre = parse(prefs.getString(PREFIX + "pause-timbre", null),
                 BreathingTimbre.SOFT, BreathingTimbre.entries.toTypedArray())
         )
     }
@@ -72,6 +82,10 @@ object BreathingSoundPreferences {
             .putInt(PREFIX + "exhale-hz", settings.exhalePitchHz.coerceIn(200, 1000))
             .putString(PREFIX + "inhale-timbre", settings.inhaleTimbre.name)
             .putString(PREFIX + "exhale-timbre", settings.exhaleTimbre.name)
+            .putString(PREFIX + "pause-mode", settings.pauseMode.name)
+            .putInt(PREFIX + "pause-volume", settings.pauseVolume.coerceIn(0, 100))
+            .putInt(PREFIX + "pause-hz", settings.pausePitchHz.coerceIn(200, 1000))
+            .putString(PREFIX + "pause-timbre", settings.pauseTimbre.name)
             .apply()
     }
 }
@@ -91,7 +105,8 @@ class BreathingSoundPlayer {
         remainingSeconds: Int,
         preview: Boolean = false
     ): Boolean {
-        if (settings.volume <= 0 && !preview) return false
+        // Volume zéro est un choix (silence), pas une panne audio.
+        if (settings.profileFor(phase).volume <= 0 && !preview) return true
         mutex.lock()
         try {
             return playStream(settings, phase, remainingSeconds, preview)
@@ -106,19 +121,13 @@ class BreathingSoundPlayer {
         remainingSeconds: Int,
         preview: Boolean
     ): Boolean = withContext(Dispatchers.IO) {
-        val hold = phase == BreathPhase.HOLD_AFTER_INHALE ||
-            phase == BreathPhase.HOLD_AFTER_EXHALE
+        val profile = settings.profileFor(phase)
         val durationMs = BreathingSoundEnvelope.durationMs(
-            settings.mode, hold, remainingSeconds, preview
+            profile.mode, profile.isPause, remainingSeconds, preview
         )
-        val inspiration = phase == BreathPhase.INHALE
-        val pitch = when {
-            hold -> 290
-            inspiration -> settings.inhalePitchHz
-            else -> settings.exhalePitchHz
-        }
-        val timbre = if (inspiration) settings.inhaleTimbre else settings.exhaleTimbre
-        val volume = if (preview) settings.volume.coerceAtLeast(30) else settings.volume
+        val pitch = profile.pitchHz
+        val timbre = profile.timbre
+        val volume = if (preview) profile.volume.coerceAtLeast(30) else profile.volume
         val totalSamples = SAMPLE_RATE * durationMs / 1000
         val minBytes = AudioTrack.getMinBufferSize(
             SAMPLE_RATE, AudioFormat.CHANNEL_OUT_MONO, AudioFormat.ENCODING_PCM_16BIT
@@ -154,7 +163,7 @@ class BreathingSoundPlayer {
                 val count = min(CHUNK_SAMPLES, totalSamples - offset)
                 fillSamples(
                     buffer, count, offset, totalSamples, durationMs,
-                    pitch, timbre, volume, phase, settings.mode
+                    pitch, timbre, volume, phase, profile.mode
                 )
                 var written = 0
                 while (written < count) {
@@ -219,14 +228,30 @@ class BreathingSoundPlayer {
             val cycles = (startHz * t + difference * t * t / (2.0 * total)) /
                 SAMPLE_RATE
             val angle = 2.0 * PI * cycles
-            val wave = when (timbre) {
-                BreathingTimbre.SOFT ->
-                    sin(angle) * 0.82 + sin(angle * 0.5) * 0.18
-                BreathingTimbre.PURE ->
-                    sin(angle) * 0.94 + sin(angle * 0.5) * 0.06
-                BreathingTimbre.CLEAR ->
-                    sin(angle) * 0.80 + sin(angle * 2.0) * 0.13 +
-                        sin(angle * 0.5) * 0.07
+            // Le son des pauses est une petite cloche ronde avec partiels
+            // inharmoniques légers : distincte de la respiration mais douce.
+            // En mode continu, le même timbre devient une nappe feutrée.
+            val wave = if (hold) {
+                when (timbre) {
+                    BreathingTimbre.SOFT ->
+                        sin(angle) * 0.76 + sin(angle * 1.5) * 0.18 +
+                            sin(angle * 2.01) * 0.06
+                    BreathingTimbre.PURE ->
+                        sin(angle) * 0.90 + sin(angle * 1.5) * 0.10
+                    BreathingTimbre.CLEAR ->
+                        sin(angle) * 0.70 + sin(angle * 1.5) * 0.20 +
+                            sin(angle * 2.01) * 0.10
+                }
+            } else {
+                when (timbre) {
+                    BreathingTimbre.SOFT ->
+                        sin(angle) * 0.82 + sin(angle * 0.5) * 0.18
+                    BreathingTimbre.PURE ->
+                        sin(angle) * 0.94 + sin(angle * 0.5) * 0.06
+                    BreathingTimbre.CLEAR ->
+                        sin(angle) * 0.80 + sin(angle * 2.0) * 0.13 +
+                            sin(angle * 0.5) * 0.07
+                }
             }
             val gain = BreathingSoundEnvelope.gain(progressMs, durationMs, mode, hold)
             samples[i] = (wave * gain * amplitude * Short.MAX_VALUE)
