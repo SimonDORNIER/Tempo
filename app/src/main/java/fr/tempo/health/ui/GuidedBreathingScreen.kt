@@ -138,19 +138,23 @@ fun GuidedBreathingScreen(
         onSoundSettingsChange()
     }
 
-    fun previewPhase(inspiration: Boolean) {
+    fun previewPhase(phase: BreathPhase) {
         previewJob?.cancel()
         previewToken += 1
         val token = previewToken
         previewJob = previewScope.launch {
             previewing = true
             try {
+                // Le son de pause est préécoutable même si la durée
+                // des pauses est actuellement réglée sur 0 seconde.
+                val seconds = when (phase) {
+                    BreathPhase.INHALE -> pattern.inhaleSeconds.coerceAtLeast(1)
+                    BreathPhase.EXHALE -> pattern.exhaleSeconds.coerceAtLeast(1)
+                    BreathPhase.HOLD_AFTER_INHALE -> pattern.holdAfterInhaleSeconds.coerceAtLeast(2)
+                    BreathPhase.HOLD_AFTER_EXHALE -> pattern.holdAfterExhaleSeconds.coerceAtLeast(2)
+                }
                 val ok = previewPlayer.play(
-                    soundSettings,
-                    if (inspiration) BreathPhase.INHALE else BreathPhase.EXHALE,
-                    if (inspiration) pattern.inhaleSeconds.coerceAtLeast(1)
-                    else pattern.exhaleSeconds.coerceAtLeast(1),
-                    preview = true
+                    soundSettings, phase, seconds, preview = true
                 )
                 audioProblem = !ok
             } finally {
@@ -197,7 +201,9 @@ fun GuidedBreathingScreen(
             val ok = soundPlayer.play(
                 soundSettings, phaseState.phase, phaseState.remainingSeconds
             )
-            if (!ok && soundSettings.volume > 0) audioProblem = true
+            if (!ok && soundSettings.profileFor(phaseState.phase).volume > 0) {
+                audioProblem = true
+            }
         }
     }
 
@@ -465,7 +471,8 @@ fun GuidedBreathingScreen(
                             onCheckedChange = { changeSound(soundSettings.copy(enabled = it)) }
                         )
                     }
-                    Text("Mode sonore", fontWeight = FontWeight.SemiBold)
+                    Text("Inspiration et expiration", fontWeight = FontWeight.SemiBold)
+                    Text("Mode sonore de la respiration", style = MaterialTheme.typography.bodySmall)
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         BreathingCueMode.entries.forEach { mode ->
                             FilterChip(
@@ -482,7 +489,7 @@ fun GuidedBreathingScreen(
                         style = MaterialTheme.typography.bodySmall,
                         color = C.textSecondary
                     )
-                    Text("Volume : ${soundSettings.volume} %", fontWeight = FontWeight.SemiBold)
+                    Text("Volume respiration : ${soundSettings.volume} %", fontWeight = FontWeight.SemiBold)
                     Slider(
                         value = soundSettings.volume.toFloat(),
                         onValueChange = {
@@ -497,7 +504,7 @@ fun GuidedBreathingScreen(
                         timbre = soundSettings.inhaleTimbre,
                         onPitch = { changeSound(soundSettings.copy(inhalePitchHz = it)) },
                         onTimbre = { changeSound(soundSettings.copy(inhaleTimbre = it)) },
-                        onPreview = { previewPhase(true) }
+                        onPreview = { previewPhase(BreathPhase.INHALE) }
                     )
                     BreathingPhaseSoundEditor(
                         title = "Expiration",
@@ -505,10 +512,61 @@ fun GuidedBreathingScreen(
                         timbre = soundSettings.exhaleTimbre,
                         onPitch = { changeSound(soundSettings.copy(exhalePitchHz = it)) },
                         onTimbre = { changeSound(soundSettings.copy(exhaleTimbre = it)) },
-                        onPreview = { previewPhase(false) }
+                        onPreview = { previewPhase(BreathPhase.EXHALE) }
+                    )
+                    Text("Pauses", fontWeight = FontWeight.SemiBold)
+                    Text(
+                        "Son distinct des inspirations et expirations, commun aux deux pauses.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = C.textSecondary
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        BreathingCueMode.entries.forEach { mode ->
+                            FilterChip(
+                                selected = soundSettings.pauseMode == mode,
+                                onClick = { changeSound(soundSettings.copy(pauseMode = mode)) },
+                                label = {
+                                    Text(if (mode == BreathingCueMode.SHORT) "Court" else "Continu")
+                                }
+                            )
+                        }
+                    }
+                    Text(
+                        if (soundSettings.pauseMode == BreathingCueMode.SHORT)
+                            "Deux carillons doux au début de chaque pause, puis silence."
+                        else
+                            "Un son différent et apaisant pendant toute la pause.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = C.textSecondary
                     )
                     Text(
-                        "Les sons sont conçus pour la détente, sans bip sec. Les pauses sont signalées par deux clochettes graves et discrètes. Tu peux écouter un aperçu à tout moment ; utilise le volume multimédia Android.",
+                        "Volume pauses : ${soundSettings.pauseVolume} %",
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Slider(
+                        value = soundSettings.pauseVolume.toFloat(),
+                        onValueChange = {
+                            changeSound(
+                                soundSettings.copy(pauseVolume = (it / 5).roundToInt() * 5)
+                            )
+                        },
+                        valueRange = 0f..100f,
+                        steps = 19
+                    )
+                    BreathingPhaseSoundEditor(
+                        title = "Son des pauses",
+                        pitchHz = soundSettings.pausePitchHz,
+                        timbre = soundSettings.pauseTimbre,
+                        onPitch = { changeSound(soundSettings.copy(pausePitchHz = it)) },
+                        onTimbre = { changeSound(soundSettings.copy(pauseTimbre = it)) },
+                        onPreview = { previewPhase(BreathPhase.HOLD_AFTER_INHALE) }
+                    )
+                    Text(
+                        "Les modes respiration et pause sont indépendants : " +
+                            "tu peux combiner respiration continue et pauses courtes, " +
+                            "ou activer un son continu pour les pauses. " +
+                            "Une pause de 0 seconde reste silencieuse. " +
+                            "Le volume multimédia Android s'applique toujours.",
                         style = MaterialTheme.typography.bodySmall,
                         color = C.textSecondary
                     )
