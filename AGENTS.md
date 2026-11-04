@@ -1,3 +1,7 @@
+# Correctif utilisateur 04/11/2026 — 2.5.9 : synchro santé toutes les deux heures
+
+WorkManager lit Santé Connect avec permission explicite d'accès en arrière-plan, sur une fenêtre courte, et rafraîchit Room hors interface. Conserver les données locales, la synchronisation manuelle 28 jours et les 4 onglets. Ne pas promettre une minute exacte sous Android. La lecture 28 jours ne doit plus être déclenchée à cause de l'état initial vide du StateFlow lorsque la base contient déjà des données. Voir `docs/TESTS_TEMPO_2_5_9.md`.
+
 # Correctif utilisateur 29/10/2026 — 2.5.8 : retour fiable sur Aujourd'hui
 
 Dans la barre basse, sélectionner Aujourd'hui revient explicitement à la destination racine avec `popBackStack("today", false)`, sans `restoreState`. Ne plus utiliser un navigate avec save/restore pour l'accueil, car un état antérieur peut restituer Suivi. Les trois autres onglets conservent leur gestion d'état habituelle.
