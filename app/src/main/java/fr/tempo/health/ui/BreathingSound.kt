@@ -33,9 +33,9 @@ enum class BreathingTimbre(val label: String) {
 data class BreathingSoundSettings(
     val enabled: Boolean = true,
     val mode: BreathingCueMode = BreathingCueMode.SHORT,
-    val volume: Int = 70,
-    val inhalePitchHz: Int = 550,
-    val exhalePitchHz: Int = 350,
+    val volume: Int = 65,
+    val inhalePitchHz: Int = 460,
+    val exhalePitchHz: Int = 330,
     val inhaleTimbre: BreathingTimbre = BreathingTimbre.SOFT,
     val exhaleTimbre: BreathingTimbre = BreathingTimbre.SOFT
 )
@@ -53,9 +53,9 @@ object BreathingSoundPreferences {
             enabled = prefs.getBoolean(PREFIX + "enabled", true),
             mode = parse(prefs.getString(PREFIX + "mode", null),
                 BreathingCueMode.SHORT, BreathingCueMode.entries.toTypedArray()),
-            volume = prefs.getInt(PREFIX + "volume", 70).coerceIn(0, 100),
-            inhalePitchHz = prefs.getInt(PREFIX + "inhale-hz", 550).coerceIn(200, 1000),
-            exhalePitchHz = prefs.getInt(PREFIX + "exhale-hz", 350).coerceIn(200, 1000),
+            volume = prefs.getInt(PREFIX + "volume", 65).coerceIn(0, 100),
+            inhalePitchHz = prefs.getInt(PREFIX + "inhale-hz", 460).coerceIn(200, 1000),
+            exhalePitchHz = prefs.getInt(PREFIX + "exhale-hz", 330).coerceIn(200, 1000),
             inhaleTimbre = parse(prefs.getString(PREFIX + "inhale-timbre", null),
                 BreathingTimbre.SOFT, BreathingTimbre.entries.toTypedArray()),
             exhaleTimbre = parse(prefs.getString(PREFIX + "exhale-timbre", null),
@@ -108,15 +108,12 @@ class BreathingSoundPlayer {
     ): Boolean = withContext(Dispatchers.IO) {
         val hold = phase == BreathPhase.HOLD_AFTER_INHALE ||
             phase == BreathPhase.HOLD_AFTER_EXHALE
-        val durationMs = when {
-            hold -> 320
-            settings.mode == BreathingCueMode.SHORT -> 260
-            preview -> 1050
-            else -> remainingSeconds.coerceAtLeast(1) * 1000
-        }
+        val durationMs = BreathingSoundEnvelope.durationMs(
+            settings.mode, hold, remainingSeconds, preview
+        )
         val inspiration = phase == BreathPhase.INHALE
         val pitch = when {
-            hold -> 280
+            hold -> 290
             inspiration -> settings.inhalePitchHz
             else -> settings.exhalePitchHz
         }
@@ -155,7 +152,10 @@ class BreathingSoundPlayer {
             while (offset < totalSamples) {
                 currentCoroutineContext().ensureActive()
                 val count = min(CHUNK_SAMPLES, totalSamples - offset)
-                fillSamples(buffer, count, offset, totalSamples, pitch, timbre, volume, hold)
+                fillSamples(
+                    buffer, count, offset, totalSamples, durationMs,
+                    pitch, timbre, volume, phase, settings.mode
+                )
                 var written = 0
                 while (written < count) {
                     currentCoroutineContext().ensureActive()
@@ -167,8 +167,9 @@ class BreathingSoundPlayer {
                 }
                 offset += count
             }
-            // Le dernier bloc peut encore être dans le buffer du périphérique.
-            delay(90)
+            // Laisser le temps au périphérique de jouer la queue feutrée.
+            val remainingFrames = (totalSamples - audio.playbackHeadPosition).coerceAtLeast(0)
+            delay((remainingFrames * 1000L / SAMPLE_RATE + 35L).coerceIn(35L, 300L))
             true
         } catch (cancelled: CancellationException) {
             throw cancelled
@@ -189,34 +190,46 @@ class BreathingSoundPlayer {
         count: Int,
         offset: Int,
         total: Int,
+        durationMs: Int,
         pitch: Int,
         timbre: BreathingTimbre,
         volume: Int,
-        hold: Boolean
+        phase: BreathPhase,
+        mode: BreathingCueMode
     ) {
-        val hz = pitch.coerceIn(200, 1000)
-        val amplitude = volume.coerceIn(0, 100) / 100.0 * if (hold) 0.40 else 0.72
-        val attack = SAMPLE_RATE * 0.025
-        val release = SAMPLE_RATE * 0.060
+        val hold = phase == BreathPhase.HOLD_AFTER_INHALE ||
+            phase == BreathPhase.HOLD_AFTER_EXHALE
+        val hz = pitch.coerceIn(200, 1000).toDouble()
+        val amplitude = volume.coerceIn(0, 100) / 100.0 *
+            BreathingSoundEnvelope.peak(mode, hold)
+        // Une très légère montée accompagne l'inspiration, une descente l'expiration.
+        // L'intégrale de fréquence évite les ruptures de phase durant le glissement.
+        val glide = when (phase) {
+            BreathPhase.INHALE -> 0.025
+            BreathPhase.EXHALE -> -0.025
+            else -> 0.0
+        }
+        val startHz = hz * (1.0 - glide / 2.0)
+        val difference = hz * glide
+
         for (i in 0 until count) {
-            val t = offset + i
-            val angle = 2.0 * PI * hz * t / SAMPLE_RATE
+            val frame = offset + i
+            val t = frame.toDouble()
+            val progressMs = t * 1000.0 / SAMPLE_RATE
+            val cycles = (startHz * t + difference * t * t / (2.0 * total)) /
+                SAMPLE_RATE
+            val angle = 2.0 * PI * cycles
             val wave = when (timbre) {
-                BreathingTimbre.SOFT -> sin(angle) * 0.92 + sin(angle * 2) * 0.08
-                BreathingTimbre.PURE -> sin(angle)
-                BreathingTimbre.CLEAR -> sin(angle) * 0.72 +
-                    sin(angle * 2) * 0.20 + sin(angle * 3) * 0.08
+                BreathingTimbre.SOFT ->
+                    sin(angle) * 0.82 + sin(angle * 0.5) * 0.18
+                BreathingTimbre.PURE ->
+                    sin(angle) * 0.94 + sin(angle * 0.5) * 0.06
+                BreathingTimbre.CLEAR ->
+                    sin(angle) * 0.80 + sin(angle * 2.0) * 0.13 +
+                        sin(angle * 0.5) * 0.07
             }
-            val fade = min(
-                (t.toDouble() / attack).coerceIn(0.0, 1.0),
-                ((total - t).toDouble() / release).coerceIn(0.0, 1.0)
-            )
-            // Les pauses se distinguent par deux petits sons graves, puis le silence.
-            val pulse = if (!hold) 1.0 else {
-                val positionMs = t * 1000 / SAMPLE_RATE
-                if (positionMs in 0..105 || positionMs in 170..275) 1.0 else 0.0
-            }
-            samples[i] = (wave * fade * pulse * amplitude * Short.MAX_VALUE)
+            val gain = BreathingSoundEnvelope.gain(progressMs, durationMs, mode, hold)
+            samples[i] = (wave * gain * amplitude * Short.MAX_VALUE)
                 .roundToInt()
                 .coerceIn(Short.MIN_VALUE.toInt(), Short.MAX_VALUE.toInt())
                 .toShort()
