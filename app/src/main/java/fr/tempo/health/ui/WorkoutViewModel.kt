@@ -338,6 +338,10 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
+    fun requestSettingsBackup() {
+        backupManager.requestAutoBackup()
+    }
+
     fun setSoundVolume(volume: Int) {
         val safe = volume.coerceIn(0, 100)
         _soundVolume.value = safe
