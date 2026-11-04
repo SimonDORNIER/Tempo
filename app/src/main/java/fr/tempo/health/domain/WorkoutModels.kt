@@ -415,6 +415,14 @@ object ExerciseLibrary {
             "Une respiration petite et confortable suffit. Arrête si tu te sens étourdi."
         ),
         exercise(
+            "breath-custom",
+            "Respiration personnalisée",
+            ExerciseCategory.BREATHING,
+            60,
+            "Choisis la durée totale puis règle inspiration, pause, expiration et pause. Toute phase réglée à 0 seconde est ignorée.",
+            "Respire confortablement, sans forcer. Les pauses sont facultatives."
+        ),
+        exercise(
             "breath-night-46",
             "Pause respiratoire du soir 4/6",
             ExerciseCategory.BREATHING,
