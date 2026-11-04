@@ -230,11 +230,15 @@ fun GuidedBreathingScreen(
         Text("Respiration guidée", style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.Bold, color = cream)
         Text("Sans matériel • à ton rythme", color = C.textSecondary)
+        if (soundSettings.enabled) {
+            Text("Sons activés • règle le volume multimédia du téléphone",
+                color = C.textSecondary, style = MaterialTheme.typography.bodySmall)
+        }
 
         if (!running && !finished) {
             BreathingGuides.all.forEach { option ->
                 OutlinedButton(
-                    onClick = { selectedId = option.exerciseId },
+                    onClick = { selectGuide(option.exerciseId) },
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(modifier = Modifier.fillMaxWidth()) {
@@ -243,13 +247,90 @@ fun GuidedBreathingScreen(
                             fontWeight = FontWeight.SemiBold
                         )
                         Text(
-                            option.description + " • " + option.durationSeconds / 60 + " min" +
-                                " • " + option.inhaleSeconds + "s / " + option.exhaleSeconds + "s",
+                            if (option.exerciseId == "breath-custom") {
+                                option.description
+                            } else {
+                                option.description + " • " + option.inhaleSeconds +
+                                    "s / " + option.exhaleSeconds + "s"
+                            },
                             style = MaterialTheme.typography.bodySmall
                         )
                     }
                 }
             }
+            TempoPanelCard(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = surface)
+            ) {
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text("Durée de la séance", fontWeight = FontWeight.SemiBold, color = cream)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        IconButton(onClick = { saveDuration(durationMinutes - 1) },
+                            enabled = durationMinutes > 1) {
+                            Icon(Icons.Rounded.Remove, "Réduire la durée", tint = C.text)
+                        }
+                        Text("$"+"{durationMinutes} min", fontWeight = FontWeight.Bold,
+                            style = MaterialTheme.typography.titleLarge, color = sage)
+                        IconButton(onClick = { saveDuration(durationMinutes + 1) },
+                            enabled = durationMinutes < 60) {
+                            Icon(Icons.Rounded.Add, "Augmenter la durée", tint = C.text)
+                        }
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        listOf(2, 3, 5, 10).forEach { minutes ->
+                            FilterChip(
+                                selected = durationMinutes == minutes,
+                                onClick = { saveDuration(minutes) },
+                                label = { Text("$"+"{minutes} min") }
+                            )
+                        }
+                    }
+                    if (guide.exerciseId == "breath-custom") {
+                        Text("Cycle personnalisé", fontWeight = FontWeight.SemiBold, color = cream)
+                        BreathingDurationRow(
+                            "Inspiration", customPattern.inhaleSeconds,
+                            { savePattern(customPattern.copy(inhaleSeconds = it)) }
+                        )
+                        BreathingDurationRow(
+                            "Pause après inspiration", customPattern.holdAfterInhaleSeconds,
+                            { savePattern(customPattern.copy(holdAfterInhaleSeconds = it)) }
+                        )
+                        BreathingDurationRow(
+                            "Expiration", customPattern.exhaleSeconds,
+                            { savePattern(customPattern.copy(exhaleSeconds = it)) }
+                        )
+                        BreathingDurationRow(
+                            "Pause après expiration", customPattern.holdAfterExhaleSeconds,
+                            { savePattern(customPattern.copy(holdAfterExhaleSeconds = it)) }
+                        )
+                        Text(
+                            "0 seconde = phase ignorée. Les pauses sont facultatives.",
+                            color = C.textSecondary, style = MaterialTheme.typography.bodySmall
+                        )
+                        if (!pattern.canStart) {
+                            Text(
+                                "Ajoute au moins une phase d'inspiration ou d'expiration.",
+                                color = C.amber, style = MaterialTheme.typography.bodySmall
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        if (audioProblem) {
+            Text(
+                "Le lecteur audio n'a pas pu produire de son. Vérifie la sortie " +
+                    "et le volume multimédia du téléphone, puis utilise « Écouter ».",
+                color = C.amber, style = MaterialTheme.typography.bodySmall
+            )
         }
 
         TempoPanelCard(
@@ -269,8 +350,11 @@ fun GuidedBreathingScreen(
                         !running -> "Prêt à commencer ?"
                         paused -> "En pause"
                         preparation > 0 -> "Prépare-toi"
-                        inhale -> "Inspire doucement"
-                        else -> "Expire lentement"
+                        phaseState?.phase == BreathPhase.INHALE -> "Inspire doucement"
+                        phaseState?.phase == BreathPhase.EXHALE -> "Expire lentement"
+                        phaseState?.phase == BreathPhase.HOLD_AFTER_INHALE -> "Pause après inspiration"
+                        phaseState?.phase == BreathPhase.HOLD_AFTER_EXHALE -> "Pause après expiration"
+                        else -> "Règle ton cycle"
                     },
                     style = MaterialTheme.typography.headlineSmall,
                     color = cream
@@ -278,7 +362,7 @@ fun GuidedBreathingScreen(
                 Text(
                     when {
                         finished -> "Terminé"
-                        !running -> (guide.durationSeconds / 60).toString() + " min"
+                        !running -> durationMinutes.toString() + " min"
                         preparation > 0 -> preparation.toString() + " s"
                         else -> phaseRemaining.toString() + " s"
                     },
@@ -287,19 +371,22 @@ fun GuidedBreathingScreen(
                     color = sage
                 )
                 LinearProgressIndicator(
-                    progress = { elapsed.toFloat() / guide.durationSeconds },
+                    progress = { elapsed.toFloat() / durationSeconds },
                     modifier = Modifier.fillMaxWidth()
                 )
                 Text(
-                    "Temps restant : " + ((guide.durationSeconds - elapsed) / 60) +
-                        " min " + ((guide.durationSeconds - elapsed) % 60) + " s",
+                    "Temps restant : " + ((durationSeconds - elapsed) / 60) +
+                        " min " + ((durationSeconds - elapsed) % 60) + " s",
                     color = C.textSecondary
                 )
                 Text(
-                    if (running) "Cycle " + (elapsed / cycle + 1) +
-                        " • inspire " + guide.inhaleSeconds + " s, expire " +
-                        guide.exhaleSeconds + " s"
-                    else ExerciseLibrary.byId(guide.exerciseId).instructions,
+                    if (running) {
+                        "Cycle " + ((phaseState?.cycleIndex ?: 0) + 1) +
+                            " • " + pattern.inhaleSeconds + "s inspirer / " +
+                            pattern.holdAfterInhaleSeconds + "s pause / " +
+                            pattern.exhaleSeconds + "s expirer / " +
+                            pattern.holdAfterExhaleSeconds + "s pause"
+                    } else ExerciseLibrary.byId(guide.exerciseId).instructions,
                     color = C.textSecondary,
                     style = MaterialTheme.typography.bodyMedium
                 )
@@ -325,8 +412,11 @@ fun GuidedBreathingScreen(
                     elapsed = 0
                     preparation = 5
                     paused = false
+                    finished = false
+                    audioProblem = false
                     running = true
                 },
+                enabled = pattern.canStart,
                 modifier = Modifier.fillMaxWidth().height(56.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = cream, contentColor = ink)
             ) { Text("DÉMARRER") }
@@ -417,7 +507,7 @@ fun GuidedBreathingScreen(
                         onPreview = { previewPhase(false) }
                     )
                     Text(
-                        "Les réglages sont conservés. Le bouton Activer/Couper reste accessible pendant la séance.",
+                        "Utilise le volume multimédia Android. L'aperçu fonctionne même si les sons de séance sont coupés. Pendant une pause, deux signaux graves indiquent le début de la phase.",
                         style = MaterialTheme.typography.bodySmall,
                         color = C.textSecondary
                     )
