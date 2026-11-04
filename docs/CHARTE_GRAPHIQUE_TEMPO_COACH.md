@@ -1,3 +1,10 @@
+## 2.6.0 — Ergonomie sonore de la respiration (04/11/2026)
+
+- Conserver la palette 2.5 douce par domaine et les 4 onglets. Respiration guidée occupe sa propre section dans **Pratiquer**.
+- Sur le lecteur, une icône de haut-parleur ouvre la popup détaillée ; un bouton textuel adjacent permet de basculer immédiatement entre actif et muet.
+- La popup utilise des contrôles natifs Material 3 (switch, filtres courts/continus, sliders de volume/hauteur, choix de timbres, aperçu) et défile sur les petits écrans.
+- Les deux phases sont différenciées par le son choisi et leur libellé, jamais uniquement par la couleur ; silence immédiat en pause/arrêt.
+
 # Tempo Coach — Charte graphique et UX
 
 ## Correctif 2.5.8 — navigation de l'onglet Aujourd'hui
