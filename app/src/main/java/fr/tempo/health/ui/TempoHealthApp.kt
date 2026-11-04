@@ -409,8 +409,12 @@ fun TempoHealthApp(
                     category = category,
                     preferences = trainingPreferences,
                     onStart = { exercise ->
-                        workoutViewModel.prepareSingleExercise(exercise)
-                        navController.navigate("workout")
+                        if (exercise.category == ExerciseCategory.BREATHING) {
+                            navController.navigate("breathing")
+                        } else {
+                            workoutViewModel.prepareSingleExercise(exercise)
+                            navController.navigate("workout")
+                        }
                     }
                 )
             }
@@ -490,7 +494,8 @@ fun TempoHealthApp(
             composable("breathing") {
                 GuidedBreathingScreen(
                     onExit = { navController.popBackStack() },
-                    onRecord = workoutViewModel::recordBreathingSession
+                    onRecord = workoutViewModel::recordBreathingSession,
+                    onSoundSettingsChange = workoutViewModel::requestSettingsBackup
                 )
             }
 
