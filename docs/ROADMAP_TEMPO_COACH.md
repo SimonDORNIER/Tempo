@@ -1,3 +1,13 @@
+## 2.6.3 — Profil sonore indépendant pour les pauses (04/11/2026)
+
+- Préserver les sons apaisants 2.6.2 et tous les réglages existants d'inspiration/expiration.
+- Ajouter un **troisième profil commun aux deux pauses** de la respiration personnalisée, avec **mode Court (deux carillons 850 ms, puis silence) ou Continu (nappe douce pendant toute la pause)**, volume 0–100 %, hauteur 200–1000 Hz, timbre Doux/Pur/Clair et préécoute dédiée.
+- Le mode des pauses est indépendant du mode de respiration : toutes combinaisons sont autorisées, notamment **respiration continue + pauses courtes**, **respiration courte + pauses continues**, les deux continus ou les deux courts.
+- Timbre des pauses distinct, doux, de type cloche ronde (légères harmoniques). Les pauses continues utilisent une amplitude moindre et des fondus prolongés.
+- Les réglages sont dans les mêmes SharedPreferences `tempo-health-settings` déjà incluses dans les sauvegardes existantes. Les nouvelles préférences reçoivent des valeurs par défaut pour les pauses ; la mise à jour conserve celles déjà présentes pour respiration.
+- Une durée de pause réglée à 0 s reste ignorée sans son. Le bouton de préécoute doit fonctionner même si la pause est réglée à 0 ou que le son de la séance est coupé.
+- Régressions/tests : `BreathingPauseSoundTest`, `BreathingSoundEnvelopeTest`, `BreathingPatternTest`; checklist `docs/TESTS_TEMPO_2_6_3.md`.
+
 ## 2.6.2 — Sons apaisants pour la respiration (04/11/2026)
 
 - Les bips courts brusques (260 ms) sont remplacés par de petits carillons feutrés d’environ **900 ms** : entrée progressive (~165 ms), extinction douce (~470 ms) et légère descente de volume. Les hauteurs distinctes inspiration/expiration restent réglables.
