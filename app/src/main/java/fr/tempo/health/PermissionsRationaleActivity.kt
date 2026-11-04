@@ -31,7 +31,7 @@ class PermissionsRationaleActivity : ComponentActivity() {
                         style = MaterialTheme.typography.headlineMedium
                     )
                     Text(
-                        "Tempo Health lit uniquement les données Santé Connect que tu autorises afin de calculer localement tes tendances de sommeil, récupération, activité et entraînement."
+                        "Tempo Coach lit uniquement les données Santé Connect que tu autorises pour calculer localement tes tendances de sommeil, récupération, activité et entraînement. Si tu autorises la lecture en arrière-plan, les mesures sont aussi mises à jour environ toutes les deux heures."
                     )
                     Text(
                         "Les données synchronisées sont stockées dans la base locale de l'application. Elles ne sont envoyées vers aucun serveur par cette version."
