@@ -1,3 +1,3 @@
-Tempo Coach 2.6.1 : sons des exercices de respiration réparés via lecture multimédia en flux, sons activés par défaut et aperçu avec diagnostic.
-Durée totale de chaque respiration configurable avant lancement (1-60 min). Nouveau cycle personnalisé inspiration/pause/expiration/pause, chaque phase 0-60 s (0 = ignorer). Réglages et historiques conservés.
-Tests automatisés : BreathingPatternTest, compilation Android. Checklist manuelle : docs/TESTS_TEMPO_2_6_1.md.
+Tempo Coach 2.6.2 : les sons de respiration privilégient la détente.
+Signaux courts : carillons feutrés d'environ 0,9 s avec ouverture et extinction douces. Sons continus : moins agressifs, plus calmes, avec fondus longs et légères variations de hauteur. Pauses : doubles clochettes graves discrètes.
+Conservation des durées de respiration personnalisables et des réglages audio précédents. Vérification : docs/TESTS_TEMPO_2_6_2.md et BreathingSoundEnvelopeTest.
