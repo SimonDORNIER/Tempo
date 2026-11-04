@@ -1,3 +1,7 @@
+# Décision 04/11/2026 — Tempo Coach 2.6.2 : audio de détente
+
+Priorité sonore : les courtes indications des phases respiratoires doivent évoquer des carillons doux (900 ms, longues enveloppes de fade), pas des bips de minuterie. Les sons continus doivent rester feutrés, plus discrets et progressifs, sans saturation ni brusque transition ; les deux pauses sont signalées par de petites clochettes grave. Préserver le volume et les réglages existants de l’utilisateur, les préférences des sessions personnalisées, le 4-temps à 0 possible, la sauvegarde et l'APK signé. Tester sur Pixel 7a et documenter dans docs/TESTS_TEMPO_2_6_2.md.
+
 # Correctif 04/11/2026 — Tempo Coach 2.6.1 : son et respiration personnalisable
 
 Priorité immédiate : corriger la lecture audio des respirations 2.6.0, initialiser le son à actif pour les nouvelles préférences, prévisualiser les sons, alerter sur une erreur de sortie (volume multimédia Android). En mode continu, utiliser un flux PCM stable ; pause/reprise/coupure doivent annuler proprement. Chaque exercice de respiration a une durée totale réglable avant lancement; ajouter une option avec inspiration / pause / expiration / pause à 0–60 s par phase, 0 supprimant la phase. Interdire une séance sans aucune inspiration ni expiration. Conserver sauvegarde, historique, 4 onglets, Santé Connect et minuteur des autres exercices. Voir docs/TESTS_TEMPO_2_6_1.md.
