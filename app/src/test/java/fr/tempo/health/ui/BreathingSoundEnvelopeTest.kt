@@ -35,12 +35,12 @@ class BreathingSoundEnvelopeTest {
 
     @Test fun theTwoHoldChimesAreSeparatedBySilence() {
         val duration = BreathingSoundEnvelope.durationMs(
-            BreathingCueMode.CONTINUOUS, true, 2, false
+            BreathingCueMode.SHORT, true, 2, false
         )
         assertEquals(850, duration)
-        val first = BreathingSoundEnvelope.gain(200.0, duration, BreathingCueMode.CONTINUOUS, true)
-        val silence = BreathingSoundEnvelope.gain(405.0, duration, BreathingCueMode.CONTINUOUS, true)
-        val second = BreathingSoundEnvelope.gain(610.0, duration, BreathingCueMode.CONTINUOUS, true)
+        val first = BreathingSoundEnvelope.gain(200.0, duration, BreathingCueMode.SHORT, true)
+        val silence = BreathingSoundEnvelope.gain(405.0, duration, BreathingCueMode.SHORT, true)
+        val second = BreathingSoundEnvelope.gain(610.0, duration, BreathingCueMode.SHORT, true)
         assertTrue(first > 0.0)
         assertEquals(0.0, silence, 0.0)
         assertTrue(second > 0.0)
