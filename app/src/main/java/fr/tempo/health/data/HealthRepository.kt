@@ -2,6 +2,7 @@ package fr.tempo.health.data
 
 import android.content.Context
 import androidx.health.connect.client.HealthConnectClient
+import androidx.health.connect.client.HealthConnectFeatures
 import androidx.health.connect.client.permission.HealthPermission
 import androidx.health.connect.client.records.DistanceRecord
 import androidx.health.connect.client.records.ExerciseSessionRecord
@@ -20,6 +21,8 @@ import androidx.health.connect.client.request.AggregateRequest
 import androidx.health.connect.client.request.ReadRecordsRequest
 import androidx.health.connect.client.time.TimeRangeFilter
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import java.time.Duration
 import java.time.Instant
 import java.time.LocalDate
@@ -37,6 +40,16 @@ class HealthRepository(
     private val database = TempoHealthDatabase.get(context)
     private val dao = database.dailyHealthDao()
     private val checkInDao = database.dailyCheckInDao()
+
+    val backgroundReadPermission: String =
+        HealthPermission.PERMISSION_READ_HEALTH_DATA_IN_BACKGROUND
+
+    fun backgroundReadSupported(): Boolean =
+        availability() == HealthConnectAvailability.AVAILABLE && runCatching {
+            client().features.getFeatureStatus(
+                HealthConnectFeatures.FEATURE_READ_HEALTH_DATA_IN_BACKGROUND
+            ) == HealthConnectFeatures.FEATURE_STATUS_AVAILABLE
+        }.getOrDefault(false)
 
     private val sleepPermission =
         HealthPermission.getReadPermission(SleepSessionRecord::class)
@@ -156,7 +169,7 @@ class HealthRepository(
     suspend fun lastSyncEpochMs(): Long? =
         dao.getLastSyncEpochMs()
 
-    suspend fun shouldAutoSync(maxAgeMinutes: Long = 30): Boolean {
+    suspend fun shouldAutoSync(maxAgeMinutes: Long = 120): Boolean {
         val last = lastSyncEpochMs() ?: return true
         val age = Instant.now().toEpochMilli() - last
         return age >= Duration.ofMinutes(maxAgeMinutes).toMillis()
@@ -170,7 +183,14 @@ class HealthRepository(
         syncDays(28)
     }
 
-    private suspend fun syncDays(dayCount: Int) {
+    // Limite le travail en tâche de fond et évite les doublons avec une synchro manuelle.
+    suspend fun syncInBackgroundIfDue() {
+        syncDays(3, minAgeMinutes = 110)
+    }
+
+    private suspend fun syncDays(dayCount: Int, minAgeMinutes: Long? = null) =
+        syncMutex.withLock {
+        if (minAgeMinutes != null && !shouldAutoSync(minAgeMinutes)) return@withLock
         val granted = grantedPermissions()
         if (granted.none { it in requiredPermissions }) {
             throw SecurityException("Aucune autorisation Santé Connect accordée")
@@ -422,5 +442,10 @@ class HealthRepository(
             vo2Max = vo2Max,
             syncedAtEpochMs = Instant.now().toEpochMilli()
         )
+    }
+
+    companion object {
+        // Verrou partagé entre ViewModel et WorkManager dans le même processus.
+        private val syncMutex = Mutex()
     }
 }
