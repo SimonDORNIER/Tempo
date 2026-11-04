@@ -1,3 +1,3 @@
-Tempo Coach 2.6.0 : sons de respiration guidée courts ou continus selon les phases, timbres et hauteurs personnalisables, aperçu, volume et coupure instantanée.
-Respiration isolée de Mouvement dans Pratiquer. Préférences sauvegardées et minuteurs classiques inchangés.
-Vérification : docs/TESTS_TEMPO_2_6.md. Compiler, signer et publier TempoHealth-2.6.0.apk.
+Tempo Coach 2.6.1 : sons des exercices de respiration réparés via lecture multimédia en flux, sons activés par défaut et aperçu avec diagnostic.
+Durée totale de chaque respiration configurable avant lancement (1-60 min). Nouveau cycle personnalisé inspiration/pause/expiration/pause, chaque phase 0-60 s (0 = ignorer). Réglages et historiques conservés.
+Tests automatisés : BreathingPatternTest, compilation Android. Checklist manuelle : docs/TESTS_TEMPO_2_6_1.md.
