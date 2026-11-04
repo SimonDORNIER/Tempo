@@ -1,3 +1,12 @@
+## 2.6.1 — Réparation du son et respiration totalement réglable (04/11/2026)
+
+- Correctif sons 2.6.0 : sortie multimédia Android via AudioTrack PCM 44,1 kHz MODE_STREAM, petits blocs annulables au lieu de MODE_STATIC, sons actifs et volume initial 70% pour les nouvelles configurations. Défaillances signalées visuellement, aperçu individuel des timbres; respecter les choix existants.
+- Chaque guide de respiration permet de régler la durée totale **de 1 à 60 min** avant démarrage (réglages conservés par guide).
+- Nouveau choix **Respiration personnalisée** : quatre phases (inspiration, pause après inspiration, expiration, pause après expiration), **0–60 s** chacune, 0 saute la phase. Démarrage interdit si inspiration ET expiration valent 0 ; aucune division modulo 0.
+- Deux bips graves distinctifs marquent chaque pause non nulle, puis silence. Les sons d'inspiration/expiration restent paramétrables selon les modes court/continu.
+- Les réglages sont sauvegardés sans migration, l'historique du nouvel exercice utilise l'ID breath-custom. Régression des cinq exercices guidés et des exercices de mouvement à contrôler.
+- Checklist : `docs/TESTS_TEMPO_2_6_1.md`.
+
 ## 2.6.0 — Respiration guidée : signaux sonores dédiés (04/11/2026)
 
 - Dans **Pratiquer**, les respirations ont une section autonome, séparée de **Mouvement**; aucun cinquième onglet.
