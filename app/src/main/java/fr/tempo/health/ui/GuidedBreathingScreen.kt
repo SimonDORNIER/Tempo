@@ -471,14 +471,14 @@ fun GuidedBreathingScreen(
                             FilterChip(
                                 selected = soundSettings.mode == mode,
                                 onClick = { changeSound(soundSettings.copy(mode = mode)) },
-                                label = { Text(if (mode == BreathingCueMode.SHORT) "Courts" else "Continus") }
+                                label = { Text(if (mode == BreathingCueMode.SHORT) "Carillons" else "Fluides") }
                             )
                         }
                     }
                     Text(
                         if (soundSettings.mode == BreathingCueMode.SHORT)
-                            "Un signal au début de chaque inspiration et expiration."
-                        else "Un son pendant toute la durée de chaque phase.",
+                            "Un carillon doux d'environ 0,9 seconde au début de chaque phase."
+                        else "Une tonalité feutrée, très douce et progressive pendant chaque phase.",
                         style = MaterialTheme.typography.bodySmall,
                         color = C.textSecondary
                     )
@@ -508,7 +508,7 @@ fun GuidedBreathingScreen(
                         onPreview = { previewPhase(false) }
                     )
                     Text(
-                        "Utilise le volume multimédia Android. L'aperçu fonctionne même si les sons de séance sont coupés. Pendant une pause, deux signaux graves indiquent le début de la phase.",
+                        "Les sons sont conçus pour la détente, sans bip sec. Les pauses sont signalées par deux clochettes graves et discrètes. Tu peux écouter un aperçu à tout moment ; utilise le volume multimédia Android.",
                         style = MaterialTheme.typography.bodySmall,
                         color = C.textSecondary
                     )
