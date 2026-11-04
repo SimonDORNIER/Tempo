@@ -9,11 +9,20 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.VolumeOff
+import androidx.compose.material.icons.rounded.VolumeUp
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Slider
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import fr.tempo.health.ui.theme.TempoPanelCard
@@ -29,20 +38,26 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import fr.tempo.health.domain.BreathingGuides
 import fr.tempo.health.domain.ExerciseLibrary
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 
 @Composable
 fun GuidedBreathingScreen(
     onExit: () -> Unit,
-    onRecord: (String, Int, Boolean) -> Unit
+    onRecord: (String, Int, Boolean) -> Unit,
+    onSoundSettingsChange: () -> Unit = {}
 ) {
     val cream = C.text
     val ink = C.background
@@ -56,6 +71,37 @@ fun GuidedBreathingScreen(
     var preparation by remember { mutableStateOf(5) }
     var elapsed by remember { mutableStateOf(0) }
     var confirmExit by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    var soundSettings by remember { mutableStateOf(BreathingSoundPreferences.load(context)) }
+    var showSoundSettings by remember { mutableStateOf(false) }
+    val soundPlayer = remember { BreathingSoundPlayer() }
+    val previewPlayer = remember { BreathingSoundPlayer() }
+    val previewScope = rememberCoroutineScope()
+    var previewJob by remember { mutableStateOf<Job?>(null) }
+    var previewing by remember { mutableStateOf(false) }
+
+    fun changeSound(next: BreathingSoundSettings) {
+        soundSettings = next
+        BreathingSoundPreferences.save(context, next)
+        onSoundSettingsChange()
+    }
+
+    fun previewPhase(inspiration: Boolean) {
+        previewJob?.cancel()
+        previewJob = previewScope.launch {
+            previewing = true
+            try {
+                previewPlayer.play(
+                    soundSettings.copy(volume = soundSettings.volume.coerceAtLeast(10)),
+                    inspiration,
+                    if (inspiration) guide.inhaleSeconds else guide.exhaleSeconds,
+                    preview = true
+                )
+            } finally {
+                previewing = false
+            }
+        }
+    }
 
     fun requestExit() {
         if (running) confirmExit = true else onExit()
@@ -87,6 +133,20 @@ fun GuidedBreathingScreen(
     } else {
         cycle - withinCycle
     }
+    val phaseIndex = (elapsed / cycle) * 2 + if (inhale) 0 else 1
+
+    // La coroutine s'annule dès que l'on met en pause, coupe le son ou change de phase.
+    // Ne pas mettre elapsed dans les clés : un son long doit continuer entre les secondes.
+    LaunchedEffect(
+        running, paused, finished, preparation == 0, selectedId,
+        phaseIndex, soundSettings, previewing
+    ) {
+        if (running && !paused && !finished && preparation == 0 &&
+            soundSettings.enabled && !previewing
+        ) {
+            soundPlayer.play(soundSettings, inhale, phaseRemaining)
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -96,7 +156,25 @@ fun GuidedBreathingScreen(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        OutlinedButton(onClick = ::requestExit) { Text("‹  Retour") }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            OutlinedButton(onClick = ::requestExit) { Text("‹  Retour") }
+            Spacer(Modifier.weight(1f))
+            TextButton(onClick = { changeSound(soundSettings.copy(enabled = !soundSettings.enabled)) }) {
+                Text(if (soundSettings.enabled) "Couper" else "Activer", color = C.text)
+            }
+            IconButton(onClick = { showSoundSettings = true }) {
+                Icon(
+                    if (soundSettings.enabled) Icons.Rounded.VolumeUp
+                    else Icons.Rounded.VolumeOff,
+                    contentDescription = "Paramètres des sons de respiration",
+                    tint = if (soundSettings.enabled) C.calm else C.textSecondary
+                )
+            }
+        }
         Text("Respiration guidée", style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.Bold, color = cream)
         Text("Sans matériel • à ton rythme", color = C.textSecondary)
@@ -222,6 +300,86 @@ fun GuidedBreathingScreen(
         )
     }
 
+    if (showSoundSettings) {
+        AlertDialog(
+            onDismissRequest = {
+                previewJob?.cancel()
+                showSoundSettings = false
+            },
+            title = { Text("Sons de respiration") },
+            text = {
+                Column(
+                    modifier = Modifier.heightIn(max = 530.dp).verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("Activer les sons", modifier = Modifier.weight(1f))
+                        Switch(
+                            checked = soundSettings.enabled,
+                            onCheckedChange = { changeSound(soundSettings.copy(enabled = it)) }
+                        )
+                    }
+                    Text("Mode sonore", fontWeight = FontWeight.SemiBold)
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        BreathingCueMode.entries.forEach { mode ->
+                            FilterChip(
+                                selected = soundSettings.mode == mode,
+                                onClick = { changeSound(soundSettings.copy(mode = mode)) },
+                                label = { Text(if (mode == BreathingCueMode.SHORT) "Courts" else "Continus") }
+                            )
+                        }
+                    }
+                    Text(
+                        if (soundSettings.mode == BreathingCueMode.SHORT)
+                            "Un signal au début de chaque inspiration et expiration."
+                        else "Un son pendant toute la durée de chaque phase.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = C.textSecondary
+                    )
+                    Text("Volume : ${soundSettings.volume} %", fontWeight = FontWeight.SemiBold)
+                    Slider(
+                        value = soundSettings.volume.toFloat(),
+                        onValueChange = {
+                            changeSound(soundSettings.copy(volume = (it / 5).roundToInt() * 5))
+                        },
+                        valueRange = 0f..100f,
+                        steps = 19
+                    )
+                    BreathingPhaseSoundEditor(
+                        title = "Inspiration",
+                        pitchHz = soundSettings.inhalePitchHz,
+                        timbre = soundSettings.inhaleTimbre,
+                        onPitch = { changeSound(soundSettings.copy(inhalePitchHz = it)) },
+                        onTimbre = { changeSound(soundSettings.copy(inhaleTimbre = it)) },
+                        onPreview = { previewPhase(true) }
+                    )
+                    BreathingPhaseSoundEditor(
+                        title = "Expiration",
+                        pitchHz = soundSettings.exhalePitchHz,
+                        timbre = soundSettings.exhaleTimbre,
+                        onPitch = { changeSound(soundSettings.copy(exhalePitchHz = it)) },
+                        onTimbre = { changeSound(soundSettings.copy(exhaleTimbre = it)) },
+                        onPreview = { previewPhase(false) }
+                    )
+                    Text(
+                        "Les réglages sont conservés. Le bouton Activer/Couper reste accessible pendant la séance.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = C.textSecondary
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    previewJob?.cancel()
+                    showSoundSettings = false
+                }) { Text("FERMER") }
+            }
+        )
+    }
+
     if (confirmExit) {
         AlertDialog(
             onDismissRequest = { confirmExit = false },
@@ -239,5 +397,41 @@ fun GuidedBreathingScreen(
                 TextButton(onClick = { confirmExit = false }) { Text("CONTINUER") }
             }
         )
+    }
+}
+
+@Composable
+private fun BreathingPhaseSoundEditor(
+    title: String,
+    pitchHz: Int,
+    timbre: BreathingTimbre,
+    onPitch: (Int) -> Unit,
+    onTimbre: (BreathingTimbre) -> Unit,
+    onPreview: () -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(title, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+            TextButton(onClick = onPreview) { Text("Écouter") }
+        }
+        Text("Hauteur : ${pitchHz} Hz", style = MaterialTheme.typography.bodySmall)
+        Slider(
+            value = pitchHz.toFloat(),
+            onValueChange = { onPitch((it / 50).roundToInt() * 50) },
+            valueRange = 200f..1000f,
+            steps = 15
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            BreathingTimbre.entries.forEach { sound ->
+                FilterChip(
+                    selected = timbre == sound,
+                    onClick = { onTimbre(sound) },
+                    label = { Text(sound.label) }
+                )
+            }
+        }
     }
 }
