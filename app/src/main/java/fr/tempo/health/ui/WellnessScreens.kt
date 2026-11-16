@@ -343,8 +343,8 @@ fun TodayV21Screen(
     onToggleHabit: (Int) -> Unit,
     onStart: () -> Unit,
     onCoach: () -> Unit,
+    onMetric: (HealthMetric) -> Unit,
     onHealth: () -> Unit,
-    onTracking: () -> Unit,
     onPractice: () -> Unit
 ) {
     val today = LocalDate.now().toString()
@@ -469,11 +469,11 @@ fun TodayV21Screen(
                         ?: "Dernière nuit",
                     Icons.Rounded.Bedtime, C.sleep, C.sleepDeep, C.surface,
                     sleepSignal, homeStatusLabel(TempoMetricKind.SLEEP, sleepSignal, night != null),
-                    Modifier.weight(1f), onTracking)
+                    Modifier.weight(1f)) { onMetric(HealthMetric.SLEEP) }
                 MetricTile("Pas", current?.steps?.toString() ?: "—", "Aujourd'hui",
                     Icons.Rounded.DirectionsWalk, C.activity, C.activityDeep, C.surface,
                     stepsSignal, homeStatusLabel(TempoMetricKind.STEPS, stepsSignal, current?.steps != null),
-                    Modifier.weight(1f), onTracking)
+                    Modifier.weight(1f)) { onMetric(HealthMetric.STEPS) }
             }
         }
         item {
@@ -483,13 +483,13 @@ fun TodayV21Screen(
                     Icons.Rounded.Favorite, C.heart, C.heartDeep, C.surface,
                     heartSignal, homeStatusLabel(TempoMetricKind.RESTING_PULSE, heartSignal,
                         current?.restingHeartRate != null),
-                    Modifier.weight(1f), onHealth)
+                    Modifier.weight(1f)) { onMetric(HealthMetric.RESTING_PULSE) }
                 MetricTile("VFC", current?.hrvRmssdMs
                     ?.let { "${it.roundToInt()} ms" } ?: "—", "Mesure du jour",
                     Icons.Rounded.BarChart, C.heart, C.heartDeep, C.surface,
                     hrvSignal, homeStatusLabel(TempoMetricKind.HRV, hrvSignal,
                         current?.hrvRmssdMs != null),
-                    Modifier.weight(1f), onHealth)
+                    Modifier.weight(1f)) { onMetric(HealthMetric.HRV) }
             }
         }
         item {
@@ -605,10 +605,6 @@ fun TodayV21Screen(
                 }
             }
         }
-        item {
-            Text("Le score Tempo est une estimation, pas un diagnostic médical.",
-                style = MaterialTheme.typography.labelSmall, color = C.textMuted)
-        }
     }
 }
 
@@ -715,6 +711,7 @@ fun TrackingHubV21Screen(
     history: List<WorkoutHistoryEntity>,
     recovery: RecoveryResult,
     onHealth: () -> Unit,
+    onMetric: (HealthMetric) -> Unit,
     onProgress: () -> Unit
 ) {
     val today = LocalDate.now()
@@ -752,13 +749,13 @@ fun TrackingHubV21Screen(
         item { SectionTitle("Sommeil & activité", "Détails", onHealth) }
         item {
             Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
-                TinyTrend("Sommeil", sleepText(sleepValues.takeIf { it.isNotEmpty() }?.average()?.toLong()),
+                TinyTrend("Sommeil", sleepText(days.firstOrNull { it.date == today.toString() }?.sleepMinutes),
                     Icons.Rounded.Bedtime, C.sleep, days, { it.sleepMinutes },
-                    Modifier.weight(1f), onHealth, TempoMetricKind.SLEEP)
-                TinyTrend("Pas", stepValues.takeIf { it.isNotEmpty() }
-                    ?.average()?.roundToInt()?.toString() ?: "—",
+                    Modifier.weight(1f), { onMetric(HealthMetric.SLEEP) }, TempoMetricKind.SLEEP)
+                TinyTrend("Pas", days.firstOrNull { it.date == today.toString() }
+                    ?.steps?.toString() ?: "—",
                     Icons.Rounded.DirectionsWalk, C.activity, days, { it.steps },
-                    Modifier.weight(1f), onHealth, TempoMetricKind.STEPS)
+                    Modifier.weight(1f), { onMetric(HealthMetric.STEPS) }, TempoMetricKind.STEPS)
             }
         }
         item { SectionTitle("Cœur & récupération", "Détails", onHealth) }
@@ -767,11 +764,11 @@ fun TrackingHubV21Screen(
                 TinyTrend("FC repos", days.firstOrNull { it.restingHeartRate != null }
                     ?.restingHeartRate?.let { "${it.roundToInt()} bpm" } ?: "—",
                     Icons.Rounded.Favorite, C.heart, days, { it.restingHeartRate },
-                    Modifier.weight(1f), onHealth, TempoMetricKind.RESTING_PULSE)
+                    Modifier.weight(1f), { onMetric(HealthMetric.RESTING_PULSE) }, TempoMetricKind.RESTING_PULSE)
                 TinyTrend("VFC", days.firstOrNull { it.hrvRmssdMs != null }
                     ?.hrvRmssdMs?.let { "${it.roundToInt()} ms" } ?: "—",
                     Icons.Rounded.BarChart, C.heart, days, { it.hrvRmssdMs },
-                    Modifier.weight(1f), onHealth, TempoMetricKind.HRV)
+                    Modifier.weight(1f), { onMetric(HealthMetric.HRV) }, TempoMetricKind.HRV)
             }
         }
         item {
@@ -781,17 +778,16 @@ fun TrackingHubV21Screen(
                     ListLink(Icons.Rounded.Favorite, "Santé",
                         "Sommeil, respiration, cardio, SpO₂", onHealth, C.heart)
                     HorizontalDivider(color = C.border.copy(alpha = 0.6f))
-                    ListLink(Icons.Rounded.DirectionsWalk, "Activité",
-                        "Pas, distance et minutes actives", onHealth, C.activity)
+                    ListLink(Icons.Rounded.DirectionsWalk, "Pas",
+                        "Aujourd’hui, semaine, mois", { onMetric(HealthMetric.STEPS) }, C.activity)
+                    HorizontalDivider(color = C.border.copy(alpha = 0.6f))
+                    ListLink(Icons.Rounded.Air, "Respiration",
+                        "Fréquence et évolution", { onMetric(HealthMetric.RESPIRATION) }, C.calm)
                     HorizontalDivider(color = C.border.copy(alpha = 0.6f))
                     ListLink(Icons.Rounded.BarChart, "Séances",
                         "Historique et progression", onProgress, C.calm)
                 }
             }
-        }
-        item {
-            Text(TempoHealthSignals.LEGEND,
-                color = C.textMuted, style = MaterialTheme.typography.labelSmall)
         }
     }
 }
