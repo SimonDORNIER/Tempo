@@ -181,9 +181,11 @@ fun MetricInsightsScreen(
                                 "Aucune mesure trouvée sur les 28 derniers jours. Vérifie que Google Health partage la VFC avec Santé Connect.",
                             color = C.textSecondary, fontSize = 13.sp
                         )
-                        if (syncMessage?.contains("impossible", ignoreCase = true) == true ||
-                            syncMessage?.contains("erreur", ignoreCase = true) == true) {
-                            Text(syncMessage, color = C.amber, fontSize = 13.sp)
+                        syncMessage?.takeIf {
+                            it.contains("impossible", ignoreCase = true) ||
+                                it.contains("erreur", ignoreCase = true)
+                        }?.let { error ->
+                            Text(error, color = C.amber, fontSize = 13.sp)
                         }
                         OutlinedButton(
                             onClick = if (hrvPermissionMissing) onPermissions else onSync,
