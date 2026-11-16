@@ -1,5 +1,6 @@
-Tempo Coach 2.6.4 — Santé et suivi plus simples.
-Santé Connect est regroupé dans une carte compacte avec bouton de synchronisation à deux flèches et indicateur de chargement. Le statut et l'autorisation de synchronisation automatique toutes les 2 heures environ se trouvent uniquement dans Paramètres, sans toucher à WorkManager.
-La lecture des mesures détaillées est simplifiée : date et chiffres plus lisibles, détails conservés, graphiques 7/28 jours dépliables, sans commentaires techniques et avertissements répétés.
-Les cartes Sommeil, Pas, FC au repos et VFC d'Aujourd'hui et Suivi ouvrent directement une fiche par métrique : jour, 7 jours, 28 jours, moyennes, minimums, maximums, courbe et historique. Raccourcis Distance, Activité, Respiration et SpO₂.
-Données Room, Santé Connect, sauvegardes, exercices personnalisés, sons de respiration et navigation 4 onglets préservés. Checklist de validation : docs/TESTS_TEMPO_2_6_4.md.
+Tempo Coach 2.6.5 — récupération de la variabilité cardiaque (VFC).
+
+La lecture Santé Connect des enregistrements HeartRateVariabilityRmssdRecord recherche d'abord les mesures pendant le sommeil, puis élargit à toute la journée locale si aucune mesure n'a été trouvée ; pagination complète des relevés.
+La fiche VFC distingue désormais une autorisation de lecture manquante d'une absence de mesures importées. Elle propose la demande d'autorisation ou la resynchronisation 28 jours avec indicateur de chargement. La VFC n'est jamais estimée ni inventée.
+Les autres statistiques, les 4 onglets, les données locales Room, les exercices personnalisés et les réglages de respiration restent inchangés.
+Tests de lecture et checklist de contrôle : docs/TESTS_TEMPO_2_6_5.md.
