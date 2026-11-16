@@ -1,3 +1,7 @@
+# Correctif 16/11/2026 — Tempo Coach 2.6.5 : lecture VFC
+
+Google Health affiche des mesures de VFC dont 40 ms le 16 novembre, mais Tempo Coach 2.6.4 reste vide. Corriger le filtre Santé Connect : tenter le RMSSD dans la session de sommeil puis dans la journée locale, avec pagination des relevés. Si la donnée n'est pas partagée dans Santé Connect, ne jamais inventer de valeur ni supposer que les 40 ms sont disponibles ; afficher sur la fiche VFC une indication compacte distinguant permission manquante et aucune VFC importée, ainsi qu'une action de synchronisation. Conserver Room, sauvegardes, permissions existantes et la navigation. Validation : docs/TESTS_TEMPO_2_6_5.md.
+
 # Décision 16/11/2026 — Tempo Coach 2.6.4 : Santé compacte et navigation rapide
 
 L'écran Santé n'affiche qu'un bloc Santé Connect, avec bouton de rafraîchissement à flèches et indicateur de chargement ; le grand bouton de synchro 28 jours disparaît. Le statut de synchronisation automatique toutes les ~2 h et sa permission se règlent uniquement dans Paramètres (WorkManager reste inchangé). Les détails Santé conservent les vraies mesures et graphiques, mais suppriment notes préventives et avertissements répétés ; les dates, valeurs et courbes sont plus lisibles. Depuis Aujourd'hui et Suivi, chaque indicateur ouvre une fiche dédiée Jour / 7 jours / 28 jours, avec valeurs, graphique et statistiques, sans fabriquer de mesures horaires. Préserver la navigation 4 onglets, le schéma Room, la sauvegarde, la personnalisation et les sons de respiration. Validation : docs/TESTS_TEMPO_2_6_4.md.
