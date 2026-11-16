@@ -385,7 +385,6 @@ fun TempoHealthApp(
                     onCoach = { navController.navigate("coach") },
                     onMetric = { metric -> navController.navigate("metric/${metric.route}") },
                     onHealth = { navController.navigate("health") },
-                    onTracking = { navController.navigate("tracking") },
                     onPractice = { navController.navigate("practice") }
                 )
             }
