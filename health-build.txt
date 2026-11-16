@@ -1,3 +1,5 @@
-Tempo Coach 2.6.3 : mode et paramètres sonores indépendants pour les pauses des exercices de respiration.
-Nouveau profil de pause commun aux deux pauses : sons courts (deux petits carillons doux au début) OU sons continus (timbre feutré durant toute la pause), volume/hauteur/timbre et aperçu séparés. Le mode respiration reste indépendant et ses réglages existants sont conservés.
-Une phase de pause à 0 seconde reste ignorée. Les paramètres sont sauvegardés avec les préférences existantes. Tests automatisés BreathingPauseSoundTest, BreathingSoundEnvelopeTest et checklist docs/TESTS_TEMPO_2_6_3.md.
+Tempo Coach 2.6.4 — Santé et suivi plus simples.
+Santé Connect est regroupé dans une carte compacte avec bouton de synchronisation à deux flèches et indicateur de chargement. Le statut et l'autorisation de synchronisation automatique toutes les 2 heures environ se trouvent uniquement dans Paramètres, sans toucher à WorkManager.
+La lecture des mesures détaillées est simplifiée : date et chiffres plus lisibles, détails conservés, graphiques 7/28 jours dépliables, sans commentaires techniques et avertissements répétés.
+Les cartes Sommeil, Pas, FC au repos et VFC d'Aujourd'hui et Suivi ouvrent directement une fiche par métrique : jour, 7 jours, 28 jours, moyennes, minimums, maximums, courbe et historique. Raccourcis Distance, Activité, Respiration et SpO₂.
+Données Room, Santé Connect, sauvegardes, exercices personnalisés, sons de respiration et navigation 4 onglets préservés. Checklist de validation : docs/TESTS_TEMPO_2_6_4.md.
