@@ -28,7 +28,7 @@ import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.Spa
 import androidx.compose.material.icons.rounded.BarChart
 import androidx.compose.material.icons.rounded.Person
-import androidx.compose.material.icons.rounded.Refresh
+import androidx.compose.material.icons.rounded.Sync
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.material3.AlertDialog
@@ -1272,7 +1272,7 @@ private fun HealthScreen(
                                 color = C.action
                             )
                         } else {
-                            Icon(Icons.Rounded.Refresh,
+                            Icon(Icons.Rounded.Sync,
                                 contentDescription = if (hasPermissions)
                                     "Synchroniser les 28 derniers jours"
                                 else "Autoriser Santé Connect",
