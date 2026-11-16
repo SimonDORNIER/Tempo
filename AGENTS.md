@@ -1,3 +1,7 @@
+# Décision 16/11/2026 — Tempo Coach 2.6.4 : Santé compacte et navigation rapide
+
+L'écran Santé n'affiche qu'un bloc Santé Connect, avec bouton de rafraîchissement à flèches et indicateur de chargement ; le grand bouton de synchro 28 jours disparaît. Le statut de synchronisation automatique toutes les ~2 h et sa permission se règlent uniquement dans Paramètres (WorkManager reste inchangé). Les détails Santé conservent les vraies mesures et graphiques, mais suppriment notes préventives et avertissements répétés ; les dates, valeurs et courbes sont plus lisibles. Depuis Aujourd'hui et Suivi, chaque indicateur ouvre une fiche dédiée Jour / 7 jours / 28 jours, avec valeurs, graphique et statistiques, sans fabriquer de mesures horaires. Préserver la navigation 4 onglets, le schéma Room, la sauvegarde, la personnalisation et les sons de respiration. Validation : docs/TESTS_TEMPO_2_6_4.md.
+
 # Décision 04/11/2026 — Tempo Coach 2.6.3 : son des pauses indépendant
 
 Les pauses disposent de leur propre mode (Court ou Continu), volume, hauteur, timbre et aperçu, sans influencer les paramètres sonores d'inspiration/expiration. Le mode Continu doit couvrir exactement la durée de la pause (avec fondus), les pauses courtes ne jouent qu'au départ. Conserver le style sonore doux de la 2.6.2 et les préférences en place, les sauvegardes, le cycle personnalisé à phase 0 ignorée, ainsi que la navigation 4 onglets. Validation : docs/TESTS_TEMPO_2_6_3.md.
