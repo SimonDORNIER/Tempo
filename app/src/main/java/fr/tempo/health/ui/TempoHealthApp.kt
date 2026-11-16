@@ -1927,11 +1927,6 @@ private fun CoachScreen(
                 advice.evening
             )
 
-            Text(
-                "Tempo donne des conseils de bien-être et d'entraînement, pas un diagnostic médical.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
         }
     }
 }
