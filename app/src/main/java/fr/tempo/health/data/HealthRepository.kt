@@ -313,10 +313,9 @@ class HealthRepository(
         // session, puis on recherche sur toute la journée locale si elle est vide.
         // Ne jamais déduire une VFC à partir du pouls ou d'une ancienne mesure.
         val hrv = if (hrvPermission in granted) {
-            val windows = listOfNotNull(
-                mainSleep?.let { it.startTime to it.endTime },
-                dayStart to dayEnd
-            ).distinct()
+            val windows = hrvReadWindows(
+                dayStart, dayEnd, mainSleep?.startTime, mainSleep?.endTime
+            )
             var measured: Double? = null
             for ((start, end) in windows) {
                 val readings = mutableListOf<Double>()
