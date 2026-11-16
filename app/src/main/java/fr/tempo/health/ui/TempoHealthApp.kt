@@ -452,7 +452,15 @@ fun TempoHealthApp(
                     MetricInsightsScreen(
                         days = recentDays,
                         metric = metric,
-                        onAllMetrics = { navController.navigate("health") }
+                        onAllMetrics = { navController.navigate("health") },
+                        hasHealthPermissions = hasPermissions,
+                        missingPermissionLabels = missingPermissionLabels,
+                        syncing = syncing,
+                        syncMessage = message,
+                        onSync = healthViewModel::sync,
+                        onPermissions = {
+                            permissionLauncher.launch(healthViewModel.requiredPermissions)
+                        }
                     )
                 }
             }
