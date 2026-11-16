@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -17,6 +18,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
@@ -88,7 +90,13 @@ enum class HealthMetric(val route: String, val title: String, val unit: String,
 fun MetricInsightsScreen(
     days: List<DailyHealthEntity>,
     metric: HealthMetric,
-    onAllMetrics: () -> Unit
+    onAllMetrics: () -> Unit,
+    hasHealthPermissions: Boolean = true,
+    missingPermissionLabels: List<String> = emptyList(),
+    syncing: Boolean = false,
+    syncMessage: String? = null,
+    onSync: () -> Unit = {},
+    onPermissions: () -> Unit = {}
 ) {
     var period by remember(metric) { mutableIntStateOf(1) }
     val today = LocalDate.now()
@@ -121,6 +129,8 @@ fun MetricInsightsScreen(
     )
     val color = TempoHealthSignals.color(signal)
     val chartKind = if (metric.bars) TempoChartKind.BARS else TempoChartKind.LINE
+    val hrvUnavailable = metric == HealthMetric.HRV && days.none { it.hrvRmssdMs != null }
+    val hrvPermissionMissing = !hasHealthPermissions || "VFC / HRV" in missingPermissionLabels
     val dateFormatter = DateTimeFormatter.ofPattern("EEE d MMM", Locale.FRANCE)
     val title = when (period) {
         1 -> "Aujourd'hui"
@@ -144,6 +154,53 @@ fun MetricInsightsScreen(
                 listOf(1 to "Jour", 7 to "7 jours", 28 to "28 jours").forEach { (p, name) ->
                     FilterChip(selected = period == p, onClick = { period = p },
                         label = { Text(name) })
+                }
+            }
+        }
+        if (hrvUnavailable) {
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(18.dp),
+                    colors = CardDefaults.cardColors(containerColor = C.surface),
+                    border = BorderStroke(1.dp, C.amber.copy(alpha = 0.45f))
+                ) {
+                    Column(
+                        Modifier.fillMaxWidth().padding(14.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Text(
+                            if (hrvPermissionMissing) "Accès VFC manquant"
+                            else "Aucune VFC importée",
+                            color = C.text, fontWeight = FontWeight.SemiBold
+                        )
+                        Text(
+                            if (hrvPermissionMissing)
+                                "Autorise Tempo Coach à lire la VFC dans Santé Connect."
+                            else
+                                "Aucune mesure trouvée sur les 28 derniers jours. Vérifie que Google Health partage la VFC avec Santé Connect.",
+                            color = C.textSecondary, fontSize = 13.sp
+                        )
+                        if (syncMessage?.contains("impossible", ignoreCase = true) == true ||
+                            syncMessage?.contains("erreur", ignoreCase = true) == true) {
+                            Text(syncMessage, color = C.amber, fontSize = 13.sp)
+                        }
+                        OutlinedButton(
+                            onClick = if (hrvPermissionMissing) onPermissions else onSync,
+                            enabled = !syncing,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            if (syncing) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(18.dp),
+                                    strokeWidth = 2.dp, color = C.action
+                                )
+                            } else {
+                                Text(if (hrvPermissionMissing)
+                                    "Autoriser la VFC" else "Resynchroniser les 28 jours")
+                            }
+                        }
+                    }
                 }
             }
         }
