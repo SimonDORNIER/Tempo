@@ -308,19 +308,38 @@ class HealthRepository(
         val hrvWindowStart = mainSleep?.startTime ?: dayStart
         val hrvWindowEnd = mainSleep?.endTime ?: dayEnd
 
+        // La VFC quotidienne exportée par Google Health peut être horodatée
+        // en dehors de la session principale de sommeil. On privilégie la
+        // session, puis on recherche sur toute la journée locale si elle est vide.
+        // Ne jamais déduire une VFC à partir du pouls ou d'une ancienne mesure.
         val hrv = if (hrvPermission in granted) {
-            hc.readRecords(
-                ReadRecordsRequest(
-                    recordType = HeartRateVariabilityRmssdRecord::class,
-                    timeRangeFilter = TimeRangeFilter.between(
-                        hrvWindowStart,
-                        hrvWindowEnd
+            val windows = listOfNotNull(
+                mainSleep?.let { it.startTime to it.endTime },
+                dayStart to dayEnd
+            ).distinct()
+            var measured: Double? = null
+            for ((start, end) in windows) {
+                val readings = mutableListOf<Double>()
+                var nextPage: String? = null
+                do {
+                    val response = hc.readRecords(
+                        ReadRecordsRequest(
+                            recordType = HeartRateVariabilityRmssdRecord::class,
+                            timeRangeFilter = TimeRangeFilter.between(start, end),
+                            pageToken = nextPage
+                        )
                     )
-                )
-            ).records
-                .map { it.heartRateVariabilityMillis }
-                .takeIf { it.isNotEmpty() }
-                ?.average()
+                    readings += response.records.map { it.heartRateVariabilityMillis }
+                        .filter { it.isFinite() && it > 0.0 }
+                    nextPage = response.pageToken
+                } while (nextPage != null)
+
+                if (readings.isNotEmpty()) {
+                    measured = readings.average()
+                    break
+                }
+            }
+            measured
         } else {
             null
         }
