@@ -28,6 +28,8 @@ import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.Spa
 import androidx.compose.material.icons.rounded.BarChart
 import androidx.compose.material.icons.rounded.Person
+import androidx.compose.material.icons.rounded.Refresh
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
@@ -239,7 +241,8 @@ fun TempoHealthApp(
                     if (currentRoute in setOf(
                             "settings", "library-settings", "category-settings",
                             "exercise-settings", "timer", "program", "health", "training",
-                            "progress", "coach", "practice-library/{category}"
+                            "progress", "coach", "practice-library/{category}",
+                            "metric/{metric}"
                         )
                     ) {
                         IconButton(onClick = { navController.popBackStack() }) {
@@ -259,6 +262,8 @@ fun TempoHealthApp(
                                 "program" -> "Mon programme"
                                 "workout" -> "Séance"
                                 "breathing" -> "Respiration"
+                                "metric/{metric}" -> HealthMetric.fromRoute(
+                                    currentEntry?.arguments?.getString("metric"))?.title ?: "Statistiques"
                                 else -> selectedDestination?.label ?: "Tempo Coach"
                             },
                             fontWeight = FontWeight.SemiBold
@@ -378,6 +383,7 @@ fun TempoHealthApp(
                         navController.navigate("workout")
                     },
                     onCoach = { navController.navigate("coach") },
+                    onMetric = { metric -> navController.navigate("metric/${metric.route}") },
                     onHealth = { navController.navigate("health") },
                     onTracking = { navController.navigate("tracking") },
                     onPractice = { navController.navigate("practice") }
@@ -425,6 +431,7 @@ fun TempoHealthApp(
                     history = workoutHistory,
                     recovery = recovery,
                     onHealth = { navController.navigate("health") },
+                    onMetric = { metric -> navController.navigate("metric/${metric.route}") },
                     onProgress = { navController.navigate("progress") }
                 )
             }
@@ -440,25 +447,29 @@ fun TempoHealthApp(
                 )
             }
 
+            composable("metric/{metric}") { entry ->
+                val metric = HealthMetric.fromRoute(entry.arguments?.getString("metric"))
+                if (metric != null) {
+                    MetricInsightsScreen(
+                        days = recentDays,
+                        metric = metric,
+                        onAllMetrics = { navController.navigate("health") }
+                    )
+                }
+            }
+
             composable("health") {
                 HealthScreen(
                     days = recentDays,
                     availability = availability,
                     hasPermissions = hasPermissions,
                     missingPermissionLabels = missingPermissionLabels,
-                    backgroundReadSupported = backgroundReadSupported,
-                    backgroundReadGranted = backgroundReadGranted,
                     syncing = syncing,
                     message = message,
                     requestPermissions = {
                         permissionLauncher.launch(healthViewModel.requiredPermissions)
                     },
-                    sync = healthViewModel::sync,
-                    requestBackgroundPermission = {
-                        backgroundPermissionLauncher.launch(
-                            setOf(healthViewModel.backgroundReadPermission)
-                        )
-                    }
+                    sync = healthViewModel::sync
                 )
             }
 
@@ -537,6 +548,13 @@ fun TempoHealthApp(
                     availability = availability,
                     hasPermissions = hasPermissions,
                     localDays = recentDays.size,
+                    backgroundReadSupported = backgroundReadSupported,
+                    backgroundReadGranted = backgroundReadGranted,
+                    onRequestBackgroundPermission = {
+                        backgroundPermissionLauncher.launch(
+                            setOf(healthViewModel.backgroundReadPermission)
+                        )
+                    },
                     soundVolume = soundVolume,
                     startSoundEnabled = startSoundEnabled,
                     midpointSoundEnabled = midpointSoundEnabled,
@@ -1187,204 +1205,85 @@ private fun HealthScreen(
     availability: HealthConnectAvailability,
     hasPermissions: Boolean,
     missingPermissionLabels: List<String>,
-    backgroundReadSupported: Boolean,
-    backgroundReadGranted: Boolean,
     syncing: Boolean,
     message: String?,
     requestPermissions: () -> Unit,
-    sync: () -> Unit,
-    requestBackgroundPermission: () -> Unit
+    sync: () -> Unit
 ) {
-    val latest = days.firstOrNull()
-    val week = days.take(7)
-    val month = days.drop(7).take(21)
+    val latest = days.maxByOrNull { it.syncedAtEpochMs }
+    val connectionLabel = when (availability) {
+        HealthConnectAvailability.AVAILABLE ->
+            if (hasPermissions) "Connecté" else "À autoriser"
+        HealthConnectAvailability.UPDATE_REQUIRED -> "Mise à jour nécessaire"
+        HealthConnectAvailability.UNAVAILABLE -> "Indisponible"
+    }
 
-    Screen(
-        title = "Santé",
-        subtitle = "Santé Connect → base locale → références personnelles."
-    ) {
-        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            val connectionLabel = when (availability) {
-                HealthConnectAvailability.AVAILABLE ->
-                    if (hasPermissions) "Connecté" else "Autorisations requises"
-                HealthConnectAvailability.UPDATE_REQUIRED -> "Mise à jour requise"
-                HealthConnectAvailability.UNAVAILABLE -> "Indisponible"
-            }
-
-            StatusCard(
-                emoji = "🔗",
-                title = "Santé Connect",
-                value = connectionLabel,
-                detail = if (hasPermissions) {
-                    days.size.toString() + " jours locaux • " +
-                        formatSyncAge(latest?.syncedAtEpochMs)
-                } else {
-                    "Lecture uniquement"
-                }
-            )
-
-            if (availability == HealthConnectAvailability.AVAILABLE) {
-                Button(
-                    onClick = if (hasPermissions) sync else requestPermissions,
-                    enabled = !syncing,
-                    modifier = Modifier.fillMaxWidth()
+    Screen(title = "Santé", subtitle = "") {
+        Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            TempoPanelCard(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = C.surface)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Text(
-                        if (syncing) {
-                            "Synchronisation en cours…"
-                        } else if (hasPermissions) {
-                            "Synchroniser 28 jours"
-                        } else {
-                            "Autoriser les données santé"
-                        }
-                    )
-                }
-            }
-
-            if (!message.isNullOrBlank()) {
-                Text(
-                    message,
-                    color = MaterialTheme.colorScheme.primary
-                )
-            }
-
-            if (hasPermissions && backgroundReadSupported) {
-                StatusCard(
-                    emoji = "⏱️",
-                    title = "Synchronisation automatique",
-                    value = if (backgroundReadGranted) "Toutes les 2 heures environ" else "À autoriser",
-                    detail = if (backgroundReadGranted) {
-                        "Mise à jour en arrière-plan, même quand Tempo Coach est fermé. Android peut décaler l’horaire."
-                    } else {
-                        "Autorise Santé Connect en arrière-plan pour retrouver tes mesures dès l’ouverture."
-                    }
-                )
-                if (!backgroundReadGranted) {
-                    OutlinedButton(
-                        onClick = requestBackgroundPermission,
-                        modifier = Modifier.fillMaxWidth()
+                    Box(
+                        modifier = Modifier.size(42.dp).clip(CircleShape)
+                            .background(C.actionDeep),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Text("AUTORISER LA SYNCHRO AUTOMATIQUE")
+                        Text("🔗", style = MaterialTheme.typography.titleLarge)
+                    }
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(2.dp)
+                    ) {
+                        Text("Santé Connect", fontWeight = FontWeight.SemiBold)
+                        Text(connectionLabel, style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold)
+                        Text(
+                            if (hasPermissions) "${days.size} jours locaux • ${formatSyncAge(latest?.syncedAtEpochMs)}"
+                            else "Accès aux mesures",
+                            color = C.textSecondary,
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                        if (missingPermissionLabels.isNotEmpty() && hasPermissions) {
+                            Text("${missingPermissionLabels.size} autorisation(s) à compléter",
+                                color = C.amber, style = MaterialTheme.typography.labelSmall)
+                        }
+                        message?.takeIf {
+                            it.contains("impossible", ignoreCase = true) ||
+                                it.contains("erreur", ignoreCase = true)
+                        }?.let { error ->
+                            Text(error, color = C.amber,
+                                style = MaterialTheme.typography.labelSmall)
+                        }
+                    }
+                    IconButton(
+                        onClick = if (hasPermissions) sync else requestPermissions,
+                        enabled = !syncing &&
+                            availability == HealthConnectAvailability.AVAILABLE
+                    ) {
+                        if (syncing) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(26.dp), strokeWidth = 2.5.dp,
+                                color = C.action
+                            )
+                        } else {
+                            Icon(Icons.Rounded.Refresh,
+                                contentDescription = if (hasPermissions)
+                                    "Synchroniser les 28 derniers jours"
+                                else "Autoriser Santé Connect",
+                                tint = C.action,
+                                modifier = Modifier.size(27.dp))
+                        }
                     }
                 }
             }
-
-            if (hasPermissions && missingPermissionLabels.isNotEmpty()) {
-                StatusCard(
-                    "⚠️",
-                    "Données non autorisées",
-                    missingPermissionLabels.size.toString() + " type(s)",
-                    missingPermissionLabels.joinToString(" • ")
-                )
-            }
-
             DetailedHealthMetrics(days)
-
-            StatusCard(
-                "🏃",
-                "Activité",
-                latest?.steps?.let { it.toString() + " pas" } ?: "—",
-                latest?.let {
-                    distance(it.distanceMeters) + " • " +
-                        kcal(it.caloriesKcal) + " • " +
-                        (it.exerciseMinutes?.let { v -> v.toString() + " min sport" }
-                            ?: "Séances —")
-                } ?: "Aucune donnée"
-            )
-
-            StatusCard(
-                "⚖️",
-                "Corps & cardio",
-                latest?.weightKg?.let { oneDecimal(it) + " kg" } ?: "Poids —",
-                "VO₂ max " + (latest?.vo2Max?.let(::oneDecimal) ?: "—")
-            )
-
-            PersonalTrendInsightsCard(days)
-
-            HealthAverageComparisonCard(
-                emoji = "😴",
-                title = "Sommeil • 7 j vs 21 j précédents",
-                weekValues = week.mapNotNull {
-                    it.sleepMinutes?.toDouble()
-                },
-                monthValues = month.mapNotNull {
-                    it.sleepMinutes?.toDouble()
-                },
-                valueText = { value ->
-                    formatMinutes(value.toLong())
-                },
-                kind = TempoMetricKind.SLEEP
-            )
-
-            HealthAverageComparisonCard(
-                emoji = "❤️",
-                title = "VFC • 7 j vs 21 j précédents",
-                weekValues = week.mapNotNull { it.hrvRmssdMs },
-                monthValues = month.mapNotNull { it.hrvRmssdMs },
-                valueText = { value ->
-                    oneDecimal(value) + " ms"
-                },
-                kind = TempoMetricKind.HRV
-            )
-
-            HealthAverageComparisonCard(
-                emoji = "💓",
-                title = "FC repos • 7 j vs 21 j précédents",
-                weekValues = week.mapNotNull { it.restingHeartRate },
-                monthValues = month.mapNotNull { it.restingHeartRate },
-                valueText = { value ->
-                    oneDecimal(value) + " bpm"
-                },
-                kind = TempoMetricKind.RESTING_PULSE
-            )
-
-            HealthAverageComparisonCard(
-                emoji = "🚶",
-                title = "Pas • 7 j vs 21 j précédents",
-                weekValues = week.filter { it.date != java.time.LocalDate.now().toString() }
-                    .mapNotNull { it.steps?.toDouble() },
-                monthValues = month.mapNotNull {
-                    it.steps?.toDouble()
-                },
-                valueText = { value ->
-                    value.toLong().toString() + " pas/j"
-                },
-                kind = TempoMetricKind.STEPS
-            )
-
-            TrendCard(
-                emoji = "😴",
-                title = "Sommeil • 7 jours",
-                values = metricByCalendarDay(days, 7) { it.sleepMinutes?.toDouble() },
-                valueText = { value -> formatMinutes(value.toLong()) },
-                kind = TempoMetricKind.SLEEP,
-                reference = days.drop(7).mapNotNull { it.sleepMinutes?.toDouble() }
-            )
-
-            TrendCard(
-                emoji = "❤️",
-                title = "HRV • 7 jours",
-                values = metricByCalendarDay(days, 7) { it.hrvRmssdMs },
-                valueText = { value -> oneDecimal(value) + " ms" },
-                kind = TempoMetricKind.HRV,
-                reference = days.drop(7).mapNotNull { it.hrvRmssdMs }
-            )
-            TrendCard(
-                emoji = "💓",
-                title = "FC repos • 7 jours",
-                values = metricByCalendarDay(days, 7) { it.restingHeartRate },
-                valueText = { value -> value.toInt().toString() + " bpm" },
-                kind = TempoMetricKind.RESTING_PULSE,
-                reference = days.drop(7).mapNotNull { it.restingHeartRate }
-            )
-            TrendCard(
-                emoji = "🌬️",
-                title = "Respiration • 7 jours",
-                values = metricByCalendarDay(days, 7) { it.respiratoryRate },
-                valueText = { value -> oneDecimal(value) + " /min" },
-                kind = TempoMetricKind.RESPIRATION,
-                reference = days.drop(7).mapNotNull { it.respiratoryRate }
-            )
         }
     }
 }
@@ -1610,7 +1509,7 @@ private fun ProgressScreen(
 
     Screen(
         title = "Progression",
-        subtitle = "Santé et entraînement sont maintenant suivis ensemble."
+        subtitle = ""
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             StatusCard(
@@ -1651,7 +1550,7 @@ private fun ProgressScreen(
                 "🚶",
                 "Activité 7 jours",
                 averageLong(week.mapNotNull { it.steps }) + " pas/j",
-                "Ces références sont personnelles, pas des normes de population."
+                "Jours renseignés : " + week.count { it.steps != null }
             )
 
             TrendCard(
@@ -1778,7 +1677,7 @@ private fun PersonalTrendInsightsCard(days: List<DailyHealthEntity>) {
         emoji = "🧭",
         title = "Bilan des tendances personnelles",
         value = "7 derniers jours",
-        detail = guidance + " Analyse indicative, pas un diagnostic."
+        detail = guidance
     )
 }
 
@@ -1877,9 +1776,6 @@ private fun TrendCard(
             }
             if (kind == TempoMetricKind.HRV || kind == TempoMetricKind.RESTING_PULSE ||
                 kind == TempoMetricKind.SLEEP) {
-                Text(TempoHealthSignals.LEGEND,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     }
@@ -2046,6 +1942,9 @@ private fun SettingsScreen(
     availability: HealthConnectAvailability,
     hasPermissions: Boolean,
     localDays: Int,
+    backgroundReadSupported: Boolean,
+    backgroundReadGranted: Boolean,
+    onRequestBackgroundPermission: () -> Unit,
     soundVolume: Int,
     startSoundEnabled: Boolean,
     midpointSoundEnabled: Boolean,
@@ -2103,14 +2002,30 @@ private fun SettingsScreen(
                 "🔗",
                 "Santé Connect",
                 if (hasPermissions) "Autorisé" else availabilityLabel(availability),
-                "Lecture uniquement • aucun envoi automatique"
+                "Permissions Santé Connect"
             )
+
+            if (hasPermissions && backgroundReadSupported) {
+                StatusCard(
+                    "⏱️",
+                    "Synchronisation automatique",
+                    if (backgroundReadGranted) "Activée" else "À autoriser",
+                    if (backgroundReadGranted) "Environ toutes les 2 heures"
+                    else "Accès en arrière-plan nécessaire"
+                )
+                if (!backgroundReadGranted) {
+                    OutlinedButton(
+                        onClick = onRequestBackgroundPermission,
+                        modifier = Modifier.fillMaxWidth()
+                    ) { Text("Autoriser la synchronisation automatique") }
+                }
+            }
 
             StatusCard(
                 "💾",
                 "Base locale",
                 localDays.toString() + " jours",
-                "Room / SQLite sur le téléphone"
+                "Sur ce téléphone"
             )
 
             TempoPanelCard(
