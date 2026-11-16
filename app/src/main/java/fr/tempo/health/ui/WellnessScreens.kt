@@ -779,10 +779,19 @@ fun TrackingHubV21Screen(
                         "Sommeil, respiration, cardio, SpO₂", onHealth, C.heart)
                     HorizontalDivider(color = C.border.copy(alpha = 0.6f))
                     ListLink(Icons.Rounded.DirectionsWalk, "Pas",
-                        "Aujourd’hui, semaine, mois", { onMetric(HealthMetric.STEPS) }, C.activity)
+                        "Aujourd'hui, 7 et 28 jours", { onMetric(HealthMetric.STEPS) }, C.activity)
+                    HorizontalDivider(color = C.border.copy(alpha = 0.6f))
+                    ListLink(Icons.Rounded.BarChart, "Distance",
+                        "Kilomètres parcourus", { onMetric(HealthMetric.DISTANCE) }, C.activity)
+                    HorizontalDivider(color = C.border.copy(alpha = 0.6f))
+                    ListLink(Icons.Rounded.Timer, "Minutes d'activité",
+                        "Volume et évolution", { onMetric(HealthMetric.ACTIVITY) }, C.activity)
                     HorizontalDivider(color = C.border.copy(alpha = 0.6f))
                     ListLink(Icons.Rounded.Air, "Respiration",
                         "Fréquence et évolution", { onMetric(HealthMetric.RESPIRATION) }, C.calm)
+                    HorizontalDivider(color = C.border.copy(alpha = 0.6f))
+                    ListLink(Icons.Rounded.Favorite, "Oxygénation",
+                        "SpO₂ et évolution", { onMetric(HealthMetric.OXYGEN) }, C.heart)
                     HorizontalDivider(color = C.border.copy(alpha = 0.6f))
                     ListLink(Icons.Rounded.BarChart, "Séances",
                         "Historique et progression", onProgress, C.calm)
