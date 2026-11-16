@@ -14,11 +14,18 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.ChevronLeft
+import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -26,6 +33,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import fr.tempo.health.data.DailyHealthEntity
@@ -42,27 +50,39 @@ import kotlin.math.roundToInt
 fun DetailedHealthMetrics(days: List<DailyHealthEntity>) {
     var offset by remember { mutableIntStateOf(0) }
     var period by remember { mutableIntStateOf(7) }
+    var moreTrends by remember { mutableStateOf(false) }
     val dayDate = LocalDate.now().minusDays(offset.toLong())
     val day = days.firstOrNull { it.date == dayDate.toString() }
-    val dateLabel = dayDate.format(DateTimeFormatter.ofPattern("EEEE d MMMM", Locale.FRANCE))
+    val dateLabel = dayDate.format(DateTimeFormatter.ofPattern("EEE d MMMM", Locale.FRANCE))
     fun baseline(get: (DailyHealthEntity) -> Double?): Double? =
         TempoHealthSignals.reference(days.drop(7).mapNotNull(get))
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text("Mes mesures en détail", fontWeight = FontWeight.Bold, fontSize = 19.sp)
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedButton(onClick = { offset = (offset + 1).coerceAtMost(27) },
-                enabled = offset < 27, modifier = Modifier.weight(1f)) { Text("‹ Veille") }
-            Column(modifier = Modifier.weight(1.4f).padding(top = 8.dp)) {
-                Text(dateLabel.replaceFirstChar { it.uppercase() }, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            IconButton(onClick = { offset = (offset + 1).coerceAtMost(27) },
+                enabled = offset < 27) {
+                Icon(Icons.Rounded.ChevronLeft, contentDescription = "Jour précédent")
             }
-            OutlinedButton(onClick = { offset = (offset - 1).coerceAtLeast(0) },
-                enabled = offset > 0, modifier = Modifier.weight(1f)) { Text("Jour ›") }
+            Text(
+                dateLabel.replaceFirstChar { it.uppercase() },
+                modifier = Modifier.weight(1f),
+                textAlign = TextAlign.Center, fontWeight = FontWeight.SemiBold,
+                fontSize = 15.sp, maxLines = 1
+            )
+            IconButton(onClick = { offset = (offset - 1).coerceAtLeast(0) },
+                enabled = offset > 0) {
+                Icon(Icons.Rounded.ChevronRight, contentDescription = "Jour suivant")
+            }
         }
 
         DataDetailCard("Sommeil et qualité", C.violetGlow) {
             if (day?.sleepStartEpochMs == null || day.sleepEndEpochMs == null) {
-                Text("Pas de nuit mesurée pour ce jour.", color = C.textSecondary)
+                Text("Aucune nuit enregistrée", color = C.textSecondary)
             } else {
                 val bedMinutes = ((day.sleepEndEpochMs - day.sleepStartEpochMs) / 60000L)
                     .coerceAtLeast(0)
@@ -92,7 +112,7 @@ fun DetailedHealthMetrics(days: List<DailyHealthEntity>) {
                     color = C.textSecondary, fontSize = 13.sp)
                 MetricPair("Qualité — efficacité du sommeil",
                     efficiency?.let { "$it %" } ?: "Non mesurable",
-                    "Temps endormi / temps au lit, si les phases sont suffisamment renseignées.")
+                    "")
                 if (phases.isNotEmpty()) {
                     SleepPhasesBar(phases, day.sleepStartEpochMs, day.sleepEndEpochMs)
                     Text("Éveil • Léger • Profond • Paradoxal",
@@ -121,28 +141,28 @@ fun DetailedHealthMetrics(days: List<DailyHealthEntity>) {
                 "Minimum : " + numberLabel(day?.pulseMinBpm, " bpm") +
                     "   Maximum : " + numberLabel(day?.pulseMaxBpm, " bpm"))
             MetricPair("Pouls au repos", numberLabel(day?.restingHeartRate, " bpm"),
-                "Valeur agrégée sur la journée",
+                "",
                 TempoMetricKind.RESTING_PULSE, day?.restingHeartRate,
                 baseline { it.restingHeartRate })
             MetricPair("Pouls pendant le sommeil", numberLabel(day?.overnightHeartRate, " bpm"),
-                "Moyenne sur la session de sommeil")
+                "")
             MetricPair("Variabilité cardiaque (VFC)", numberLabel(day?.hrvRmssdMs, " ms"),
-                "RMSSD : mesure moyenne disponible, à interpréter selon tes habitudes",
+                "",
                 TempoMetricKind.HRV, day?.hrvRmssdMs,
                 baseline { it.hrvRmssdMs })
         }
 
         DataDetailCard("Respiration et oxygénation", C.greenGlow) {
             MetricPair("Fréquence respiratoire", decimalLabel(day?.respiratoryRate, " resp/min"),
-                "Moyenne nocturne si une nuit est mesurée, sinon moyenne du jour",
+                "",
                 TempoMetricKind.RESPIRATION, day?.respiratoryRate,
                 baseline { it.respiratoryRate })
             MetricPair("Saturation en oxygène", decimalLabel(day?.oxygenSaturationPct, " %"),
-                "Moyenne des relevés reçus ; pas une mesure continue",
+                "",
                 TempoMetricKind.OXYGEN_SATURATION, day?.oxygenSaturationPct,
                 baseline { it.oxygenSaturationPct })
             MetricPair("Écart de température cutanée", signedLabel(day?.skinTemperatureDeltaC),
-                "Écart par rapport à la référence du capteur, pas la température du corps")
+                "")
         }
 
         DataDetailCard("Activité", C.greenGlow) {
@@ -150,11 +170,14 @@ fun DetailedHealthMetrics(days: List<DailyHealthEntity>) {
                 if (offset == 0) "Journée en cours" else "Sur la journée",
                 TempoMetricKind.STEPS,
                 if (offset == 0) null else day?.steps?.toDouble(), baseline { it.steps?.toDouble() })
-            MetricPair("Distance", decimalLabel(day?.distanceMeters?.div(1000.0), " km"), "Sur la journée")
+            MetricPair("Distance", decimalLabel(day?.distanceMeters?.div(1000.0), " km"))
+            MetricPair("Calories", numberLabel(day?.caloriesKcal, " kcal"))
             MetricPair("Minutes de séances enregistrées", day?.exerciseMinutes?.let { "$it min" } ?: "Pas de mesure",
                 "Ne représente pas toutes les minutes d'activité douce",
                 TempoMetricKind.ACTIVE_MINUTES,
                 if (offset == 0) null else day?.exerciseMinutes?.toDouble(), baseline { it.exerciseMinutes?.toDouble() })
+            MetricPair("Poids", decimalLabel(day?.weightKg, " kg"))
+            MetricPair("VO₂ max", decimalLabel(day?.vo2Max, ""))
         }
 
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
