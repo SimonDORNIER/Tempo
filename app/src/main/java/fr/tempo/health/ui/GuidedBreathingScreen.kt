@@ -17,6 +17,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.VolumeOff
+import androidx.compose.material.icons.rounded.Fullscreen
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Remove
 import androidx.compose.material.icons.rounded.VolumeUp
@@ -95,6 +96,7 @@ fun GuidedBreathingScreen(
     var preparation by remember { mutableStateOf(5) }
     var elapsed by remember { mutableStateOf(0) }
     var confirmExit by remember { mutableStateOf(false) }
+    var immersive by remember { mutableStateOf(false) }
     var soundSettings by remember { mutableStateOf(BreathingSoundPreferences.load(context)) }
     var showSoundSettings by remember { mutableStateOf(false) }
     val soundPlayer = remember { BreathingSoundPlayer() }
@@ -167,7 +169,9 @@ fun GuidedBreathingScreen(
         if (running) confirmExit = true else onExit()
     }
 
-    BackHandler(enabled = running) { confirmExit = true }
+    BackHandler(enabled = running) {
+        if (immersive) immersive = false else confirmExit = true
+    }
 
     LaunchedEffect(running, paused) {
         while (running && !paused) {
@@ -179,6 +183,7 @@ fun GuidedBreathingScreen(
                 if (elapsed >= durationSeconds) {
                     running = false
                     finished = true
+                    immersive = false
                     onRecord(guide.exerciseId, elapsed, true)
                 }
             }
@@ -188,6 +193,10 @@ fun GuidedBreathingScreen(
     val phaseState = pattern.locate(elapsed)
     val phaseRemaining = phaseState?.remainingSeconds ?: 0
     val cycle = pattern.cycleSeconds
+    val bubbleExpansion = if (running && !finished) {
+        rememberBreathingBubbleExpansion(pattern, phaseState, preparation > 0, paused)
+    } else null
+    val playerScroll = rememberScrollState()
 
     // Les pauses et les phases à 0 sont gérées par le même moteur.
     // Le son ne redémarre pas à chaque seconde d'une phase longue.
@@ -207,11 +216,14 @@ fun GuidedBreathingScreen(
         }
     }
 
+    if (immersive && bubbleExpansion != null) {
+        ImmersiveBreathing(expansion = bubbleExpansion, onExit = { immersive = false })
+    } else {
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(ink)
-            .verticalScroll(rememberScrollState())
+            .verticalScroll(playerScroll)
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
@@ -366,13 +378,13 @@ fun GuidedBreathingScreen(
                     style = MaterialTheme.typography.headlineSmall,
                     color = cream
                 )
-                if (running && !finished) {
-                    BreathingBubble(
-                        pattern = pattern,
-                        phaseState = phaseState,
-                        preparing = preparation > 0,
-                        paused = paused
-                    )
+                if (bubbleExpansion != null) {
+                    BreathingBubble(expansion = bubbleExpansion)
+                    TextButton(onClick = { immersive = true }) {
+                        Icon(Icons.Rounded.Fullscreen, contentDescription = null)
+                        Spacer(Modifier.width(6.dp))
+                        Text("Plein écran")
+                    }
                 }
                 Text(
                     when {
@@ -455,6 +467,7 @@ fun GuidedBreathingScreen(
             color = C.textSecondary,
             style = MaterialTheme.typography.bodySmall
         )
+    }
     }
 
     if (showSoundSettings) {
