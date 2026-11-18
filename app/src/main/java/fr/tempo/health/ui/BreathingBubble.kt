@@ -6,6 +6,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.State
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -44,12 +45,12 @@ internal fun breathingBubbleFraction(
  * Le moteur de respiration reste la source de vérité pour les sons et les phases.
  */
 @Composable
-internal fun BreathingBubble(
+internal fun rememberBreathingBubbleExpansion(
     pattern: BreathingPattern,
     phaseState: BreathPhaseState?,
     preparing: Boolean,
     paused: Boolean
-) {
+): State<Float> {
     val initial = phaseState?.let { breathingBubbleFraction(pattern, it) } ?: 0f
     val expansion = remember { Animatable(initial) }
     var lastStep by remember { mutableIntStateOf(Int.MIN_VALUE) }
@@ -78,8 +79,17 @@ internal fun BreathingBubble(
         }
     }
 
+    return expansion.asState()
+}
+
+/** Le même état d'animation est affiché dans les deux modes. */
+@Composable
+internal fun BreathingBubble(
+    expansion: State<Float>,
+    modifier: Modifier = Modifier.size(124.dp)
+) {
     // L'espace réservé reste fixe : aucun déplacement du texte ni du compteur.
-    Canvas(Modifier.size(124.dp)) {
+    Canvas(modifier) {
         val radius = size.minDimension * (0.23f + 0.21f * expansion.value.coerceIn(0f, 1f))
         val glowRadius = radius * 1.12f
         drawCircle(
