@@ -366,6 +366,14 @@ fun GuidedBreathingScreen(
                     style = MaterialTheme.typography.headlineSmall,
                     color = cream
                 )
+                if (running && !finished) {
+                    BreathingBubble(
+                        pattern = pattern,
+                        phaseState = phaseState,
+                        preparing = preparation > 0,
+                        paused = paused
+                    )
+                }
                 Text(
                     when {
                         finished -> "Terminé"
