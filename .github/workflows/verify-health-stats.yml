@@ -13,6 +13,7 @@ on:
       - 'health/v2.6.3-independent-pause-audio'
       - 'health/v2.6.4-metric-navigation'
       - 'health/v2.6.5-hrv-import'
+      - 'health/v2.6.6-breathing-bubble'
 
 permissions:
   contents: read
@@ -39,7 +40,7 @@ jobs:
       - name: Compiler Android
         id: compile
         continue-on-error: true
-        run: gradle --no-daemon :app:testDebugUnitTest :app:assembleDebug -PVERSION_NAME=2.6.5 -PVERSION_CODE=20605
+        run: gradle --no-daemon :app:testDebugUnitTest :app:assembleDebug -PVERSION_NAME=2.6.6 -PVERSION_CODE=20606
       - name: Envoyer le résultat au ticket de validation
         if: always()
         uses: actions/github-script@v7
