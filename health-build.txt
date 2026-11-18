@@ -1,3 +1,3 @@
-Tempo Coach 2.6.6 — Bulle de respiration animée.
-Bulle douce et compacte de 124 dp, affichée pendant la séance, sous l'indication de phase. Elle gonfle sur toute l'inspiration, se dégonfle sur toute l'expiration, et reste fixe pendant les pauses respiratoires, la préparation et la pause manuelle. Les phases à 0 seconde restent ignorées. L'animation suit le minuteur existant sans modifier le moteur, les sons, les durées, les données ni les autres écrans.
-Tests : BreathingBubbleTest (six cas) et tests existants. À vérifier sur téléphone : fluidité, reprise après pause, cycle personnalisé et visibilité des commandes.
+Tempo Coach 2.6.7 — respiration immersive.
+Bouton Plein écran pendant la respiration : grande bulle seule au centre sur fond noir, barres système masquées, écran maintenu éveillé. Un appui sur l'écran ou Retour Android revient au lecteur normal sans interrompre la séance, l'animation, les sons ni le minuteur. Les barres système et la veille sont restaurées à la sortie. Fin de séance : retour au lecteur avec le bilan habituel.
+Aucun changement des exercices, durées, données santé ou réglages sonores. Vérification sur téléphone : immersion, retour, continuité de l'animation, pauses et fin de séance.
